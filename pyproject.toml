@@ -1,23 +1,18 @@
-[project]
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
 name = "life"
 version = "0.1.0"
 description = "ADHD executive function rescue system"
-authors = [
-    {name = "tyson",email = "tyson.chan@proton.me"}
-]
+authors = ["tyson <tyson.chan@proton.me>"]
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "click>=8.0.0",
-]
-
-[project.scripts]
-life = "life.cli:main"
-
-[tool.poetry]
 packages = [{include = "life", from = "src"}]
 
+[tool.poetry.dependencies]
+python = "^3.12"
+click = ">=8.0.0"
 
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.poetry.scripts]
+life = "life.cli:main"

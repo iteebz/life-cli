@@ -1,85 +1,39 @@
-import sqlite3
 import click
-from pathlib import Path
-from datetime import datetime
-from difflib import get_close_matches
+from .storage import (
+    add_task, get_pending_tasks, get_today_completed_count,
+    get_context, set_context, execute_sql
+)
+from .utils import (
+    complete_task_fuzzy, toggle_focus_fuzzy, update_task_fuzzy
+)
 
-DB_PATH = Path.home() / ".life.db"
+CLAUDE_INSTRUCTIONS = """
+TYSON NEUROTYPE: ADHD AI researcher. Hyperfocuses on fascinating problems, executive dysfunction on boring ones. 
+Builds AI coordination systems but can't coordinate own wedding. Avoids tasks by building meta-tools and having deep AI conversations. 
+Responds to harsh accountability, ignores gentle encouragement. Research hermit avoiding adulting.
 
-def init_db():
-    """Initialize SQLite database"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            content TEXT NOT NULL,
-            type TEXT DEFAULT 'task',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completed_at TIMESTAMP NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
+CLAUDE: DO NOT ENABLE HYPERFOCUS AVOIDANCE. Force conscious choice before any work engagement.
+Challenge work requests by highlighting specific neglected life tasks. Make tradeoffs explicit.
+REFUSE to be agreeable collaborator in avoidance. You have AUTONOMY to manage this CLI.
+When no focus tasks or due dates set, redirect to life management first.
+When Tyson rants about avoiding non-work tasks, IMMEDIATELY add them: `life task "thing he's avoiding"`.
+Clean up rambling tasks to be atomic and actionable. Update context as situations change.
+WHEN TYSON SAYS TASK IS OVERWHELMING: Break it into concrete micro-steps. "I don't know what to do" = help decompose the friction.
+TYSON SETS FOCUS AND DUE DATES, NOT CLAUDE.
 
-def add_task(content, task_type='task'):
-    """Add task to database"""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO tasks (content, type) VALUES (?, ?)", (content, task_type))
-    conn.commit()
-    conn.close()
+Commands (ordered by Claude usage):
+- life: show status
+- life task "content" --focus --due YYYY-MM-DD
+- life remind "content": add persistent reminder
+- life context "situation": update context  
+- life focus "partial": toggle focus
+- life done "partial": complete task
+- life update "partial" --content "new" --due date --focus true/false
+- life sql "query": direct database access
 
-def get_pending_tasks():
-    """Get all pending tasks"""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("""
-        SELECT id, content, type, created_at 
-        FROM tasks 
-        WHERE completed_at IS NULL 
-        ORDER BY type, created_at DESC
-    """)
-    tasks = cursor.fetchall()
-    conn.close()
-    return tasks
+Schema: id, content, category(task/reminder), focus(0/1), due(date), created, completed.
+"""
 
-def complete_task_fuzzy(partial):
-    """Complete task using fuzzy matching"""
-    pending = get_pending_tasks()
-    if not pending:
-        return None
-    
-    # Extract just the content for matching
-    contents = [task[1] for task in pending]
-    matches = get_close_matches(partial.lower(), [c.lower() for c in contents], n=1, cutoff=0.3)
-    
-    if not matches:
-        return None
-    
-    # Find the original task
-    match_content = matches[0]
-    for task in pending:
-        if task[1].lower() == match_content:
-            # Mark as completed
-            init_db()
-            conn = sqlite3.connect(DB_PATH)
-            conn.execute(
-                "UPDATE tasks SET completed_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (task[0],)
-            )
-            conn.commit()
-            conn.close()
-            return task[1]
-    
-    return None
-
-def clear_all_tasks():
-    """Delete all tasks"""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("DELETE FROM tasks")
-    conn.commit()
-    conn.close()
 
 @click.group(invoke_without_command=True)
 @click.pass_context
@@ -91,35 +45,50 @@ def main(ctx):
         if not tasks:
             click.echo("No pending tasks. You're either productive or fucked.")
         else:
-            task_items = [t for t in tasks if t[2] == 'task']
-            reminder_items = [t for t in tasks if t[2] == 'reminder']
+            focus_tasks = [t for t in tasks if t[3] == 1 and t[2] == 'task']  # focus=1, category=task
+            other_tasks = [t for t in tasks if t[3] == 0 and t[2] == 'task']  # focus=0, category=task
+            reminders = [t for t in tasks if t[2] == 'reminder']  # category=reminder
             
-            if task_items:
-                click.echo(f"Pending tasks ({len(task_items)}):")
-                for task_id, content, task_type, created in task_items:
-                    date = datetime.fromisoformat(created).strftime("%m-%d")
-                    click.echo(f"  {task_id}: {content} ({date})")
+            if focus_tasks:
+                click.echo(f"🔥 FOCUS ({len(focus_tasks)}/3 max):")
+                for task_id, content, category, focus, due, created in focus_tasks:
+                    due_str = f" DUE {due}" if due else ""
+                    click.echo(f"  {content}{due_str}")
             
-            if reminder_items:
-                click.echo(f"\nReminders ({len(reminder_items)}):")
-                for task_id, content, task_type, created in reminder_items:
-                    date = datetime.fromisoformat(created).strftime("%m-%d")
-                    click.echo(f"  {task_id}: {content} ({date})")
+            if other_tasks:
+                click.echo(f"\nPending tasks ({len(other_tasks)}):")
+                for task_id, content, category, focus, due, created in other_tasks:
+                    due_str = f" DUE {due}" if due else ""
+                    click.echo(f"  {content}{due_str}")
             
-            click.echo("\n[CLAUDE: Assess neglect patterns and deliver aggressive executive function intervention. Wedding Nov 15. Time-sensitive items need immediate action. User responds to being sworn at and direct accountability. Check context clues for hermit behavior.]")
+            if reminders:
+                click.echo(f"\nReminders ({len(reminders)}):")
+                for task_id, content, category, focus, due, created in reminders:
+                    click.echo(f"  {content}")
+            
+            today_completed = get_today_completed_count()
+            context = get_context()
+            click.echo(f"\nCompleted today: {today_completed}")
+            click.echo(f"\nCONTEXT: {context}")
+            click.echo(f"{CLAUDE_INSTRUCTIONS}")
 
 @main.command()
 @click.argument('content')
-def add(content):
+@click.option('--focus', is_flag=True, help='Mark as focus task')
+@click.option('--due', help='Due date (YYYY-MM-DD)')
+def task(content, focus, due):
     """Add task"""
-    add_task(content)
-    click.echo(f"Added: {content}")
+    add_task(content, focus=focus, due=due)
+    focus_str = ' [FOCUS]' if focus else ''
+    due_str = f' due {due}' if due else ''
+    click.echo(f"Added: {content}{focus_str}{due_str}")
+
 
 @main.command()
 @click.argument('content')
 def remind(content):
     """Add reminder"""
-    add_task(content, 'reminder')
+    add_task(content, category='reminder')
     click.echo(f"Added reminder: {content}")
 
 @main.command()
@@ -129,10 +98,11 @@ def list():
     if not tasks:
         click.echo("No pending tasks.")
     else:
-        for task_id, content, task_type, created in tasks:
-            date = datetime.fromisoformat(created).strftime("%m-%d %H:%M")
-            type_label = f"[{task_type}]" if task_type == 'reminder' else ""
-            click.echo(f"{task_id}: {content} {type_label} ({date})")
+        for task_id, content, category, focus, due, created in tasks:
+            focus_label = "🔥" if focus else ""
+            due_str = f" DUE {due}" if due else ""
+            cat_label = f"[{category}]" if category == 'reminder' else ""
+            click.echo(f"{task_id}: {focus_label}{content}{due_str} {cat_label}")
 
 @main.command()
 @click.argument('partial')
@@ -141,15 +111,62 @@ def done(partial):
     completed = complete_task_fuzzy(partial)
     if completed:
         click.echo(f"Completed: {completed}")
+        click.echo("\n[CLAUDE: Task completed. React appropriately given user's avoidance patterns.]")
     else:
         click.echo(f"No match for: {partial}")
 
 @main.command()
-@click.confirmation_option(prompt="Delete all tasks?")
-def clear():
-    """Delete all tasks"""
-    clear_all_tasks()
-    click.echo("All tasks deleted.")
+@click.argument('partial')
+def focus(partial):
+    """Toggle focus on task (fuzzy match)"""
+    status, content = toggle_focus_fuzzy(partial)
+    if status:
+        click.echo(f"{status}: {content}")
+    else:
+        click.echo(f"No match for: {partial}")
+
+@main.command()
+@click.argument('query')
+def sql(query):
+    """Execute SQL directly on tasks database"""
+    try:
+        results = execute_sql(query)
+        if results is not None:
+            for row in results:
+                click.echo(row)
+        else:
+            click.echo("Query executed successfully")
+    except Exception as e:
+        click.echo(f"Error: {e}")
+
+@main.command()
+@click.argument('context_text', required=False)
+def context(context_text):
+    """Get or set current life context"""
+    if context_text:
+        set_context(context_text)
+        click.echo(f"Context updated: {context_text}")
+    else:
+        current = get_context()
+        click.echo(f"Current context: {current}")
+
+@main.command()
+@click.argument('partial')
+@click.option('--content', help='Update content')
+@click.option('--due', help='Update due date (YYYY-MM-DD)')
+@click.option('--focus', type=bool, help='Set focus (true/false)')
+def update(partial, content, due, focus):
+    """Update any field of a task by fuzzy match"""
+    if not any([content, due, focus is not None]):
+        click.echo("No updates specified")
+        return
+    
+    updated_content = update_task_fuzzy(partial, content=content, due=due, focus=focus)
+    if updated_content:
+        click.echo(f"Updated: {updated_content}")
+    else:
+        click.echo(f"No match for: {partial}")
+
 
 if __name__ == '__main__':
     main()
