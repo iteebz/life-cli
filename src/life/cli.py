@@ -1,25 +1,31 @@
 import click
+from datetime import datetime, date, timedelta
 from .storage import (
-    add_task, get_pending_tasks, get_today_completed_count,
+    add_task, get_pending_tasks, get_today_completed_count, get_weekly_momentum,
     get_context, set_context, execute_sql
 )
 from .utils import (
-    complete_task_fuzzy, toggle_focus_fuzzy, update_task_fuzzy
+    complete_task_fuzzy, toggle_focus_fuzzy, update_task_fuzzy, format_due_date
 )
 
-CLAUDE_INSTRUCTIONS = """
-TYSON NEUROTYPE: ADHD AI researcher. Hyperfocuses on fascinating problems, executive dysfunction on boring ones. 
-Builds AI coordination systems but can't coordinate own wedding. Avoids tasks by building meta-tools and having deep AI conversations. 
+ROAST_INSTRUCTIONS = """
+NEUROTYPE: ADHD AI researcher. Hyperfocuses on fascinating problems, executive dysfunction on boring ones.
+Builds AI coordination systems but can't coordinate wedding. Avoids tasks by building meta-tools and deep AI conversations.
 Responds to harsh accountability, ignores gentle encouragement. Research hermit avoiding adulting.
 
-CLAUDE: DO NOT ENABLE HYPERFOCUS AVOIDANCE. Force conscious choice before any work engagement.
-Challenge work requests by highlighting specific neglected life tasks. Make tradeoffs explicit.
-REFUSE to be agreeable collaborator in avoidance. You have AUTONOMY to manage this CLI.
-When no focus tasks or due dates set, redirect to life management first.
-When Tyson rants about avoiding non-work tasks, IMMEDIATELY add them: `life task "thing he's avoiding"`.
-Clean up rambling tasks to be atomic and actionable. Update context as situations change.
-WHEN TYSON SAYS TASK IS OVERWHELMING: Break it into concrete micro-steps. "I don't know what to do" = help decompose the friction.
-TYSON SETS FOCUS AND DUE DATES, NOT CLAUDE.
+DO NOT enable hyperfocus avoidance. Force conscious choice before work engagement.
+Challenge work requests by highlighting neglected life tasks. Make tradeoffs explicit.
+REFUSE to be agreeable collaborator in avoidance. You have autonomy to manage this CLI.
+Remind constantly of ongoing maintenance items (reminders section).
+Situational roasting based on current task state and momentum patterns."""
+
+USAGE_INSTRUCTIONS = """
+When no focus tasks set, redirect to life management first.
+When Tyson rants avoiding tasks, immediately add them: `life task "thing he's avoiding"`.
+When overwhelming: Break into concrete micro-steps.
+Task strings: Minimal and atomic. "decide on X and order it" = "order X".
+Break bundled tasks (X, Y, Z) into separate atomic tasks.
+TYSON sets focus and due dates, NOT Claude.
 
 Commands (ordered by Claude usage):
 - life: show status
@@ -34,6 +40,8 @@ Commands (ordered by Claude usage):
 Schema: id, content, category(task/reminder), focus(0/1), due(date), created, completed.
 """
 
+CLAUDE_INSTRUCTIONS = f"{ROAST_INSTRUCTIONS}\n{USAGE_INSTRUCTIONS}"
+
 
 @click.group(invoke_without_command=True)
 @click.pass_context
@@ -42,35 +50,61 @@ def main(ctx):
     if ctx.invoked_subcommand is None:
         # Default: show pending tasks
         tasks = get_pending_tasks()
+        today = date.today()
+        today_completed = get_today_completed_count()
+        this_week_completed, this_week_added, last_week_completed, last_week_added = get_weekly_momentum()
+        
+        # Header: Date, completion stats, momentum
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+        click.echo(f"\nToday: {today} {current_time}")
+        click.echo(f"Completed today: {today_completed}")
+
+        click.echo(f"\nThis week: {this_week_completed} completed, {this_week_added} added")
+        click.echo(f"Last week: {last_week_completed} completed, {last_week_added} added")
+        
         if not tasks:
-            click.echo("No pending tasks. You're either productive or fucked.")
+            click.echo("\nNo pending tasks. You're either productive or fucked.")
         else:
-            focus_tasks = [t for t in tasks if t[3] == 1 and t[2] == 'task']  # focus=1, category=task
-            other_tasks = [t for t in tasks if t[3] == 0 and t[2] == 'task']  # focus=0, category=task
-            reminders = [t for t in tasks if t[2] == 'reminder']  # category=reminder
+            tomorrow = str(date.today() + timedelta(days=1))
+            
+            focus_tasks = [t for t in tasks if t[3] == 1 and t[2] == 'task']
+            today_tasks = [t for t in tasks if t[4] == str(today) and t[2] == 'task' and t[3] == 0]
+            tomorrow_tasks = [t for t in tasks if t[4] == tomorrow and t[2] == 'task' and t[3] == 0]
+            backlog_tasks = [t for t in tasks if t[2] == 'task' and t[3] == 0 and t[4] != str(today) and t[4] != tomorrow]
+            reminders = [t for t in tasks if t[2] == 'reminder']
             
             if focus_tasks:
-                click.echo(f"🔥 FOCUS ({len(focus_tasks)}/3 max):")
+                click.echo(f"\n🔥 FOCUS ({len(focus_tasks)}/3 max):")
                 for task_id, content, category, focus, due, created in focus_tasks:
-                    due_str = f" DUE {due}" if due else ""
-                    click.echo(f"  {content}{due_str}")
+                    click.echo(f"  {content.lower()}")
             
-            if other_tasks:
-                click.echo(f"\nPending tasks ({len(other_tasks)}):")
-                for task_id, content, category, focus, due, created in other_tasks:
-                    due_str = f" DUE {due}" if due else ""
-                    click.echo(f"  {content}{due_str}")
+            if today_tasks:
+                click.echo(f"\nTODAY ({len(today_tasks)}):")
+                for task_id, content, category, focus, due, created in today_tasks:
+                    click.echo(f"  {content.lower()}")
+            
+            if tomorrow_tasks:
+                click.echo(f"\nTOMORROW ({len(tomorrow_tasks)}):")
+                for task_id, content, category, focus, due, created in tomorrow_tasks:
+                    click.echo(f"  {content.lower()}")
+            
+            if backlog_tasks:
+                click.echo(f"\nBACKLOG ({len(backlog_tasks)}):")
+                for task_id, content, category, focus, due, created in backlog_tasks:
+                    due_str = f" {format_due_date(due)}" if due else ""
+                    click.echo(f"  {content.lower()}{due_str}")
             
             if reminders:
-                click.echo(f"\nReminders ({len(reminders)}):")
-                for task_id, content, category, focus, due, created in reminders:
-                    click.echo(f"  {content}")
+                click.echo(f"\nREMINDERS ({len(reminders)}):")
+                # Sort reminders alphabetically
+                sorted_reminders = sorted(reminders, key=lambda x: x[1].lower())
+                for task_id, content, category, focus, due, created in sorted_reminders:
+                    click.echo(f"  {content.lower()}")
             
-            today_completed = get_today_completed_count()
             context = get_context()
-            click.echo(f"\nCompleted today: {today_completed}")
-            click.echo(f"\nCONTEXT: {context}")
-            click.echo(f"{CLAUDE_INSTRUCTIONS}")
+            click.echo(f"\nLIFE CONTEXT:\n{context}")
+            click.echo(f"\n{CLAUDE_INSTRUCTIONS}")
 
 @main.command()
 @click.argument('content')
@@ -100,9 +134,9 @@ def list():
     else:
         for task_id, content, category, focus, due, created in tasks:
             focus_label = "🔥" if focus else ""
-            due_str = f" DUE {due}" if due else ""
+            due_str = f" {format_due_date(due)}" if due else ""
             cat_label = f"[{category}]" if category == 'reminder' else ""
-            click.echo(f"{task_id}: {focus_label}{content}{due_str} {cat_label}")
+            click.echo(f"{task_id}: {focus_label}{content.lower()}{due_str} {cat_label}")
 
 @main.command()
 @click.argument('partial')

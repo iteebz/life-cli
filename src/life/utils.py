@@ -1,4 +1,5 @@
 from difflib import get_close_matches
+from datetime import date
 from .storage import get_pending_tasks, complete_task, toggle_focus, update_task
 
 
@@ -50,3 +51,18 @@ def update_task_fuzzy(partial, content=None, due=None, focus=None):
         updated_content = content if content is not None else task[1]
         return updated_content
     return None
+
+
+def format_due_date(due_date_str):
+    """Format due date with relative day difference for backlog only"""
+    if not due_date_str:
+        return ""
+    
+    due = date.fromisoformat(due_date_str)
+    today = date.today()
+    diff = (due - today).days
+    
+    if diff > 0:
+        return f"(due: {diff} days)"
+    else:
+        return f"(overdue: {abs(diff)} days)"

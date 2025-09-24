@@ -65,6 +65,51 @@ def get_today_completed_count():
     return count
 
 
+def get_weekly_momentum():
+    """Get weekly completion stats for this week and last week"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    
+    # This week completed
+    cursor = conn.execute("""
+        SELECT COUNT(*) 
+        FROM tasks 
+        WHERE completed IS NOT NULL 
+        AND completed >= DATE('now', 'localtime', 'weekday 0', '-6 days')
+    """)
+    this_week_completed = cursor.fetchone()[0]
+    
+    # This week added
+    cursor = conn.execute("""
+        SELECT COUNT(*) 
+        FROM tasks 
+        WHERE created >= DATE('now', 'localtime', 'weekday 0', '-6 days')
+    """)
+    this_week_added = cursor.fetchone()[0]
+    
+    # Last week completed
+    cursor = conn.execute("""
+        SELECT COUNT(*) 
+        FROM tasks 
+        WHERE completed IS NOT NULL 
+        AND completed >= DATE('now', 'localtime', 'weekday 0', '-13 days')
+        AND completed < DATE('now', 'localtime', 'weekday 0', '-6 days')
+    """)
+    last_week_completed = cursor.fetchone()[0]
+    
+    # Last week added
+    cursor = conn.execute("""
+        SELECT COUNT(*) 
+        FROM tasks 
+        WHERE created >= DATE('now', 'localtime', 'weekday 0', '-13 days')
+        AND created < DATE('now', 'localtime', 'weekday 0', '-6 days')
+    """)
+    last_week_added = cursor.fetchone()[0]
+    
+    conn.close()
+    return this_week_completed, this_week_added, last_week_completed, last_week_added
+
+
 def complete_task(task_id):
     """Mark task as completed"""
     init_db()
