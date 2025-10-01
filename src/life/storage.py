@@ -1,6 +1,6 @@
 import sqlite3
+from datetime import date, timedelta
 from pathlib import Path
-from datetime import datetime
 
 LIFE_DIR = Path.home() / ".life"
 DB_PATH = LIFE_DIR / "store.db"
@@ -26,12 +26,14 @@ def init_db():
     conn.close()
 
 
-def add_task(content, category='task', focus=False, due=None):
+def add_task(content, category="task", focus=False, due=None):
     """Add task to database"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO tasks (content, category, focus, due) VALUES (?, ?, ?, ?)", 
-                (content, category, focus, due))
+    conn.execute(
+        "INSERT INTO tasks (content, category, focus, due) VALUES (?, ?, ?, ?)",
+        (content, category, focus, due),
+    )
     conn.commit()
     conn.close()
 
@@ -41,9 +43,9 @@ def get_pending_tasks():
     init_db()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("""
-        SELECT id, content, category, focus, due, created 
-        FROM tasks 
-        WHERE completed IS NULL 
+        SELECT id, content, category, focus, due, created
+        FROM tasks
+        WHERE completed IS NULL
         ORDER BY focus DESC, due ASC NULLS LAST, created ASC
     """)
     tasks = cursor.fetchall()
@@ -51,61 +53,87 @@ def get_pending_tasks():
     return tasks
 
 
-def get_today_completed_count():
+def today_completed():
     """Get count of tasks completed today"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("""
-        SELECT COUNT(*) 
-        FROM tasks 
-        WHERE DATE(completed) = DATE('now', 'localtime')
-    """)
+    today_str = date.today().isoformat()
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM tasks
+        WHERE DATE(completed) = ?
+    """,
+        (today_str,),
+    )
     count = cursor.fetchone()[0]
     conn.close()
     return count
 
 
-def get_weekly_momentum():
+def weekly_momentum():
     """Get weekly completion stats for this week and last week"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    
+
+    today = date.today()
+    days_since_monday = today.weekday()
+    week_start = today - timedelta(days=days_since_monday)
+    last_week_start = week_start - timedelta(days=7)
+    last_week_end = week_start
+
+    week_start_str = week_start.isoformat()
+    last_week_start_str = last_week_start.isoformat()
+    last_week_end_str = last_week_end.isoformat()
+
     # This week completed
-    cursor = conn.execute("""
-        SELECT COUNT(*) 
-        FROM tasks 
-        WHERE completed IS NOT NULL 
-        AND completed >= DATE('now', 'localtime', 'weekday 0', '-6 days')
-    """)
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM tasks
+        WHERE completed IS NOT NULL
+        AND DATE(completed) >= ?
+    """,
+        (week_start_str,),
+    )
     this_week_completed = cursor.fetchone()[0]
-    
+
     # This week added
-    cursor = conn.execute("""
-        SELECT COUNT(*) 
-        FROM tasks 
-        WHERE created >= DATE('now', 'localtime', 'weekday 0', '-6 days')
-    """)
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM tasks
+        WHERE DATE(created) >= ?
+    """,
+        (week_start_str,),
+    )
     this_week_added = cursor.fetchone()[0]
-    
+
     # Last week completed
-    cursor = conn.execute("""
-        SELECT COUNT(*) 
-        FROM tasks 
-        WHERE completed IS NOT NULL 
-        AND completed >= DATE('now', 'localtime', 'weekday 0', '-13 days')
-        AND completed < DATE('now', 'localtime', 'weekday 0', '-6 days')
-    """)
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM tasks
+        WHERE completed IS NOT NULL
+        AND DATE(completed) >= ?
+        AND DATE(completed) < ?
+    """,
+        (last_week_start_str, last_week_end_str),
+    )
     last_week_completed = cursor.fetchone()[0]
-    
+
     # Last week added
-    cursor = conn.execute("""
-        SELECT COUNT(*) 
-        FROM tasks 
-        WHERE created >= DATE('now', 'localtime', 'weekday 0', '-13 days')
-        AND created < DATE('now', 'localtime', 'weekday 0', '-6 days')
-    """)
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM tasks
+        WHERE DATE(created) >= ?
+        AND DATE(created) < ?
+    """,
+        (last_week_start_str, last_week_end_str),
+    )
     last_week_added = cursor.fetchone()[0]
-    
+
     conn.close()
     return this_week_completed, this_week_added, last_week_completed, last_week_added
 
@@ -114,10 +142,7 @@ def complete_task(task_id):
     """Mark task as completed"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "UPDATE tasks SET completed = CURRENT_TIMESTAMP WHERE id = ?",
-        (task_id,)
-    )
+    conn.execute("UPDATE tasks SET completed = CURRENT_TIMESTAMP WHERE id = ?", (task_id,))
     conn.commit()
     conn.close()
 
@@ -126,10 +151,10 @@ def update_task(task_id, content=None, due=None, focus=None):
     """Update task fields"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    
+
     updates = []
     params = []
-    
+
     if content is not None:
         updates.append("content = ?")
         params.append(content)
@@ -139,13 +164,13 @@ def update_task(task_id, content=None, due=None, focus=None):
     if focus is not None:
         updates.append("focus = ?")
         params.append(1 if focus else 0)
-    
+
     if updates:
         query = f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?"
         params.append(task_id)
         conn.execute(query, params)
         conn.commit()
-    
+
     conn.close()
 
 
@@ -165,14 +190,12 @@ def execute_sql(query):
     init_db()
     conn = sqlite3.connect(DB_PATH)
     try:
-        if query.strip().upper().startswith('SELECT'):
+        if query.strip().upper().startswith("SELECT"):
             cursor = conn.execute(query)
-            results = cursor.fetchall()
-            return results
-        else:
-            conn.execute(query)
-            conn.commit()
-            return None
+            return cursor.fetchall()
+        conn.execute(query)
+        conn.commit()
+        return None
     finally:
         conn.close()
 

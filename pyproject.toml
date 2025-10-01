@@ -16,3 +16,39 @@ click = ">=8.0.0"
 
 [tool.poetry.scripts]
 life = "life.cli:main"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.13.0"
+pytest = "^8.4.1"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "N",
+    "UP",
+    "B",
+    "C4",
+    "SIM",
+    "RET",
+]
+ignore = [
+    "SIM108",
+    "SIM117",
+    "E501",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+pythonpath = ["src"]
