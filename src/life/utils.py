@@ -1,18 +1,25 @@
 from datetime import date
 from difflib import get_close_matches
 
-from .storage import complete_task, delete_task, get_pending_tasks, toggle_focus, update_task
+from .storage import (
+    check_reminder,
+    complete_task,
+    delete_task,
+    get_pending_tasks,
+    toggle_focus,
+    update_task,
+)
 
 
-def find_task(partial, tasks_only=False):
+def find_task(partial, category=None):
     """Find task by fuzzy matching partial string"""
     pending = get_pending_tasks()
     if not pending:
         return None
 
-    # Filter to tasks only if requested
-    if tasks_only:
-        pending = [task for task in pending if task[2] == "task"]
+    # Filter by category if specified
+    if category:
+        pending = [task for task in pending if task[2] == category]
 
     partial_lower = partial.lower()
 
@@ -34,11 +41,14 @@ def find_task(partial, tasks_only=False):
     return None
 
 
-def complete_fuzzy(partial):
-    """Complete task using fuzzy matching"""
-    task = find_task(partial, tasks_only=True)
+def complete_fuzzy(partial, category=None):
+    """Complete task or check reminder using fuzzy matching"""
+    task = find_task(partial, category=category)
     if task:
-        complete_task(task[0])
+        if category == "reminder":
+            check_reminder(task[0])
+        else:
+            complete_task(task[0])
         return task[1]
     return None
 

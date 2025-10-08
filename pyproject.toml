@@ -12,10 +12,10 @@ packages = [{include = "life", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-click = ">=8.0.0"
+typer = "^0.17.4"
 
 [tool.poetry.scripts]
-life = "life.cli:main"
+life = "life.cli:app"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.13.0"

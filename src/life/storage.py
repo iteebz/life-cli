@@ -22,6 +22,14 @@ def init_db():
             completed TIMESTAMP NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reminder_id INTEGER NOT NULL,
+            checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (reminder_id) REFERENCES tasks(id)
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -54,10 +62,11 @@ def get_pending_tasks():
 
 
 def today_completed():
-    """Get count of tasks completed today"""
+    """Get count of tasks completed and reminders checked today"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
     today_str = date.today().isoformat()
+
     cursor = conn.execute(
         """
         SELECT COUNT(*)
@@ -66,9 +75,20 @@ def today_completed():
     """,
         (today_str,),
     )
-    count = cursor.fetchone()[0]
+    task_count = cursor.fetchone()[0]
+
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM checks
+        WHERE DATE(checked) = ?
+    """,
+        (today_str,),
+    )
+    check_count = cursor.fetchone()[0]
+
     conn.close()
-    return count
+    return task_count + check_count
 
 
 def weekly_momentum():
@@ -86,7 +106,7 @@ def weekly_momentum():
     last_week_start_str = last_week_start.isoformat()
     last_week_end_str = last_week_end.isoformat()
 
-    # This week completed
+    # This week completed tasks
     cursor = conn.execute(
         """
         SELECT COUNT(*)
@@ -96,7 +116,19 @@ def weekly_momentum():
     """,
         (week_start_str,),
     )
-    this_week_completed = cursor.fetchone()[0]
+    this_week_tasks = cursor.fetchone()[0]
+
+    # This week checked reminders
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM checks
+        WHERE DATE(checked) >= ?
+    """,
+        (week_start_str,),
+    )
+    this_week_checks = cursor.fetchone()[0]
+    this_week_completed = this_week_tasks + this_week_checks
 
     # This week added
     cursor = conn.execute(
@@ -109,7 +141,7 @@ def weekly_momentum():
     )
     this_week_added = cursor.fetchone()[0]
 
-    # Last week completed
+    # Last week completed tasks
     cursor = conn.execute(
         """
         SELECT COUNT(*)
@@ -120,7 +152,20 @@ def weekly_momentum():
     """,
         (last_week_start_str, last_week_end_str),
     )
-    last_week_completed = cursor.fetchone()[0]
+    last_week_tasks = cursor.fetchone()[0]
+
+    # Last week checked reminders
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM checks
+        WHERE DATE(checked) >= ?
+        AND DATE(checked) < ?
+    """,
+        (last_week_start_str, last_week_end_str),
+    )
+    last_week_checks = cursor.fetchone()[0]
+    last_week_completed = last_week_tasks + last_week_checks
 
     # Last week added
     cursor = conn.execute(
@@ -227,5 +272,14 @@ def delete_task(task_id):
     init_db()
     conn = sqlite3.connect(DB_PATH)
     conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    conn.commit()
+    conn.close()
+
+
+def check_reminder(reminder_id):
+    """Record a reminder check"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("INSERT INTO checks (reminder_id) VALUES (?)", (reminder_id,))
     conn.commit()
     conn.close()
