@@ -1,8 +1,15 @@
 default:
     @just --list
 
+clean:
+    @echo "Cleaning life..."
+    @rm -rf dist build .pytest_cache .ruff_cache __pycache__ .venv
+    @find . -type d -name "__pycache__" -exec rm -rf {} +
+
 install:
     @poetry install
+
+ci: format fix test build
 
 test:
     @poetry run python -m pytest tests -v
@@ -18,5 +25,3 @@ fix:
 
 build:
     @poetry build
-
-ci: format fix test build

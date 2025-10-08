@@ -1,7 +1,7 @@
 from datetime import date
 from difflib import get_close_matches
 
-from .storage import complete_task, get_pending_tasks, toggle_focus, update_task
+from .storage import complete_task, delete_task, get_pending_tasks, toggle_focus, update_task
 
 
 def find_task(partial, tasks_only=False):
@@ -22,7 +22,7 @@ def find_task(partial, tasks_only=False):
             return task
 
     # Fallback: fuzzy matching with high threshold
-    contents = [task[1] for task in pending]
+    contents = [task[1] for c in pending]
     matches = get_close_matches(partial_lower, [c.lower() for c in contents], n=1, cutoff=0.8)
 
     if matches:
@@ -60,6 +60,15 @@ def update_fuzzy(partial, content=None, due=None, focus=None):
         update_task(task[0], content=content, due=due, focus=focus)
         # Return the new content value or the original if not updated
         return content if content is not None else task[1]
+    return None
+
+
+def remove_fuzzy(partial):
+    """Remove task using fuzzy matching"""
+    task = find_task(partial)
+    if task:
+        delete_task(task[0])
+        return task[1]
     return None
 
 

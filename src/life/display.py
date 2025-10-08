@@ -12,8 +12,14 @@ def render_dashboard(tasks, today_count, momentum, context):
     current_time = now.strftime("%H:%M")
 
     lines = []
+    lines.append(f"\nLIFE CONTEXT:\n{context}")
+    lines.append(f"\n{CLAUDE_INSTRUCTIONS}")
+
     lines.append(f"\nToday: {today} {current_time}")
-    lines.append(f"Completed today: {today_count}")
+    wedding_date = date(2025, 11, 15)
+    days_until_wedding = (wedding_date - today).days
+    lines.append(f"👰‍♀️ {days_until_wedding} days until wedding!")
+    lines.append(f"\nCompleted today: {today_count}")
     lines.append(f"\nThis week: {this_week_completed} completed, {this_week_added} added")
     lines.append(f"Last week: {last_week_completed} completed, {last_week_added} added")
 
@@ -58,9 +64,6 @@ def render_dashboard(tasks, today_count, momentum, context):
             sorted_reminders = sorted(reminders, key=lambda x: x[1].lower())
             for _task_id, content, _category, _focus, _due, _created in sorted_reminders:
                 lines.append(f"  {content.lower()}")
-
-        lines.append(f"\nLIFE CONTEXT:\n{context}")
-        lines.append(f"\n{CLAUDE_INSTRUCTIONS}")
 
     return "\n".join(lines)
 

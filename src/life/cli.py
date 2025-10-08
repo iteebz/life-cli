@@ -10,7 +10,7 @@ from .storage import (
     today_completed,
     weekly_momentum,
 )
-from .utils import complete_fuzzy, toggle_fuzzy, update_fuzzy
+from .utils import complete_fuzzy, remove_fuzzy, toggle_fuzzy, update_fuzzy
 
 
 @click.group(invoke_without_command=True)
@@ -70,6 +70,17 @@ def done(partial):
 
 @main.command()
 @click.argument("partial")
+def rm(partial):
+    """Remove task (fuzzy match)"""
+    removed = remove_fuzzy(partial)
+    if removed:
+        click.echo(f"Removed: {removed}")
+    else:
+        click.echo(f"No match for: {partial}")
+
+
+@main.command()
+@click.argument("partial")
 def focus(partial):
     """Toggle focus on task (fuzzy match)"""
     status, content = toggle_fuzzy(partial)
@@ -113,7 +124,7 @@ def context(context_text):
 @click.option("--focus", type=bool, help="Set focus (true/false)")
 def update(partial, content, due, focus):
     """Update any field of a task by fuzzy match"""
-    if not any([content, due, focus is not None]):
+    if not any([content, due is not None, focus is not None]):
         click.echo("No updates specified")
         return
 

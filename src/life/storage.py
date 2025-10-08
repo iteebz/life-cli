@@ -220,3 +220,12 @@ def clear_all_tasks():
     conn.execute("DELETE FROM tasks")
     conn.commit()
     conn.close()
+
+
+def delete_task(task_id):
+    """Delete a task from the database"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    conn.commit()
+    conn.close()
