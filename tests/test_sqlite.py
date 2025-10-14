@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from life.storage import (
+from life.sqlite import (
     add_task,
     complete_task,
     get_pending_tasks,
@@ -17,9 +17,9 @@ from life.storage import (
 def tmp_life_dir(monkeypatch):
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
-        monkeypatch.setattr("life.storage.LIFE_DIR", tmp)
-        monkeypatch.setattr("life.storage.DB_PATH", tmp / "store.db")
-        monkeypatch.setattr("life.storage.CONTEXT_PATH", tmp / "context.md")
+        monkeypatch.setattr("life.sqlite.LIFE_DIR", tmp)
+        monkeypatch.setattr("life.sqlite.DB_PATH", tmp / "store.db")
+        monkeypatch.setattr("life.sqlite.CONTEXT_PATH", tmp / "context.md")
         yield tmp
 
 

@@ -1,7 +1,7 @@
 import typer
 
 from .display import render_dashboard, render_task_list
-from .storage import (
+from .sqlite import (
     add_task,
     execute_sql,
     get_context,

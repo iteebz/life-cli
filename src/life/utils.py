@@ -1,7 +1,7 @@
 from datetime import date
 from difflib import get_close_matches
 
-from .storage import (
+from .sqlite import (
     check_reminder,
     complete_task,
     delete_task,
