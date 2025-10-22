@@ -21,6 +21,7 @@ USAGE_INSTRUCTIONS = (
     '- life task "X" --focus --due YYYY-MM-DD\n'
     '- life done/focus/due/rm/check "X": operate\n'
     '- life habit/chore "X": add\n'
+    '- life edit "X" "new description": fuzzy reword\n'
     '- life context "X": set\n\n'
     "Raw edits: sqlite3 ~/.life/store.db"
 )

@@ -148,6 +148,23 @@ def due(
 
 
 @app.command()
+def edit(
+    partial: str = typer.Argument(..., help="Partial task content for fuzzy matching"),
+    new_content: str = typer.Argument(..., help="New task description"),
+):
+    """Edit task description (fuzzy match)"""
+    from .sqlite import update_task
+    from .utils import find_task
+
+    task = find_task(partial)
+    if task:
+        update_task(task[0], content=new_content)
+        typer.echo(f"Updated: {task[1]} → {new_content}")
+    else:
+        typer.echo(f"No match for: {partial}")
+
+
+@app.command()
 def context(
     context_text: str = typer.Argument(
         None, help="Context text to set. If omitted, current context is shown."
