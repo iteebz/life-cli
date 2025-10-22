@@ -36,7 +36,8 @@ def render_dashboard(tasks, today_count, momentum, context):
             for t in tasks
             if t[2] == "task" and t[3] == 0 and t[4] != str(today) and t[4] != tomorrow
         ]
-        reminders = [t for t in tasks if t[2] == "reminder"]
+        habits = [t for t in tasks if t[2] == "habit"]
+        chores = [t for t in tasks if t[2] == "chore"]
 
         if focus_tasks:
             lines.append(f"\n🔥 FOCUS ({len(focus_tasks)}/3 max):")
@@ -59,10 +60,16 @@ def render_dashboard(tasks, today_count, momentum, context):
                 due_str = f" {format_due_date(due)}" if due else ""
                 lines.append(f"  {content.lower()}{due_str}")
 
-        if reminders:
-            lines.append(f"\nREMINDERS ({len(reminders)}):")
-            sorted_reminders = sorted(reminders, key=lambda x: x[1].lower())
-            for _task_id, content, _category, _focus, _due, _created in sorted_reminders:
+        if habits:
+            lines.append(f"\nHABITS ({len(habits)}):")
+            sorted_habits = sorted(habits, key=lambda x: x[1].lower())
+            for _task_id, content, _category, _focus, _due, _created in sorted_habits:
+                lines.append(f"  {content.lower()}")
+
+        if chores:
+            lines.append(f"\nCHORES ({len(chores)}):")
+            sorted_chores = sorted(chores, key=lambda x: x[1].lower())
+            for _task_id, content, _category, _focus, _due, _created in sorted_chores:
                 lines.append(f"  {content.lower()}")
 
     return "\n".join(lines)
@@ -77,7 +84,7 @@ def render_task_list(tasks):
     for task_id, content, category, focus, due, _created in tasks:
         focus_label = "🔥" if focus else ""
         due_str = f" {format_due_date(due)}" if due else ""
-        cat_label = f"[{category}]" if category == "reminder" else ""
+        cat_label = f"[{category}]" if category != "task" else ""
         lines.append(f"{task_id}: {focus_label}{content.lower()}{due_str} {cat_label}")
 
     return "\n".join(lines)

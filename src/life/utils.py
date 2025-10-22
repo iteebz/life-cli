@@ -29,7 +29,7 @@ def find_task(partial, category=None):
             return task
 
     # Fallback: fuzzy matching with high threshold
-    contents = [task[1] for c in pending]
+    contents = [task[1] for task in pending]
     matches = get_close_matches(partial_lower, [c.lower() for c in contents], n=1, cutoff=0.8)
 
     if matches:

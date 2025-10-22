@@ -41,12 +41,21 @@ def task(
 
 
 @app.command()
-def remind(
-    content: str = typer.Argument(..., help="Reminder content"),
+def habit(
+    content: str = typer.Argument(..., help="Habit content"),
 ):
-    """Add reminder"""
-    add_task(content, category="reminder")
-    typer.echo(f"Added reminder: {content}")
+    """Add habit"""
+    add_task(content, category="habit")
+    typer.echo(f"Added habit: {content}")
+
+
+@app.command()
+def chore(
+    content: str = typer.Argument(..., help="Chore content"),
+):
+    """Add chore"""
+    add_task(content, category="chore")
+    typer.echo(f"Added chore: {content}")
 
 
 @app.command()
@@ -74,14 +83,16 @@ def done(
 
 @app.command()
 def check(
-    partial: str = typer.Argument(..., help="Partial reminder content for fuzzy matching"),
+    partial: str = typer.Argument(..., help="Partial habit/chore content for fuzzy matching"),
 ):
-    """Complete reminder (fuzzy match, reminders only)"""
-    completed = complete_fuzzy(partial, category="reminder")
+    """Check habit or chore (fuzzy match)"""
+    completed = complete_fuzzy(partial, category="habit")
+    if not completed:
+        completed = complete_fuzzy(partial, category="chore")
     if completed:
         typer.echo(f"✓ {completed}")
     else:
-        typer.echo(f"No reminder match for: {partial}")
+        typer.echo(f"No habit/chore match for: {partial}")
 
 
 @app.command()

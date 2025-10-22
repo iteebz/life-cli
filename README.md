@@ -39,10 +39,16 @@ life task "thing"
 life task "thing" --focus
 life task "thing" --due 2025-12-01
 
-# Persistent reminders (never complete)
-life remind "hydrate"
+# Add habit (daily wellness/maintenance, checkable like reminders)
+life habit "hydrate"
 
-# Mark done (fuzzy match)
+# Add chore (recurring maintenance tasks)
+life chore "dishes"
+
+# Check habit or chore (fuzzy match)
+life check "partial match"
+
+# Mark task done (fuzzy match)
 life done "partial match"
 
 # Toggle focus (max 3 active)
@@ -71,7 +77,7 @@ Single table, zero ceremony:
 CREATE TABLE tasks (
     id INTEGER PRIMARY KEY,
     content TEXT,
-    category TEXT,        -- 'task' or 'reminder'
+    category TEXT,        -- 'task', 'habit', or 'chore'
     focus BOOLEAN,
     due DATE,
     created TIMESTAMP,
@@ -81,11 +87,17 @@ CREATE TABLE tasks (
 
 Context stored in `~/.life/context.md` (markdown, human-readable, version-controllable).
 
+## Categories
+
+- **Task:** Project/event-specific work (wedding prep, mortgage, apartment projects). Has focus + due date. Completes when done.
+- **Habit:** Daily wellness/maintenance (hydrate, exercise, sleep, meditation). Checkable each day like reminders were. Never "complete" (ongoing).
+- **Chore:** Recurring maintenance (dishes, laundry, reset apartment). Checkable each day. Never "complete" (ongoing).
+
 ## Philosophy
 
 - **Atoms, not bundles.** "Decide on X and order it" → "order X"
 - **Human sets priorities.** You decide focus + due dates. Claude suggests atomization only.
-- **Persistence > completion.** Reminders never complete (maintenance is ongoing).
+- **Maintenance is visible.** Habits and chores tracked separately from project work (tasks).
 - **Harsh > gentle.** Accountability pressure beats encouragement.
 - **Momentum quantified.** Weekly delta exposes avoidance patterns objectively.
 - **SQL as escape hatch.** Power users can query directly when CLI is constraining.

@@ -5,6 +5,7 @@ import pytest
 
 from life.sqlite import (
     add_task,
+    check_reminder,
     complete_task,
     get_pending_tasks,
     init_db,
@@ -60,3 +61,27 @@ def test_update_task(tmp_life_dir):
     tasks = get_pending_tasks()
     assert tasks[0][1] == "new"
     assert tasks[0][4] == "2025-12-31"
+
+
+def test_add_habit(tmp_life_dir):
+    add_task("meditate", category="habit")
+    tasks = get_pending_tasks()
+    assert len(tasks) == 1
+    assert tasks[0][2] == "habit"
+
+
+def test_add_chore(tmp_life_dir):
+    add_task("dishes", category="chore")
+    tasks = get_pending_tasks()
+    assert len(tasks) == 1
+    assert tasks[0][2] == "chore"
+
+
+def test_check_habit(tmp_life_dir):
+    add_task("hydrate", category="habit")
+    tasks = get_pending_tasks()
+    habit_id = tasks[0][0]
+    check_reminder(habit_id)
+    tasks = get_pending_tasks()
+    assert len(tasks) == 1
+    assert tasks[0][2] == "habit"
