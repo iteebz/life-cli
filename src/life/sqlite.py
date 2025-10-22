@@ -19,7 +19,8 @@ def init_db():
             focus BOOLEAN DEFAULT 0,
             due DATE NULL,
             created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completed TIMESTAMP NULL
+            completed TIMESTAMP NULL,
+            target_count INTEGER DEFAULT 5
         )
     """)
     conn.execute("""
@@ -51,10 +52,12 @@ def get_pending_tasks():
     init_db()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("""
-        SELECT id, content, category, focus, due, created
-        FROM tasks
-        WHERE completed IS NULL
-        ORDER BY focus DESC, due ASC NULLS LAST, created ASC
+        SELECT t.id, t.content, t.category, t.focus, t.due, t.created, MAX(c.checked), COUNT(c.id), t.target_count
+        FROM tasks t
+        LEFT JOIN checks c ON t.id = c.reminder_id
+        WHERE t.completed IS NULL
+        GROUP BY t.id
+        ORDER BY t.focus DESC, t.due ASC NULLS LAST, t.created ASC
     """)
     tasks = cursor.fetchall()
     conn.close()
@@ -184,10 +187,12 @@ def weekly_momentum():
 
 
 def complete_task(task_id):
-    """Mark task as completed"""
+    """Mark task as completed and unfocus"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("UPDATE tasks SET completed = CURRENT_TIMESTAMP WHERE id = ?", (task_id,))
+    conn.execute(
+        "UPDATE tasks SET completed = CURRENT_TIMESTAMP, focus = 0 WHERE id = ?", (task_id,)
+    )
     conn.commit()
     conn.close()
 
@@ -219,10 +224,13 @@ def update_task(task_id, content=None, due=None, focus=None):
     conn.close()
 
 
-def toggle_focus(task_id, current_focus):
-    """Toggle focus status of task"""
+def toggle_focus(task_id, current_focus, category=None):
+    """Toggle focus status of task (tasks only)"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
+    if category and category != "task":
+        conn.close()
+        return current_focus
     new_focus = 1 if current_focus == 0 else 0
     conn.execute("UPDATE tasks SET focus = ? WHERE id = ?", (new_focus, task_id))
     conn.commit()
@@ -276,10 +284,36 @@ def delete_task(task_id):
     conn.close()
 
 
-def check_reminder(reminder_id):
-    """Record a reminder check"""
+def check_reminder(reminder_id, check_date=None):
+    """Record a reminder check, one per day max. Skip if already checked today. Auto-remove if target reached."""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO checks (reminder_id) VALUES (?)", (reminder_id,))
+
+    if not check_date:
+        check_date = date.today().isoformat()
+
+    cursor = conn.execute(
+        "SELECT id FROM checks WHERE reminder_id = ? AND DATE(checked) = ?",
+        (reminder_id, check_date),
+    )
+    if cursor.fetchone():
+        conn.close()
+        return
+
+    conn.execute(
+        "INSERT INTO checks (reminder_id, checked) VALUES (?, ?)", (reminder_id, check_date)
+    )
+
+    cursor = conn.execute("SELECT target_count FROM tasks WHERE id = ?", (reminder_id,))
+    target = cursor.fetchone()
+
+    if target:
+        cursor = conn.execute("SELECT COUNT(*) FROM checks WHERE reminder_id = ?", (reminder_id,))
+        count = cursor.fetchone()[0] + 1
+        target_count = target[0]
+
+        if count >= target_count:
+            conn.execute("DELETE FROM tasks WHERE id = ?", (reminder_id,))
+
     conn.commit()
     conn.close()

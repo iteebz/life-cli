@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from difflib import get_close_matches
 
 from .sqlite import (
@@ -54,10 +54,12 @@ def complete_fuzzy(partial, category=None):
 
 
 def toggle_fuzzy(partial):
-    """Toggle focus on task using fuzzy matching"""
+    """Toggle focus on task using fuzzy matching (tasks only)"""
     task = find_task(partial)
     if task:
-        new_focus = toggle_focus(task[0], task[3])
+        if task[2] != "task":
+            return None, None
+        new_focus = toggle_focus(task[0], task[3], category=task[2])
         status = "Focused" if new_focus else "Unfocused"
         return status, task[1]
     return None, None
@@ -92,5 +94,28 @@ def format_due_date(due_date_str):
     diff = (due - today).days
 
     if diff > 0:
-        return f"(due: {diff} days)"
-    return f"(overdue: {abs(diff)} days)"
+        return f"(due: {diff}d)"
+    return f"(overdue: {abs(diff)}d)"
+
+
+def format_decay(completed_str):
+    """Format time since last checked as - Xd ago"""
+    if not completed_str:
+        return ""
+
+    try:
+        completed = datetime.fromisoformat(completed_str)
+        now = datetime.now()
+        diff = now - completed
+
+        days = diff.days
+        hours = diff.seconds // 3600
+        mins = (diff.seconds % 3600) // 60
+
+        if days > 0:
+            return f"- {days}d ago"
+        if hours > 0:
+            return f"- {hours}h ago"
+        return f"- {mins}m ago"
+    except Exception:
+        return ""

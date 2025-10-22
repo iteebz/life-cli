@@ -47,7 +47,7 @@ def test_complete_task(tmp_life_dir):
 def test_toggle_focus(tmp_life_dir):
     add_task("task")
     tasks = get_pending_tasks()
-    task_id, _content, _cat, focus, _due, _created = tasks[0]
+    task_id, _content, _cat, focus, _due, _created, *_ = tasks[0]
     assert focus == 0
     new_focus = toggle_focus(task_id, focus)
     assert new_focus == 1

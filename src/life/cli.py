@@ -3,14 +3,15 @@ import typer
 from .display import render_dashboard, render_task_list
 from .sqlite import (
     add_task,
-    execute_sql,
     get_context,
     get_pending_tasks,
     set_context,
     today_completed,
     weekly_momentum,
 )
-from .utils import complete_fuzzy, remove_fuzzy, toggle_fuzzy, update_fuzzy
+from .utils import complete_fuzzy, remove_fuzzy, toggle_fuzzy
+
+DATABASE = "~/.life/store.db"
 
 app = typer.Typer()
 
@@ -84,13 +85,23 @@ def done(
 @app.command()
 def check(
     partial: str = typer.Argument(..., help="Partial habit/chore content for fuzzy matching"),
+    when: str = typer.Option(None, "--when", help="Check date (YYYY-MM-DD), defaults to today"),
 ):
     """Check habit or chore (fuzzy match)"""
-    completed = complete_fuzzy(partial, category="habit")
-    if not completed:
-        completed = complete_fuzzy(partial, category="chore")
-    if completed:
-        typer.echo(f"✓ {completed}")
+    from .sqlite import check_reminder, get_pending_tasks
+    from .utils import find_task
+
+    task = find_task(partial, category="habit")
+    if not task:
+        task = find_task(partial, category="chore")
+    if task:
+        check_reminder(task[0], when)
+        refresh = [t for t in get_pending_tasks() if t[0] == task[0]]
+        if refresh:
+            count, target = refresh[0][7], refresh[0][8]
+            typer.echo(f"✓ {task[1]} ({count}/{target})")
+        else:
+            typer.echo(f"✓ {task[1]} - DONE!")
     else:
         typer.echo(f"No habit/chore match for: {partial}")
 
@@ -120,19 +131,20 @@ def focus(
 
 
 @app.command()
-def sql(
-    query: str = typer.Argument(..., help="SQL query to execute"),
+def due(
+    partial: str = typer.Argument(..., help="Partial task content for fuzzy matching"),
+    date_str: str = typer.Argument(..., help="Due date (YYYY-MM-DD)"),
 ):
-    """Execute SQL directly on tasks database"""
-    try:
-        results = execute_sql(query)
-        if results is not None:
-            for row in results:
-                typer.echo(row)
-        else:
-            typer.echo("Query executed successfully")
-    except Exception as e:
-        typer.echo(f"Error: {e}")
+    """Set due date on task (fuzzy match)"""
+    from .sqlite import update_task
+    from .utils import find_task
+
+    task = find_task(partial)
+    if task:
+        update_task(task[0], due=date_str)
+        typer.echo(f"Due: {task[1]} on {date_str}")
+    else:
+        typer.echo(f"No match for: {partial}")
 
 
 @app.command()
@@ -148,25 +160,6 @@ def context(
     else:
         current = get_context()
         typer.echo(f"Current context: {current}")
-
-
-@app.command()
-def update(
-    partial: str = typer.Argument(..., help="Partial task content for fuzzy matching"),
-    content: str = typer.Option(None, help="Update content"),
-    due: str = typer.Option(None, help="Update due date (YYYY-MM-DD)"),
-    focus: bool = typer.Option(None, help="Set focus (true/false)"),
-):
-    """Update any field of a task by fuzzy match"""
-    if not any([content, due is not None, focus is not None]):
-        typer.echo("No updates specified")
-        return
-
-    updated_content = update_fuzzy(partial, content=content, due=due, focus=focus)
-    if updated_content:
-        typer.echo(f"Updated: {updated_content}")
-    else:
-        typer.echo(f"No match for: {partial}")
 
 
 if __name__ == "__main__":
