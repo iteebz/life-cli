@@ -14,11 +14,13 @@ from .sqlite import (
     add_tag,
     add_task,
     get_context,
+    get_default_persona,
     get_profile,
     get_pending_tasks,
     get_tasks_by_tag,
     get_today_completed,
     set_context,
+    set_default_persona,
     set_profile,
     today_completed,
     uncomplete_task,
@@ -90,9 +92,7 @@ def _known_commands() -> set[str]:
         "profile",
         "context",
         "backup",
-        "roast",
-        "pepper",
-        "kim",
+        "personas",
         "help",
         "--help",
         "-h",
@@ -104,7 +104,11 @@ def _is_message(raw_args: list[str]) -> bool:
     if not raw_args:
         return False
     first_arg = raw_args[0].lower()
-    return first_arg not in _known_commands()
+    if first_arg in _known_commands():
+        return False
+    if first_arg.startswith("-"):
+        return False
+    return True
 
 
 def _spawn_persona(message: str, persona: str = "roast") -> None:
@@ -137,10 +141,11 @@ RESPONSE PROTOCOL:
     )
 
     spinner.stop()
-    from .lib.ansi import ANSI
+    from .lib.ansi import ANSI, PERSONA_COLORS
 
     formatted = md_to_ansi(result.stdout)
-    header = f"\n{ANSI.BOLD}[{persona}]:{ANSI.RESET}\n\n"
+    color = PERSONA_COLORS.get(persona, ANSI.WHITE)
+    header = f"\n{ANSI.BOLD}{color}[{persona}]:{ANSI.RESET}\n\n"
     sys.stdout.write(header + formatted + "\n")
     sys.stdout.flush()
     sys.exit(result.returncode)
@@ -153,26 +158,20 @@ def _maybe_spawn_persona() -> bool:
     if not raw_args or raw_args[0] in ("--help", "-h", "--show-completion", "--install-completion"):
         return False
 
-    if raw_args[0] == "roast":
-        persona = "roast"
+    valid_personas = {"roast", "pepper", "kim"}
+    
+    if raw_args[0] in valid_personas:
+        persona = raw_args[0]
         raw_args = raw_args[1:]
         if _is_message(raw_args):
             message = " ".join(raw_args)
             _spawn_persona(message, persona)
             return True
-    elif raw_args[0] == "pepper":
-        persona = "pepper"
-        raw_args = raw_args[1:]
-        if _is_message(raw_args):
+    elif _is_message(raw_args):
+        default = get_default_persona()
+        if default:
             message = " ".join(raw_args)
-            _spawn_persona(message, persona)
-            return True
-    elif raw_args[0] == "kim":
-        persona = "kim"
-        raw_args = raw_args[1:]
-        if _is_message(raw_args):
-            message = " ".join(raw_args)
-            _spawn_persona(message, persona)
+            _spawn_persona(message, default)
             return True
 
     return False
@@ -426,17 +425,38 @@ def context(
 
 @app.command()
 def personas(
-    name: str = typer.Argument(..., help="Persona name (roast, pepper, kim, kitsuragi)"),
+    name: str = typer.Argument(None, help="Persona name (roast, pepper, kim)"),
+    default: bool = typer.Option(False, "-d", "--default", help="Set as default persona"),
 ):
-    """Show persona instructions"""
+    """Show available personas or view/set a specific persona"""
+    descriptions = {
+        "roast": "Ruthless gatekeeping. Call out life neglect, block code help.",
+        "pepper": "Pepper Potts energy. Optimistic enabler. Unlock potential.",
+        "kim": "Lieutenant Kim Kitsuragi. Methodical clarity. Work the case.",
+    }
+    
+    if not name:
+        typer.echo("Available personas:")
+        for p in ("roast", "pepper", "kim"):
+            typer.echo(f"  {p:8} - {descriptions[p]}")
+        return
+    
     aliases = {"kitsuragi": "kim"}
     resolved_name = aliases.get(name, name)
-    try:
-        persona = get_persona(resolved_name)
-        typer.echo(persona)
-    except ValueError as e:
-        typer.echo(f"Error: {e}", err=True)
+    if resolved_name not in ("roast", "pepper", "kim"):
+        typer.echo(f"Unknown persona: {resolved_name}", err=True)
         raise typer.Exit(1)
+    
+    if default:
+        set_default_persona(resolved_name)
+        typer.echo(f"Default persona set to: {resolved_name}")
+    else:
+        try:
+            persona = get_persona(resolved_name)
+            typer.echo(persona)
+        except ValueError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(1)
 
 
 @app.command()

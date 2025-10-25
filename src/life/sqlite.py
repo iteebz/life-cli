@@ -1,5 +1,6 @@
 import shutil
 import sqlite3
+import yaml
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -7,6 +8,7 @@ LIFE_DIR = Path.home() / ".life"
 DB_PATH = LIFE_DIR / "store.db"
 CONTEXT_MD = LIFE_DIR / "context.md"
 PROFILE_MD = LIFE_DIR / "profile.md"
+CONFIG_PATH = LIFE_DIR / "config.yaml"
 BACKUP_DIR = Path.home() / ".life_backups"
 
 
@@ -491,3 +493,30 @@ def list_backups() -> list[str]:
         [d.name for d in BACKUP_DIR.iterdir() if d.is_dir()],
         reverse=True
     )
+
+
+def get_default_persona() -> str | None:
+    """Get default persona from config, or None if not set."""
+    if not CONFIG_PATH.exists():
+        return None
+    try:
+        with open(CONFIG_PATH) as f:
+            config = yaml.safe_load(f) or {}
+        return config.get("default_persona")
+    except Exception:
+        return None
+
+
+def set_default_persona(persona: str) -> None:
+    """Set default persona in config."""
+    LIFE_DIR.mkdir(exist_ok=True)
+    config = {}
+    if CONFIG_PATH.exists():
+        try:
+            with open(CONFIG_PATH) as f:
+                config = yaml.safe_load(f) or {}
+        except Exception:
+            pass
+    config["default_persona"] = persona
+    with open(CONFIG_PATH, "w") as f:
+        yaml.dump(config, f)

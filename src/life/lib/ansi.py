@@ -1,6 +1,13 @@
 import re
 
 
+PERSONA_COLORS = {
+    "roast": "\033[91m",
+    "pepper": "\033[93m",
+    "kim": "\033[94m",
+}
+
+
 class ANSI:
     BOLD = "\033[1m"
     DIM = "\033[2m"
