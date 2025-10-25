@@ -7,19 +7,17 @@ import time
 
 import typer
 
-from .display import render_dashboard, render_task_list
-from .personas import get_persona
+from .display import render_dashboard
+from .personas import get_persona, PERSONAS
+from . import sqlite as db
 from .sqlite import (
     add_tag,
     add_task,
-    backup,
     get_context,
     get_neurotype,
     get_pending_tasks,
     get_tasks_by_tag,
     get_today_completed,
-    list_backups,
-    restore,
     set_context,
     set_neurotype,
     today_completed,
@@ -81,7 +79,6 @@ def _known_commands() -> set[str]:
         "task",
         "habit",
         "chore",
-        "list",
         "done",
         "check",
         "rm",
@@ -89,8 +86,8 @@ def _known_commands() -> set[str]:
         "due",
         "edit",
         "tag",
-        "context",
-        "neurotype",
+        "profile",
+        "backup",
         "roast",
         "pepper",
         "kim",
@@ -169,7 +166,7 @@ def _maybe_spawn_persona() -> bool:
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
-    """ADHD executive function rescue system"""
+    """Ephemeral life agent"""
     if ctx.invoked_subcommand is None:
         tasks = get_pending_tasks()
         today_count = today_completed()
@@ -216,14 +213,6 @@ def chore(
     """Add chore"""
     add_task(content, category="chore")
     typer.echo(f"Added chore: {content}")
-
-
-@app.command()
-def list():
-    """List all pending tasks"""
-    tasks = get_pending_tasks()
-    output = render_task_list(tasks)
-    typer.echo(output)
 
 
 @app.command()
@@ -321,39 +310,6 @@ def edit(
 
 
 @app.command()
-def context(
-    context_text: str = typer.Argument(
-        None, help="Context text to set. If omitted, current context is shown."
-    ),
-):
-    """Get or set current life context"""
-    if context_text:
-        set_context(context_text)
-        typer.echo(f"Context updated: {context_text}")
-    else:
-        current = get_context()
-        typer.echo(f"Current context: {current}")
-
-
-@app.command()
-def neurotype(
-    nt: str = typer.Argument(
-        None, help="Neurotype to set. If omitted, current neurotype is shown."
-    ),
-):
-    """Get or set neurotype"""
-    if nt:
-        set_neurotype(nt)
-        typer.echo(f"Neurotype updated: {nt}")
-    else:
-        current = get_neurotype()
-        if current:
-            typer.echo(f"Current neurotype: {current}")
-        else:
-            typer.echo("No neurotype set")
-
-
-@app.command()
 def tag(
     tag_name: str = typer.Argument(..., help="Tag name"),
     partial: str = typer.Argument(None, help="Partial task content for fuzzy matching"),
@@ -380,35 +336,44 @@ def tag(
 
 
 @app.command()
-def backup_cmd():
-    """Create backup of database and metadata"""
-    backup_path = backup()
-    typer.echo(f"Backup created: {backup_path.name}")
-
-
-@app.command()
-def backups():
-    """List all backups"""
-    bkps = list_backups()
-    if bkps:
-        typer.echo("Available backups:")
-        for i, name in enumerate(bkps, 1):
-            typer.echo(f"  {i}. {name}")
-    else:
-        typer.echo("No backups found")
-
-
-@app.command()
-def restore_cmd(
-    backup_name: str = typer.Argument(..., help="Backup name to restore"),
+def profile(
+    context_text: str = typer.Argument(None, help="Context text to set"),
+    neurotype: str = typer.Option(None, "--neurotype", "-n", help="Neurotype to set"),
 ):
-    """Restore from a backup"""
+    """View or update your profile"""
+    if context_text or neurotype:
+        if context_text:
+            set_context(context_text)
+            typer.echo(f"Context: {context_text}")
+        if neurotype:
+            set_neurotype(neurotype)
+            typer.echo(f"Neurotype: {neurotype}")
+    else:
+        ctx = get_context()
+        nt = get_neurotype()
+        typer.echo("Your profile:")
+        typer.echo(f"  Context: {ctx if ctx else '(none)'}")
+        typer.echo(f"  Neurotype: {nt if nt else '(none)'}")
+
+
+@app.command()
+def personas(
+    name: str = typer.Argument(..., help="Persona name (roast, pepper, kim)"),
+):
+    """Show persona instructions"""
     try:
-        restore(backup_name)
-        typer.echo(f"Restored: {backup_name}")
-    except FileNotFoundError as e:
+        persona = get_persona(name)
+        typer.echo(persona)
+    except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
+
+
+@app.command()
+def backup():
+    """Backup database"""
+    backup_path = db.backup()
+    typer.echo(f"{backup_path / 'store.db'}")
 
 
 def main_with_personas():
