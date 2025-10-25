@@ -195,23 +195,35 @@ def main(ctx: typer.Context):
 
 @app.command()
 def task(
-    content: str = typer.Argument(..., help="Task content"),
+    args: list[str] = typer.Argument(..., help="Task content"),
     focus: bool = typer.Option(False, "-f", "--focus", help="Mark as focus task"),
     due: str = typer.Option(None, "-d", "--due", help="Due date (YYYY-MM-DD)"),
     done: bool = typer.Option(False, "-x", "--done", help="Immediately mark task as done"),
+    tag: list[str] = typer.Option(None, "-t", "--tag", help="Add tags to task"),
 ):
     """Add task"""
-    add_task(content, focus=focus, due=due)
+    content = " ".join(args)
+    task_id = add_task(content, focus=focus, due=due)
     focus_str = " [FOCUS]" if focus else ""
     due_str = f" due {due}" if due else ""
+    
+    tags = []
+    if tag:
+        for t in tag:
+            try:
+                add_tag(task_id, t)
+                tags.append(f"#{t}")
+            except Exception:
+                pass
+    tag_str = f" {' '.join(tags)}" if tags else ""
 
     if done:
         from .utils import complete_fuzzy
 
         complete_fuzzy(content)
-        typer.echo(f"Added & completed: {content}{focus_str}{due_str}")
+        typer.echo(f"Added & completed: {content}{focus_str}{due_str}{tag_str}")
     else:
-        typer.echo(f"Added: {content}{focus_str}{due_str}")
+        typer.echo(f"Added: {content}{focus_str}{due_str}{tag_str}")
 
 
 @app.command()
@@ -219,7 +231,7 @@ def habit(
     content: str = typer.Argument(..., help="Habit content"),
 ):
     """Add habit"""
-    add_task(content, category="habit")
+    _ = add_task(content, category="habit")
     typer.echo(f"Added habit: {content}")
 
 
@@ -228,7 +240,7 @@ def chore(
     content: str = typer.Argument(..., help="Chore content"),
 ):
     """Add chore"""
-    add_task(content, category="chore")
+    _ = add_task(content, category="chore")
     typer.echo(f"Added chore: {content}")
 
 
@@ -431,6 +443,7 @@ def context(
 def personas(
     name: str = typer.Argument(None, help="Persona name (roast, pepper, kim)"),
     default: bool = typer.Option(False, "-d", "--default", help="Set as default persona"),
+    prompt: bool = typer.Option(False, "-p", "--prompt", help="Show full ephemeral prompt"),
 ):
     """Show available personas or view/set a specific persona"""
     descriptions = {
@@ -441,8 +454,10 @@ def personas(
     
     if not name:
         typer.echo("Available personas:")
+        curr_default = get_default_persona()
         for p in ("roast", "pepper", "kim"):
-            typer.echo(f"  {p:8} - {descriptions[p]}")
+            marker = "‣ " if p == curr_default else "  "
+            typer.echo(f"{marker}{p:8} - {descriptions[p]}")
         return
     
     aliases = {"kitsuragi": "kim"}
@@ -454,6 +469,37 @@ def personas(
     if default:
         set_default_persona(resolved_name)
         typer.echo(f"Default persona set to: {resolved_name}")
+    elif prompt:
+        try:
+            persona_instructions = get_persona(resolved_name)
+            profile = get_profile()
+            context = get_context()
+            
+            life_output = subprocess.run(
+                ["life"],
+                capture_output=True,
+                text=True,
+            ).stdout.lstrip()
+            
+            profile_section = f"PROFILE:\n{profile if profile else '(no profile set)'}"
+            context_section = f"CONTEXT:\n{context if context and context != 'No context set' else '(no context set)'}"
+            
+            sections = [
+                persona_instructions,
+                "⸻",
+                profile_section,
+                context_section,
+                "⸻",
+                f"CURRENT LIFE STATE:\n{life_output}",
+                "⸻",
+                "USER MESSAGE: [your message here]",
+            ]
+            
+            full_prompt = "\n\n".join(sections)
+            typer.echo(full_prompt)
+        except ValueError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(1)
     else:
         try:
             persona = get_persona(resolved_name)

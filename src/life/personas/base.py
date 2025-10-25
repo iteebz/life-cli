@@ -34,4 +34,5 @@ INSTRUCTIONS:
 
 def build_prompt(identity: str, *sections: str) -> str:
     """Build a persona prompt from identity and sections."""
-    return "\n\n".join([identity] + [s for s in sections if s])  + f"\n\n{cli_operations()}\n\n{guidance()}\n\n{instructions()}"
+    cleaned = [identity] + [s.strip() for s in sections if s]
+    return "\n\n".join(cleaned) + f"\n\n⸻\n\n{cli_operations()}\n\n{guidance()}\n\n{instructions()}"

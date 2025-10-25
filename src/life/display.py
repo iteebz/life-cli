@@ -42,8 +42,6 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
     current_time = now.strftime("%H:%M")
 
     lines = []
-    lines.append(f"\n{ANSI.BOLD}{ANSI.MAGENTA}LIFE CONTEXT:{ANSI.RESET}\n{md_to_ansi(context)}")
-
     lines.append(f"\nToday: {today} {current_time}")
     wedding_date = date(2025, 11, 15)
     days_until_wedding = (wedding_date - today).days
@@ -92,20 +90,22 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
             lines.append(f"\n{ANSI.BOLD}{tag_color}#{tag.upper()} ({len(tasks_by_tag)}):{ANSI.RESET}")
             for task in tasks_by_tag:
                 task_id, content, _category, _focus, due = task[:5]
-                due_str = f" {format_due_date(due)}" if due else ""
+                due_str = format_due_date(due) if due else ""
                 other_tags = [t for t in get_tags(task_id) if t != tag]
                 tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
-                lines.append(f"  {indicator}{content.lower()}{due_str}{tags_str}")
+                due_part = f"{due_str} " if due_str else ""
+                lines.append(f"  {indicator}{due_part}{content.lower()}{tags_str}")
 
         untagged_sorted = sort_tasks(untagged)
         if untagged_sorted:
             lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
             for task in untagged_sorted:
                 task_id, content, _category, _focus, due = task[:5]
-                due_str = f" {format_due_date(due)}" if due else ""
+                due_str = format_due_date(due) if due else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
-                lines.append(f"  {indicator}{content.lower()}{due_str}")
+                due_part = f"{due_str} " if due_str else ""
+                lines.append(f"  {indicator}{due_part}{content.lower()}")
 
         if all_habits:
             active_habits = [t for t in all_habits if t[6] is not None and date.fromisoformat(t[6][:10]) == today]
@@ -151,10 +151,11 @@ def render_task_list(tasks):
     for task in tasks:
         task_id, content, category, focus, due = task[:5]
         focus_label = "🔥" if focus else ""
-        due_str = f" {format_due_date(due)}" if due else ""
+        due_str = format_due_date(due) if due else ""
+        due_part = f"{due_str} " if due_str else ""
         cat_label = f"[{category}]" if category != "task" else ""
         tags = get_tags(task_id)
         tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
-        lines.append(f"{task_id}: {focus_label}{content.lower()}{due_str} {cat_label}{tags_str}")
+        lines.append(f"{task_id}: {focus_label}{due_part}{content.lower()} {cat_label}{tags_str}")
 
     return "\n".join(lines)

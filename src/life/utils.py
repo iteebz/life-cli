@@ -13,7 +13,7 @@ from .sqlite import (
 
 
 def find_task(partial, category=None):
-    """Find task by fuzzy matching partial string"""
+    """Find task by fuzzy matching partial string or UUID prefix"""
     pending = get_pending_tasks()
     if not pending:
         return None
@@ -24,7 +24,13 @@ def find_task(partial, category=None):
 
     partial_lower = partial.lower()
 
-    # First: exact substring matches
+    # First: UUID prefix match (8+ chars)
+    if len(partial) >= 8:
+        for task in pending:
+            if task[0].startswith(partial):
+                return task
+
+    # Second: exact substring matches on content
     for task in pending:
         if partial_lower in task[1].lower():
             return task
@@ -117,7 +123,7 @@ def remove_fuzzy(partial):
 
 
 def format_due_date(due_date_str):
-    """Format due date with relative day difference for backlog only"""
+    """Format due date with relative day difference"""
     if not due_date_str:
         return ""
 
@@ -126,8 +132,8 @@ def format_due_date(due_date_str):
     diff = (due - today).days
 
     if diff > 0:
-        return f"(due: {diff}d)"
-    return f"(overdue: {abs(diff)}d)"
+        return f"{diff}d:"
+    return f"{abs(diff)}d overdue:"
 
 
 def format_decay(completed_str):
