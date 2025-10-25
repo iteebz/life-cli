@@ -1,11 +1,13 @@
+import shutil
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 LIFE_DIR = Path.home() / ".life"
 DB_PATH = LIFE_DIR / "store.db"
 CONTEXT_PATH = LIFE_DIR / "context.md"
 NEUROTYPE_PATH = LIFE_DIR / "neurotype.txt"
+BACKUP_DIR = Path.home() / ".life_backups"
 
 
 def init_db():
@@ -420,3 +422,57 @@ def get_today_completed():
 
     conn.close()
     return completed_tasks + checked_items
+
+
+def backup():
+    """Create timestamped backup of database and metadata files"""
+    BACKUP_DIR.mkdir(exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_name = f"life_backup_{timestamp}"
+    backup_path = BACKUP_DIR / backup_name
+    backup_path.mkdir(exist_ok=True)
+    
+    shutil.copy2(DB_PATH, backup_path / "store.db")
+    
+    if CONTEXT_PATH.exists():
+        shutil.copy2(CONTEXT_PATH, backup_path / "context.md")
+    
+    if NEUROTYPE_PATH.exists():
+        shutil.copy2(NEUROTYPE_PATH, backup_path / "neurotype.txt")
+    
+    return backup_path
+
+
+def restore(backup_name: str):
+    """Restore from a backup"""
+    backup_path = BACKUP_DIR / backup_name
+    
+    if not backup_path.exists():
+        raise FileNotFoundError(f"Backup not found: {backup_name}")
+    
+    LIFE_DIR.mkdir(exist_ok=True)
+    
+    db_file = backup_path / "store.db"
+    if db_file.exists():
+        shutil.copy2(db_file, DB_PATH)
+    
+    ctx_file = backup_path / "context.md"
+    if ctx_file.exists():
+        shutil.copy2(ctx_file, CONTEXT_PATH)
+    
+    nt_file = backup_path / "neurotype.txt"
+    if nt_file.exists():
+        shutil.copy2(nt_file, NEUROTYPE_PATH)
+
+
+def list_backups() -> list[str]:
+    """List all available backups"""
+    if not BACKUP_DIR.exists():
+        return []
+    
+    backups = sorted(
+        [d.name for d in BACKUP_DIR.iterdir() if d.is_dir()],
+        reverse=True
+    )
+    return backups

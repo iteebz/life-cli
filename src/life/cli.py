@@ -12,11 +12,14 @@ from .personas import get_persona
 from .sqlite import (
     add_tag,
     add_task,
+    backup,
     get_context,
     get_neurotype,
     get_pending_tasks,
     get_tasks_by_tag,
     get_today_completed,
+    list_backups,
+    restore,
     set_context,
     set_neurotype,
     today_completed,
@@ -374,6 +377,38 @@ def tag(
             typer.echo(render_task_list(tasks))
         else:
             typer.echo(f"No tasks tagged with #{tag_name}")
+
+
+@app.command()
+def backup_cmd():
+    """Create backup of database and metadata"""
+    backup_path = backup()
+    typer.echo(f"Backup created: {backup_path.name}")
+
+
+@app.command()
+def backups():
+    """List all backups"""
+    bkps = list_backups()
+    if bkps:
+        typer.echo("Available backups:")
+        for i, name in enumerate(bkps, 1):
+            typer.echo(f"  {i}. {name}")
+    else:
+        typer.echo("No backups found")
+
+
+@app.command()
+def restore_cmd(
+    backup_name: str = typer.Argument(..., help="Backup name to restore"),
+):
+    """Restore from a backup"""
+    try:
+        restore(backup_name)
+        typer.echo(f"Restored: {backup_name}")
+    except FileNotFoundError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
 
 
 def main_with_personas():
