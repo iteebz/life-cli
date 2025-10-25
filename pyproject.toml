@@ -15,7 +15,7 @@ python = "^3.12"
 typer = "^0.17.4"
 
 [tool.poetry.scripts]
-life = "life.cli:app"
+life = "life.cli:main_with_roast"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.13.0"

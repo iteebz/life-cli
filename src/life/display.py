@@ -1,10 +1,10 @@
 from datetime import date, datetime
 
-from .prompts import CLAUDE_INSTRUCTIONS
+from .prompts import CLAUDE_INSTRUCTIONS, ROASTER_MODE
 from .utils import format_decay, format_due_date
 
 
-def render_dashboard(tasks, today_count, momentum, context):
+def render_dashboard(tasks, today_count, momentum, context, ephemeral_roaster=False):
     """Render full dashboard view"""
     this_week_completed, this_week_added, last_week_completed, last_week_added = momentum
     today = date.today()
@@ -12,6 +12,8 @@ def render_dashboard(tasks, today_count, momentum, context):
     current_time = now.strftime("%H:%M")
 
     lines = []
+    if ephemeral_roaster:
+        lines.append(f"\n{ROASTER_MODE}")
     lines.append(f"\nLIFE CONTEXT:\n{context}")
     lines.append(f"\n{CLAUDE_INSTRUCTIONS}")
 

@@ -1,3 +1,8 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import typer
 
 from .display import render_dashboard, render_task_list
@@ -16,6 +21,75 @@ DATABASE = "~/.life/store.db"
 app = typer.Typer()
 
 
+def _build_roast_context() -> str:
+    """Build context for ephemeral claude roaster."""
+    tasks = get_pending_tasks()
+    today_count = today_completed()
+    momentum = weekly_momentum()
+    life_context = get_context()
+    dashboard = render_dashboard(tasks, today_count, momentum, life_context)
+    return dashboard
+
+
+def _known_commands() -> set[str]:
+    """Return set of known CLI commands."""
+    return {
+        "task",
+        "habit",
+        "chore",
+        "list",
+        "done",
+        "check",
+        "rm",
+        "focus",
+        "due",
+        "edit",
+        "context",
+        "help",
+        "--help",
+        "-h",
+    }
+
+
+def _is_message(raw_args: list[str]) -> bool:
+    """Detect if args represent a chat message (not a command)."""
+    if not raw_args:
+        return False
+    first_arg = raw_args[0].lower()
+    return first_arg not in _known_commands()
+
+
+def _spawn_roaster(message: str) -> None:
+    """Spawn ephemeral claude roaster."""
+    task_prompt = f"""User says: {message}
+
+Run `life` to see their task state and roasting instructions. Respond as the life roaster: check patterns, roast when warranted, use CLI to modify state as needed."""
+    
+    env = os.environ.copy()
+    env["LIFE_ROASTER"] = "1"
+    
+    result = subprocess.run(
+        ["claude", "-p", task_prompt, "--allowedTools", "Bash"],
+        env=env,
+    )
+    sys.exit(result.returncode)
+
+
+def _maybe_roast() -> bool:
+    """Check if we should roast instead of running normal CLI. Returns True if roasted."""
+    raw_args = sys.argv[1:]
+    
+    if not raw_args or raw_args[0] in ("--help", "-h", "--show-completion", "--install-completion"):
+        return False
+    
+    if _is_message(raw_args):
+        message = " ".join(raw_args)
+        _spawn_roaster(message)
+        return True
+    
+    return False
+
+
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     """ADHD executive function rescue system"""
@@ -23,8 +97,11 @@ def main(ctx: typer.Context):
         tasks = get_pending_tasks()
         today_count = today_completed()
         momentum = weekly_momentum()
-        context = get_context()
-        output = render_dashboard(tasks, today_count, momentum, context)
+        life_context = get_context()
+        ephemeral_roaster = os.getenv("LIFE_ROASTER") == "1"
+        output = render_dashboard(
+            tasks, today_count, momentum, life_context, ephemeral_roaster=ephemeral_roaster
+        )
         typer.echo(output)
 
 
@@ -186,5 +263,12 @@ def context(
         typer.echo(f"Current context: {current}")
 
 
-if __name__ == "__main__":
+def main_with_roast():
+    """Wrapper that checks for roast before passing to typer."""
+    if _maybe_roast():
+        sys.exit(0)
     app()
+
+
+if __name__ == "__main__":
+    main_with_roast()
