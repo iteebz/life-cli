@@ -5,6 +5,7 @@ from pathlib import Path
 LIFE_DIR = Path.home() / ".life"
 DB_PATH = LIFE_DIR / "store.db"
 CONTEXT_PATH = LIFE_DIR / "context.md"
+NEUROTYPE_PATH = LIFE_DIR / "neurotype.txt"
 
 
 def init_db():
@@ -317,3 +318,16 @@ def check_reminder(reminder_id, check_date=None):
 
     conn.commit()
     conn.close()
+
+
+def get_neurotype():
+    """Get current neurotype"""
+    if NEUROTYPE_PATH.exists():
+        return NEUROTYPE_PATH.read_text().strip()
+    return ""
+
+
+def set_neurotype(neurotype):
+    """Set current neurotype"""
+    LIFE_DIR.mkdir(exist_ok=True)
+    NEUROTYPE_PATH.write_text(neurotype)

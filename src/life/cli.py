@@ -1,7 +1,6 @@
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import typer
 
@@ -10,8 +9,10 @@ from .personas import get_persona
 from .sqlite import (
     add_task,
     get_context,
+    get_neurotype,
     get_pending_tasks,
     set_context,
+    set_neurotype,
     today_completed,
     weekly_momentum,
 )
@@ -23,13 +24,12 @@ app = typer.Typer()
 
 
 def _build_roast_context() -> str:
-    """Build context for ephemeral claude roaster."""
+    """Build context for ephemeral claude roast."""
     tasks = get_pending_tasks()
     today_count = today_completed()
     momentum = weekly_momentum()
     life_context = get_context()
-    dashboard = render_dashboard(tasks, today_count, momentum, life_context)
-    return dashboard
+    return render_dashboard(tasks, today_count, momentum, life_context)
 
 
 def _known_commands() -> set[str]:
@@ -46,6 +46,9 @@ def _known_commands() -> set[str]:
         "due",
         "edit",
         "context",
+        "neurotype",
+        "roast",
+        "pepper",
         "help",
         "--help",
         "-h",
@@ -60,7 +63,7 @@ def _is_message(raw_args: list[str]) -> bool:
     return first_arg not in _known_commands()
 
 
-def _spawn_persona(message: str, persona: str = "roaster") -> None:
+def _spawn_persona(message: str, persona: str = "roast") -> None:
     """Spawn ephemeral claude persona."""
     persona_instructions = get_persona(persona)
     task_prompt = f"""{persona_instructions}
@@ -69,10 +72,10 @@ def _spawn_persona(message: str, persona: str = "roaster") -> None:
 User says: {message}
 
 Run `life` to see their task state. Respond as {persona}: assess patterns, guide appropriately, use CLI to modify state as needed."""
-    
+
     env = os.environ.copy()
     env["LIFE_PERSONA"] = persona
-    
+
     result = subprocess.run(
         ["claude", "--model", "claude-haiku-4-5", "-p", task_prompt, "--allowedTools", "Bash"],
         env=env,
@@ -80,23 +83,28 @@ Run `life` to see their task state. Respond as {persona}: assess patterns, guide
     sys.exit(result.returncode)
 
 
-def _maybe_roast() -> bool:
-    """Check if we should spawn persona instead of running normal CLI. Returns True if spawned."""
+def _maybe_spawn_persona() -> bool:
+    """Check if we should spawn persona. Returns True if spawned."""
     raw_args = sys.argv[1:]
-    
+
     if not raw_args or raw_args[0] in ("--help", "-h", "--show-completion", "--install-completion"):
         return False
-    
-    persona = "roaster"
-    if raw_args[0] in ("--pepper", "-p"):
+
+    if raw_args[0] == "roast":
+        persona = "roast"
+        raw_args = raw_args[1:]
+        if _is_message(raw_args):
+            message = " ".join(raw_args)
+            _spawn_persona(message, persona)
+            return True
+    elif raw_args[0] == "pepper":
         persona = "pepper"
         raw_args = raw_args[1:]
-    
-    if _is_message(raw_args):
-        message = " ".join(raw_args)
-        _spawn_persona(message, persona)
-        return True
-    
+        if _is_message(raw_args):
+            message = " ".join(raw_args)
+            _spawn_persona(message, persona)
+            return True
+
     return False
 
 
@@ -108,11 +116,11 @@ def main(ctx: typer.Context):
         today_count = today_completed()
         momentum = weekly_momentum()
         life_context = get_context()
-        ephemeral_roaster = os.getenv("LIFE_ROASTER") == "1"
-        output = render_dashboard(
-            tasks, today_count, momentum, life_context, ephemeral_roaster=ephemeral_roaster
+        typer.echo(
+            render_dashboard(
+                tasks, today_count, momentum, life_context
+            )
         )
-        typer.echo(output)
 
 
 @app.command()
@@ -126,7 +134,7 @@ def task(
     add_task(content, focus=focus, due=due)
     focus_str = " [FOCUS]" if focus else ""
     due_str = f" due {due}" if due else ""
-    
+
     if done:
         from .utils import complete_fuzzy
         complete_fuzzy(content)
@@ -273,12 +281,30 @@ def context(
         typer.echo(f"Current context: {current}")
 
 
-def main_with_roast():
-    """Wrapper that checks for roast before passing to typer."""
-    if _maybe_roast():
+@app.command()
+def neurotype(
+    nt: str = typer.Argument(
+        None, help="Neurotype to set. If omitted, current neurotype is shown."
+    ),
+):
+    """Get or set neurotype"""
+    if nt:
+        set_neurotype(nt)
+        typer.echo(f"Neurotype updated: {nt}")
+    else:
+        current = get_neurotype()
+        if current:
+            typer.echo(f"Current neurotype: {current}")
+        else:
+            typer.echo("No neurotype set")
+
+
+def main_with_personas():
+    """Wrapper that checks for personas before passing to typer."""
+    if _maybe_spawn_persona():
         sys.exit(0)
     app()
 
 
 if __name__ == "__main__":
-    main_with_roast()
+    main_with_personas()
