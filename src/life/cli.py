@@ -37,7 +37,7 @@ class Spinner:
 
     def _animate(self):
         """Run spinner animation in background thread."""
-        actions = {"roast": "roasting", "pepper": "peppering"}
+        actions = {"roast": "roasting", "pepper": "peppering", "kim": "investigating"}
         action = actions.get(self.persona, "thinking")
         while not self.stop_event.is_set():
             frame = next(self.spinner_frames)
@@ -85,6 +85,7 @@ def _known_commands() -> set[str]:
         "neurotype",
         "roast",
         "pepper",
+        "kim",
         "help",
         "--help",
         "-h",
@@ -140,6 +141,13 @@ def _maybe_spawn_persona() -> bool:
             return True
     elif raw_args[0] == "pepper":
         persona = "pepper"
+        raw_args = raw_args[1:]
+        if _is_message(raw_args):
+            message = " ".join(raw_args)
+            _spawn_persona(message, persona)
+            return True
+    elif raw_args[0] == "kim":
+        persona = "kim"
         raw_args = raw_args[1:]
         if _is_message(raw_args):
             message = " ".join(raw_args)

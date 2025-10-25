@@ -1,9 +1,11 @@
+from .kim import kim
 from .pepper import pepper
 from .roast import roast
 
 PERSONAS = {
     "roast": roast,
     "pepper": pepper,
+    "kim": kim,
 }
 
 
