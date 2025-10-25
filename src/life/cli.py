@@ -33,12 +33,19 @@ def task(
     content: str = typer.Argument(..., help="Task content"),
     focus: bool = typer.Option(False, help="Mark as focus task"),
     due: str = typer.Option(None, help="Due date (YYYY-MM-DD)"),
+    done: bool = typer.Option(False, help="Immediately mark task as done"),
 ):
     """Add task"""
     add_task(content, focus=focus, due=due)
     focus_str = " [FOCUS]" if focus else ""
     due_str = f" due {due}" if due else ""
-    typer.echo(f"Added: {content}{focus_str}{due_str}")
+    
+    if done:
+        from .utils import complete_fuzzy
+        complete_fuzzy(content)
+        typer.echo(f"Added & completed: {content}{focus_str}{due_str}")
+    else:
+        typer.echo(f"Added: {content}{focus_str}{due_str}")
 
 
 @app.command()
