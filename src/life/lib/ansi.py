@@ -13,7 +13,10 @@ class ANSI:
     MAGENTA = "\033[95m"
     CYAN = "\033[96m"
     WHITE = "\033[97m"
+    GREY = "\033[90m"
     RESET = "\033[0m"
+    
+    POOL = [RED, BLUE, MAGENTA, CYAN, YELLOW, GREEN]
 
 
 def md_to_ansi(text: str) -> str:

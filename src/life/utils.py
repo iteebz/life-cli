@@ -7,6 +7,7 @@ from .sqlite import (
     delete_task,
     get_pending_tasks,
     toggle_focus,
+    uncomplete_task,
     update_task,
 )
 
@@ -50,6 +51,37 @@ def complete_fuzzy(partial, category=None):
         else:
             complete_task(task[0])
         return task[1]
+    return None
+
+
+def uncomplete_fuzzy(partial):
+    """Uncomplete task using fuzzy matching"""
+    from .sqlite import get_today_completed
+    
+    today_items = get_today_completed()
+    today_completed_tasks = [t for t in today_items if t[2] == "task"]
+    
+    if not today_completed_tasks:
+        return None
+    
+    partial_lower = partial.lower()
+    
+    for task in today_completed_tasks:
+        if partial_lower in task[1].lower():
+            uncomplete_task(task[0])
+            return task[1]
+    
+    from difflib import get_close_matches
+    contents = [task[1] for task in today_completed_tasks]
+    matches = get_close_matches(partial_lower, [c.lower() for c in contents], n=1, cutoff=0.8)
+    
+    if matches:
+        match_content = matches[0]
+        for task in today_completed_tasks:
+            if task[1].lower() == match_content:
+                uncomplete_task(task[0])
+                return task[1]
+    
     return None
 
 
@@ -105,7 +137,7 @@ def format_decay(completed_str):
 
     try:
         completed = datetime.fromisoformat(completed_str)
-        now = datetime.now()
+        now = datetime.now().astimezone()
         diff = now - completed
 
         days = diff.days

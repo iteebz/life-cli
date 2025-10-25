@@ -5,8 +5,8 @@ from pathlib import Path
 
 LIFE_DIR = Path.home() / ".life"
 DB_PATH = LIFE_DIR / "store.db"
-CONTEXT_PATH = LIFE_DIR / "context.md"
-NEUROTYPE_PATH = LIFE_DIR / "neurotype.txt"
+CONTEXT_MD = LIFE_DIR / "context.md"
+PROFILE_MD = LIFE_DIR / "profile.md"
 BACKUP_DIR = Path.home() / ".life_backups"
 
 
@@ -47,13 +47,13 @@ def init_db():
     conn.close()
 
 
-def add_task(content, category="task", focus=False, due=None):
+def add_task(content, category="task", focus=False, due=None, target_count=5):
     """Add task to database"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
-        "INSERT INTO tasks (content, category, focus, due) VALUES (?, ?, ?, ?)",
-        (content, category, focus, due),
+        "INSERT INTO tasks (content, category, focus, due, target_count) VALUES (?, ?, ?, ?, ?)",
+        (content, category, focus, due, target_count),
     )
     conn.commit()
     conn.close()
@@ -209,7 +209,20 @@ def complete_task(task_id):
     conn.close()
 
 
-def update_task(task_id, content=None, due=None, focus=None):
+def uncomplete_task(task_id):
+    """Mark task as incomplete"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "UPDATE tasks SET completed = NULL WHERE id = ?", (task_id,)
+    )
+    conn.commit()
+    conn.close()
+
+
+_CLEAR = object()
+
+def update_task(task_id, content=None, due=_CLEAR, focus=None):
     """Update task fields"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
@@ -220,7 +233,7 @@ def update_task(task_id, content=None, due=None, focus=None):
     if content is not None:
         updates.append("content = ?")
         params.append(content)
-    if due is not None:
+    if due is not _CLEAR:
         updates.append("due = ?")
         params.append(due)
     if focus is not None:
@@ -267,15 +280,15 @@ def execute_sql(query):
 
 def get_context():
     """Get current life context"""
-    if CONTEXT_PATH.exists():
-        return CONTEXT_PATH.read_text().strip()
+    if CONTEXT_MD.exists():
+        return CONTEXT_MD.read_text().strip()
     return "No context set"
 
 
 def set_context(context):
     """Set current life context"""
     LIFE_DIR.mkdir(exist_ok=True)
-    CONTEXT_PATH.write_text(context)
+    CONTEXT_MD.write_text(context)
 
 
 def clear_all_tasks():
@@ -321,7 +334,7 @@ def check_reminder(reminder_id, check_date=None):
 
     if target:
         cursor = conn.execute("SELECT COUNT(*) FROM checks WHERE reminder_id = ?", (reminder_id,))
-        count = cursor.fetchone()[0] + 1
+        count = cursor.fetchone()[0]
         target_count = target[0]
 
         if count >= target_count:
@@ -331,17 +344,17 @@ def check_reminder(reminder_id, check_date=None):
     conn.close()
 
 
-def get_neurotype():
-    """Get current neurotype"""
-    if NEUROTYPE_PATH.exists():
-        return NEUROTYPE_PATH.read_text().strip()
+def get_profile():
+    """Get current profile"""
+    if PROFILE_MD.exists():
+        return PROFILE_MD.read_text().strip()
     return ""
 
 
-def set_neurotype(neurotype):
-    """Set current neurotype"""
+def set_profile(profile):
+    """Set current profile"""
     LIFE_DIR.mkdir(exist_ok=True)
-    NEUROTYPE_PATH.write_text(neurotype)
+    PROFILE_MD.write_text(profile)
 
 
 def add_tag(task_id, tag):
@@ -391,6 +404,18 @@ def get_tasks_by_tag(tag):
     return tasks
 
 
+def remove_tag(task_id, tag):
+    """Remove a tag from a task"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "DELETE FROM task_tags WHERE task_id = ? AND tag = ?",
+        (task_id, tag.lower()),
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_today_completed():
     """Get all tasks completed today and habit/chore checks today"""
     init_db()
@@ -425,54 +450,44 @@ def get_today_completed():
 
 
 def backup():
-    """Create timestamped backup of database and metadata files"""
+    """Create timestamped backup of .life/ directory"""
     BACKUP_DIR.mkdir(exist_ok=True)
-    
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_name = f"life_backup_{timestamp}"
-    backup_path = BACKUP_DIR / backup_name
-    backup_path.mkdir(exist_ok=True)
-    
-    shutil.copy2(DB_PATH, backup_path / "store.db")
-    
-    if CONTEXT_PATH.exists():
-        shutil.copy2(CONTEXT_PATH, backup_path / "context.md")
-    
-    if NEUROTYPE_PATH.exists():
-        shutil.copy2(NEUROTYPE_PATH, backup_path / "neurotype.txt")
-    
+    backup_path = BACKUP_DIR / timestamp
+    shutil.copytree(LIFE_DIR, backup_path, dirs_exist_ok=True)
+
     return backup_path
 
 
 def restore(backup_name: str):
     """Restore from a backup"""
     backup_path = BACKUP_DIR / backup_name
-    
+
     if not backup_path.exists():
         raise FileNotFoundError(f"Backup not found: {backup_name}")
-    
+
     LIFE_DIR.mkdir(exist_ok=True)
-    
+
     db_file = backup_path / "store.db"
     if db_file.exists():
         shutil.copy2(db_file, DB_PATH)
-    
+
     ctx_file = backup_path / "context.md"
     if ctx_file.exists():
-        shutil.copy2(ctx_file, CONTEXT_PATH)
-    
-    nt_file = backup_path / "neurotype.txt"
-    if nt_file.exists():
-        shutil.copy2(nt_file, NEUROTYPE_PATH)
+        shutil.copy2(ctx_file, CONTEXT_MD)
+
+    profile_file = backup_path / "profile.md"
+    if profile_file.exists():
+        shutil.copy2(profile_file, PROFILE_MD)
 
 
 def list_backups() -> list[str]:
     """List all available backups"""
     if not BACKUP_DIR.exists():
         return []
-    
-    backups = sorted(
+
+    return sorted(
         [d.name for d in BACKUP_DIR.iterdir() if d.is_dir()],
         reverse=True
     )
-    return backups

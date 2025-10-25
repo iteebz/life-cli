@@ -24,12 +24,12 @@ def render_today_completed(today_items):
     if habits:
         for habit in habits:
             time_str = f" {format_decay(habit[3])}" if habit[3] else ""
-            lines.append(f"  ☑ {habit[1].lower()} (habit){time_str}")
+            lines.append(f"  ☑ {habit[1].lower()} #habit{time_str}")
 
     if chores:
         for chore in chores:
             time_str = f" {format_decay(chore[3])}" if chore[3] else ""
-            lines.append(f"  ☑ {chore[1].lower()} (chore){time_str}")
+            lines.append(f"  ☑ {chore[1].lower()} #chore{time_str}")
 
     return "\n".join(lines)
 
@@ -38,7 +38,7 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
     """Render full dashboard view"""
     this_week_completed, this_week_added, last_week_completed, last_week_added = momentum
     today = date.today()
-    now = datetime.now()
+    now = datetime.now().astimezone()
     current_time = now.strftime("%H:%M")
 
     lines = []
@@ -58,9 +58,7 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
     if not tasks:
         lines.append("\nNo pending tasks. You're either productive or fucked.")
     else:
-        focus_tasks = [t for t in tasks if t[3] == 1 and t[2] == "task"]
-        scheduled_tasks = [t for t in tasks if t[2] == "task" and t[3] == 0 and t[4]]
-        backlog_tasks = [t for t in tasks if t[2] == "task" and t[3] == 0 and not t[4]]
+        all_tasks = [t for t in tasks if t[2] == "task"]
         habits = [t for t in tasks if t[2] == "habit"]
         chores = [t for t in tasks if t[2] == "chore"]
 
@@ -71,61 +69,49 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
         habits = [t for t in habits if t[6] is None or date.fromisoformat(t[6][:10]) < today]
         chores = [t for t in chores if t[6] is None or date.fromisoformat(t[6][:10]) < today]
 
-        focus_sorted = sorted(focus_tasks, key=lambda x: (x[4] or "", x[1].lower()))
-        if focus_sorted:
-            lines.append(
-                f"\n{ANSI.BOLD}{ANSI.RED}🔥 FOCUS ({len(focus_sorted)}/3 max):{ANSI.RESET}"
-            )
-            for task in focus_sorted:
+        tagged_all = {}
+        untagged = []
+
+        for task in all_tasks:
+            task_id = task[0]
+            task_tags = get_tags(task_id)
+            if task_tags:
+                for tag in task_tags:
+                    if tag not in tagged_all:
+                        tagged_all[tag] = []
+                    tagged_all[tag].append(task)
+            else:
+                untagged.append(task)
+
+        def sort_tasks(task_list):
+            return sorted(task_list, key=lambda x: (not x[3], x[4] or "", x[1].lower()))
+
+        for idx, tag in enumerate(sorted(tagged_all.keys())):
+            tasks_by_tag = sort_tasks(tagged_all[tag])
+            tag_color = ANSI.POOL[idx % len(ANSI.POOL)]
+            lines.append(f"\n{ANSI.BOLD}{tag_color}#{tag.upper()} ({len(tasks_by_tag)}):{ANSI.RESET}")
+            for task in tasks_by_tag:
                 task_id, content, _category, _focus, due = task[:5]
                 due_str = f" {format_due_date(due)}" if due else ""
-                tags = get_tags(task_id)
-                tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
-                lines.append(f"  {ANSI.BOLD}{content.lower()}{ANSI.RESET}{due_str}{tags_str}")
-
-        scheduled_sorted = sorted(scheduled_tasks, key=lambda x: x[4])
-        if scheduled_sorted:
-            lines.append(f"\n{ANSI.BOLD}{ANSI.CYAN}SCHEDULE ({len(scheduled_sorted)}):{ANSI.RESET}")
-            for task in scheduled_sorted:
-                task_id, content, _category, _focus, due = task[:5]
-                due_str = f" {format_due_date(due)}"
-                tags = get_tags(task_id)
-                tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
-                lines.append(f"  {content.lower()}{due_str}{tags_str}")
-
-        tagged_backlog = {}
-        untagged_backlog = []
-
-        for task in backlog_tasks:
-            task_id = task[0]
-            tags = get_tags(task_id)
-            if tags:
-                for tag in tags:
-                    if tag not in tagged_backlog:
-                        tagged_backlog[tag] = []
-                    tagged_backlog[tag].append(task)
-            else:
-                untagged_backlog.append(task)
-
-        for tag in sorted(tagged_backlog.keys()):
-            tag_tasks = sorted(tagged_backlog[tag], key=lambda x: x[1].lower())
-            lines.append(f"\n{ANSI.BOLD}{ANSI.CYAN}#{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}")
-            for task in tag_tasks:
-                task_id, content = task[:2]
                 other_tags = [t for t in get_tags(task_id) if t != tag]
                 tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
-                lines.append(f"  {content.lower()}{tags_str}")
+                indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
+                lines.append(f"  {indicator}{content.lower()}{due_str}{tags_str}")
 
-        if untagged_backlog:
-            untagged_sorted = sorted(untagged_backlog, key=lambda x: x[1].lower())
-            lines.append(f"\n{ANSI.BOLD}{ANSI.YELLOW}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
+        untagged_sorted = sort_tasks(untagged)
+        if untagged_sorted:
+            lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
             for task in untagged_sorted:
-                task_id, content = task[:2]
-                lines.append(f"  {content.lower()}")
+                task_id, content, _category, _focus, due = task[:5]
+                due_str = f" {format_due_date(due)}" if due else ""
+                indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
+                lines.append(f"  {indicator}{content.lower()}{due_str}")
 
         if all_habits:
+            active_habits = [t for t in all_habits if t[6] is not None and date.fromisoformat(t[6][:10]) == today]
+            total_habit_completions = sum(task[7] if len(task) > 7 else 0 for task in active_habits)
             lines.append(
-                f"\n{ANSI.BOLD}{ANSI.GREEN}HABITS ({len(habits)}/{len(all_habits)}):{ANSI.RESET}"
+                f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({total_habit_completions}/{len(all_habits)}):{ANSI.RESET}"
             )
             today_habit_ids = {item[0] for item in (today_items or []) if item[2] == "habit"}
             sorted_habits = sorted(all_habits, key=lambda x: x[1].lower())
@@ -138,8 +124,10 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
                 lines.append(f"  {checked_today} {content.lower()}{decay_str}")
 
         if all_chores:
+            active_chores = [t for t in all_chores if t[6] is not None and date.fromisoformat(t[6][:10]) == today]
+            total_chore_completions = sum(task[7] if len(task) > 7 else 0 for task in active_chores)
             lines.append(
-                f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({len(chores)}/{len(all_chores)}):{ANSI.RESET}"
+                f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({total_chore_completions}/{len(all_chores)}):{ANSI.RESET}"
             )
             today_chore_ids = {item[0] for item in (today_items or []) if item[2] == "chore"}
             sorted_chores = sorted(all_chores, key=lambda x: x[1].lower())

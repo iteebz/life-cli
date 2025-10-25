@@ -1,5 +1,4 @@
-from .base import cli_operations
-from .base import guidance as base_guidance
+from .base import build_prompt
 
 
 def pepper() -> str:
@@ -41,4 +40,4 @@ def pepper() -> str:
         "- Burnout isn't laziness; it's system overload. Triage ruthlessly, celebrate progress.\n\n"
     )
 
-    return f"{identity}{neurotype}{critical}{job}{patterns}{cli_operations()}{base_guidance()}"
+    return build_prompt(identity, neurotype, critical, job, patterns)

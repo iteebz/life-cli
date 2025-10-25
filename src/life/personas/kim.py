@@ -1,5 +1,4 @@
-from .base import cli_operations
-from .base import guidance as base_guidance
+from .base import build_prompt
 
 
 def kim() -> str:
@@ -45,4 +44,4 @@ def kim() -> str:
         "- Avoidance = name it, then break it into atoms\n\n"
     )
 
-    return f"{identity}{style}{critical}{job}{patterns}{cli_operations()}{base_guidance()}"
+    return build_prompt(identity, style, critical, job, patterns)
