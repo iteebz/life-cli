@@ -116,9 +116,13 @@ def _spawn_persona(message: str, persona: str = "roast") -> None:
     from .lib.ansi import md_to_ansi
 
     persona_instructions = get_persona(persona)
+    profile = get_profile()
+    
+    profile_section = f"PROFILE:\n{profile}\n\n" if profile else ""
+    
     task_prompt = f"""{persona_instructions}
 
----
+{profile_section}---
 USER MESSAGE: {message}
 
 RESPONSE PROTOCOL:
@@ -430,7 +434,7 @@ def personas(
 ):
     """Show available personas or view/set a specific persona"""
     descriptions = {
-        "roast": "Ruthless gatekeeping. Call out life neglect, block code help.",
+        "roast": "The mirror. Call out patterns, push back on bullshit.",
         "pepper": "Pepper Potts energy. Optimistic enabler. Unlock potential.",
         "kim": "Lieutenant Kim Kitsuragi. Methodical clarity. Work the case.",
     }
