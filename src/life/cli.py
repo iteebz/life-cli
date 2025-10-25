@@ -1,6 +1,9 @@
+import itertools
 import os
 import subprocess
 import sys
+import threading
+import time
 
 import typer
 
@@ -21,6 +24,39 @@ from .utils import complete_fuzzy, remove_fuzzy, toggle_fuzzy
 DATABASE = "~/.life/store.db"
 
 app = typer.Typer()
+
+
+class Spinner:
+    """Simple CLI spinner for async feedback."""
+
+    def __init__(self, persona: str = "roast"):
+        self.stop_event = threading.Event()
+        self.spinner_frames = itertools.cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
+        self.persona = persona
+        self.thread = None
+
+    def _animate(self):
+        """Run spinner animation in background thread."""
+        actions = {"roast": "roasting", "pepper": "peppering"}
+        action = actions.get(self.persona, "thinking")
+        while not self.stop_event.is_set():
+            frame = next(self.spinner_frames)
+            sys.stdout.write(f"\r{frame} {action}... ")
+            sys.stdout.flush()
+            time.sleep(0.1)
+        sys.stdout.write("\r")
+        sys.stdout.flush()
+
+    def start(self):
+        """Start the spinner."""
+        self.thread = threading.Thread(target=self._animate, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        """Stop the spinner."""
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=0.5)
 
 
 def _build_roast_context() -> str:
@@ -76,10 +112,15 @@ Run `life` to see their task state. Respond as {persona}: assess patterns, guide
     env = os.environ.copy()
     env["LIFE_PERSONA"] = persona
 
+    spinner = Spinner(persona)
+    spinner.start()
+
     result = subprocess.run(
         ["claude", "--model", "claude-haiku-4-5", "-p", task_prompt, "--allowedTools", "Bash"],
         env=env,
     )
+
+    spinner.stop()
     sys.exit(result.returncode)
 
 
