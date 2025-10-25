@@ -1,5 +1,6 @@
 from datetime import date, datetime
 
+from .lib.ansi import ANSI, md_to_ansi
 from .utils import format_decay, format_due_date
 
 
@@ -11,7 +12,7 @@ def render_dashboard(tasks, today_count, momentum, context):
     current_time = now.strftime("%H:%M")
 
     lines = []
-    lines.append(f"\nLIFE CONTEXT:\n{context}")
+    lines.append(f"\n{ANSI.BOLD}{ANSI.MAGENTA}LIFE CONTEXT:{ANSI.RESET}\n{md_to_ansi(context)}")
 
     lines.append(f"\nToday: {today} {current_time}")
     wedding_date = date(2025, 11, 15)
@@ -37,34 +38,31 @@ def render_dashboard(tasks, today_count, momentum, context):
         habits = [t for t in habits if t[6] is None or date.fromisoformat(t[6][:10]) < today]
         chores = [t for t in chores if t[6] is None or date.fromisoformat(t[6][:10]) < today]
 
-        # Sort focus by due date, then alphabetical
         focus_sorted = sorted(focus_tasks, key=lambda x: (x[4] or "", x[1].lower()))
         if focus_sorted:
-            lines.append(f"\n🔥 FOCUS ({len(focus_sorted)}/3 max):")
+            lines.append(f"\n{ANSI.BOLD}{ANSI.RED}🔥 FOCUS ({len(focus_sorted)}/3 max):{ANSI.RESET}")
             for task in focus_sorted:
                 _task_id, content, _category, _focus, due = task[:5]
                 due_str = f" {format_due_date(due)}" if due else ""
-                lines.append(f"  {content.lower()}{due_str}")
+                lines.append(f"  {ANSI.BOLD}{content.lower()}{ANSI.RESET}{due_str}")
 
-        # Sort schedule by due date
         scheduled_sorted = sorted(scheduled_tasks, key=lambda x: x[4])
         if scheduled_sorted:
-            lines.append(f"\nSCHEDULE ({len(scheduled_sorted)}):")
+            lines.append(f"\n{ANSI.BOLD}{ANSI.CYAN}SCHEDULE ({len(scheduled_sorted)}):{ANSI.RESET}")
             for task in scheduled_sorted:
                 _task_id, content, _category, _focus, due = task[:5]
                 due_str = f" {format_due_date(due)}"
                 lines.append(f"  {content.lower()}{due_str}")
 
-        # Sort backlog alphabetically
         backlog_sorted = sorted(backlog_tasks, key=lambda x: x[1].lower())
         if backlog_sorted:
-            lines.append(f"\nBACKLOG ({len(backlog_sorted)}):")
+            lines.append(f"\n{ANSI.BOLD}{ANSI.YELLOW}BACKLOG ({len(backlog_sorted)}):{ANSI.RESET}")
             for task in backlog_sorted:
                 _task_id, content = task[:2]
                 lines.append(f"  {content.lower()}")
 
         if all_habits:
-            lines.append(f"\nHABITS ({len(habits)}/{len(all_habits)}):")
+            lines.append(f"\n{ANSI.BOLD}{ANSI.GREEN}HABITS ({len(habits)}/{len(all_habits)}):{ANSI.RESET}")
             sorted_habits = sorted(habits, key=lambda x: x[1].lower())
             for task in sorted_habits:
                 content = task[1]
@@ -74,7 +72,7 @@ def render_dashboard(tasks, today_count, momentum, context):
                 lines.append(f"  {content.lower()}{decay_str}")
 
         if all_chores:
-            lines.append(f"\nCHORES ({len(chores)}/{len(all_chores)}):")
+            lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({len(chores)}/{len(all_chores)}):{ANSI.RESET}")
             sorted_chores = sorted(chores, key=lambda x: x[1].lower())
             for task in sorted_chores:
                 content = task[1]
