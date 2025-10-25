@@ -3,9 +3,9 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "life"
+name = "life-cli"
 version = "0.1.0"
-description = "ADHD executive function rescue system"
+description = "Life accountability CLI"
 authors = ["tyson <tyson.chan@proton.me>"]
 readme = "README.md"
 packages = [{include = "life", from = "src"}]
