@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 
 from .display import render_dashboard, render_task_list
+from .personas import get_persona
 from .sqlite import (
     add_task,
     get_context,
@@ -59,32 +60,41 @@ def _is_message(raw_args: list[str]) -> bool:
     return first_arg not in _known_commands()
 
 
-def _spawn_roaster(message: str) -> None:
-    """Spawn ephemeral claude roaster."""
-    task_prompt = f"""User says: {message}
+def _spawn_persona(message: str, persona: str = "roaster") -> None:
+    """Spawn ephemeral claude persona."""
+    persona_instructions = get_persona(persona)
+    task_prompt = f"""{persona_instructions}
 
-Run `life` to see their task state and roasting instructions. Respond as the life roaster: check patterns, roast when warranted, use CLI to modify state as needed."""
+---
+User says: {message}
+
+Run `life` to see their task state. Respond as {persona}: assess patterns, guide appropriately, use CLI to modify state as needed."""
     
     env = os.environ.copy()
-    env["LIFE_ROASTER"] = "1"
+    env["LIFE_PERSONA"] = persona
     
     result = subprocess.run(
-        ["claude", "-p", task_prompt, "--allowedTools", "Bash"],
+        ["claude", "--model", "claude-haiku-4-5", "-p", task_prompt, "--allowedTools", "Bash"],
         env=env,
     )
     sys.exit(result.returncode)
 
 
 def _maybe_roast() -> bool:
-    """Check if we should roast instead of running normal CLI. Returns True if roasted."""
+    """Check if we should spawn persona instead of running normal CLI. Returns True if spawned."""
     raw_args = sys.argv[1:]
     
     if not raw_args or raw_args[0] in ("--help", "-h", "--show-completion", "--install-completion"):
         return False
     
+    persona = "roaster"
+    if raw_args[0] in ("--pepper", "-p"):
+        persona = "pepper"
+        raw_args = raw_args[1:]
+    
     if _is_message(raw_args):
         message = " ".join(raw_args)
-        _spawn_roaster(message)
+        _spawn_persona(message, persona)
         return True
     
     return False
