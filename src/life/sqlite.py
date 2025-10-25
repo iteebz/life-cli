@@ -331,3 +331,36 @@ def set_neurotype(neurotype):
     """Set current neurotype"""
     LIFE_DIR.mkdir(exist_ok=True)
     NEUROTYPE_PATH.write_text(neurotype)
+
+
+def get_today_completed():
+    """Get all tasks completed today and habit/chore checks today"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    today_str = date.today().isoformat()
+
+    cursor = conn.execute(
+        """
+        SELECT id, content, category, completed
+        FROM tasks
+        WHERE DATE(completed) = ? AND category = 'task'
+        ORDER BY completed DESC
+    """,
+        (today_str,),
+    )
+    completed_tasks = cursor.fetchall()
+
+    cursor = conn.execute(
+        """
+        SELECT t.id, t.content, t.category, c.checked
+        FROM tasks t
+        INNER JOIN checks c ON t.id = c.reminder_id
+        WHERE DATE(c.checked) = ? AND (t.category = 'habit' OR t.category = 'chore')
+        ORDER BY c.checked DESC
+    """,
+        (today_str,),
+    )
+    checked_items = cursor.fetchall()
+
+    conn.close()
+    return completed_tasks + checked_items

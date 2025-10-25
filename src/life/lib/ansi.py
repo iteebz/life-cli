@@ -18,53 +18,33 @@ class ANSI:
 
 def md_to_ansi(text: str) -> str:
     """Convert markdown formatting to ANSI escape codes."""
-    
+
     lines = []
     for line in text.split("\n"):
         formatted = line
-        
-        formatted = re.sub(
-            r"\*\*(.+?)\*\*",
-            rf"{ANSI.BOLD}\1{ANSI.RESET}",
-            formatted
-        )
-        
-        formatted = re.sub(
-            r"__(.+?)__",
-            rf"{ANSI.BOLD}\1{ANSI.RESET}",
-            formatted
-        )
-        
-        formatted = re.sub(
-            r"\*(.+?)\*",
-            rf"{ANSI.ITALIC}\1{ANSI.RESET}",
-            formatted
-        )
-        
-        formatted = re.sub(
-            r"_(.+?)_",
-            rf"{ANSI.ITALIC}\1{ANSI.RESET}",
-            formatted
-        )
-        
-        formatted = re.sub(
-            r"`(.+?)`",
-            rf"{ANSI.CYAN}\1{ANSI.RESET}",
-            formatted
-        )
-        
+
+        formatted = re.sub(r"\*\*(.+?)\*\*", rf"{ANSI.BOLD}\1{ANSI.RESET}", formatted)
+
+        formatted = re.sub(r"__(.+?)__", rf"{ANSI.BOLD}\1{ANSI.RESET}", formatted)
+
+        formatted = re.sub(r"\*(.+?)\*", rf"{ANSI.ITALIC}\1{ANSI.RESET}", formatted)
+
+        formatted = re.sub(r"_(.+?)_", rf"{ANSI.ITALIC}\1{ANSI.RESET}", formatted)
+
+        formatted = re.sub(r"`(.+?)`", rf"{ANSI.CYAN}\1{ANSI.RESET}", formatted)
+
         if formatted.startswith("# "):
             formatted = f"{ANSI.BOLD}{ANSI.MAGENTA}{formatted[2:]}{ANSI.RESET}"
         elif formatted.startswith("## "):
             formatted = f"{ANSI.BOLD}{ANSI.BLUE}{formatted[3:]}{ANSI.RESET}"
         elif formatted.startswith("### "):
             formatted = f"{ANSI.BOLD}{formatted[4:]}{ANSI.RESET}"
-        
+
         if formatted.lstrip().startswith("- "):
             indent = len(formatted) - len(formatted.lstrip())
             bullet = f"{ANSI.GREEN}•{ANSI.RESET}"
-            formatted = " " * indent + bullet + formatted[indent + 1:]
-        
+            formatted = " " * indent + bullet + formatted[indent + 1 :]
+
         lines.append(formatted)
-    
+
     return "\n".join(lines)

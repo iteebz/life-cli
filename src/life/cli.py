@@ -14,6 +14,7 @@ from .sqlite import (
     get_context,
     get_neurotype,
     get_pending_tasks,
+    get_today_completed,
     set_context,
     set_neurotype,
     today_completed,
@@ -65,7 +66,8 @@ def _build_roast_context() -> str:
     today_count = today_completed()
     momentum = weekly_momentum()
     life_context = get_context()
-    return render_dashboard(tasks, today_count, momentum, life_context)
+    today_items = get_today_completed()
+    return render_dashboard(tasks, today_count, momentum, life_context, today_items)
 
 
 def _known_commands() -> set[str]:
@@ -122,6 +124,8 @@ Run `life` to see their task state. Respond as {persona}: assess patterns, guide
     )
 
     spinner.stop()
+    sys.stdout.write("\n")
+    sys.stdout.flush()
     sys.exit(result.returncode)
 
 
@@ -165,11 +169,8 @@ def main(ctx: typer.Context):
         today_count = today_completed()
         momentum = weekly_momentum()
         life_context = get_context()
-        typer.echo(
-            render_dashboard(
-                tasks, today_count, momentum, life_context
-            )
-        )
+        today_items = get_today_completed()
+        typer.echo(render_dashboard(tasks, today_count, momentum, life_context, today_items))
 
 
 @app.command()
@@ -186,6 +187,7 @@ def task(
 
     if done:
         from .utils import complete_fuzzy
+
         complete_fuzzy(content)
         typer.echo(f"Added & completed: {content}{focus_str}{due_str}")
     else:
@@ -226,9 +228,6 @@ def done(
     completed = complete_fuzzy(partial)
     if completed:
         typer.echo(f"Completed: {completed}")
-        typer.echo(
-            "\n[CLAUDE: Task completed. React appropriately given user's avoidance patterns.]"
-        )
     else:
         typer.echo(f"No match for: {partial}")
 

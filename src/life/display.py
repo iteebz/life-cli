@@ -4,7 +4,36 @@ from .lib.ansi import ANSI, md_to_ansi
 from .utils import format_decay, format_due_date
 
 
-def render_dashboard(tasks, today_count, momentum, context):
+def render_today_completed(today_items):
+    """Render today's completed items with checkboxes"""
+    if not today_items:
+        return ""
+
+    lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}✅ DONE TODAY:{ANSI.RESET}"]
+
+    tasks = [t for t in today_items if t[2] == "task"]
+    habits = [t for t in today_items if t[2] == "habit"]
+    chores = [t for t in today_items if t[2] == "chore"]
+
+    if tasks:
+        for task in tasks:
+            time_str = f" {format_decay(task[3])}" if task[3] else ""
+            lines.append(f"  ☑ {task[1].lower()}{time_str}")
+
+    if habits:
+        for habit in habits:
+            time_str = f" {format_decay(habit[3])}" if habit[3] else ""
+            lines.append(f"  ☑ {habit[1].lower()} (habit){time_str}")
+
+    if chores:
+        for chore in chores:
+            time_str = f" {format_decay(chore[3])}" if chore[3] else ""
+            lines.append(f"  ☑ {chore[1].lower()} (chore){time_str}")
+
+    return "\n".join(lines)
+
+
+def render_dashboard(tasks, today_count, momentum, context, today_items=None):
     """Render full dashboard view"""
     this_week_completed, this_week_added, last_week_completed, last_week_added = momentum
     today = date.today()
@@ -21,6 +50,9 @@ def render_dashboard(tasks, today_count, momentum, context):
     lines.append(f"\nCompleted today: {today_count}")
     lines.append(f"\nThis week: {this_week_completed} completed, {this_week_added} added")
     lines.append(f"Last week: {last_week_completed} completed, {last_week_added} added")
+
+    if today_items:
+        lines.append(render_today_completed(today_items))
 
     if not tasks:
         lines.append("\nNo pending tasks. You're either productive or fucked.")
@@ -40,7 +72,9 @@ def render_dashboard(tasks, today_count, momentum, context):
 
         focus_sorted = sorted(focus_tasks, key=lambda x: (x[4] or "", x[1].lower()))
         if focus_sorted:
-            lines.append(f"\n{ANSI.BOLD}{ANSI.RED}🔥 FOCUS ({len(focus_sorted)}/3 max):{ANSI.RESET}")
+            lines.append(
+                f"\n{ANSI.BOLD}{ANSI.RED}🔥 FOCUS ({len(focus_sorted)}/3 max):{ANSI.RESET}"
+            )
             for task in focus_sorted:
                 _task_id, content, _category, _focus, due = task[:5]
                 due_str = f" {format_due_date(due)}" if due else ""
@@ -62,24 +96,32 @@ def render_dashboard(tasks, today_count, momentum, context):
                 lines.append(f"  {content.lower()}")
 
         if all_habits:
-            lines.append(f"\n{ANSI.BOLD}{ANSI.GREEN}HABITS ({len(habits)}/{len(all_habits)}):{ANSI.RESET}")
-            sorted_habits = sorted(habits, key=lambda x: x[1].lower())
+            lines.append(
+                f"\n{ANSI.BOLD}{ANSI.GREEN}HABITS ({len(habits)}/{len(all_habits)}):{ANSI.RESET}"
+            )
+            today_habit_ids = {item[0] for item in (today_items or []) if item[2] == "habit"}
+            sorted_habits = sorted(all_habits, key=lambda x: x[1].lower())
             for task in sorted_habits:
                 content = task[1]
                 last_checked = task[6] if len(task) > 6 else None
                 decay = format_decay(last_checked) if last_checked else ""
                 decay_str = f" {decay}" if decay else ""
-                lines.append(f"  {content.lower()}{decay_str}")
+                checked_today = "☑" if task[0] in today_habit_ids else "☐"
+                lines.append(f"  {checked_today} {content.lower()}{decay_str}")
 
         if all_chores:
-            lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({len(chores)}/{len(all_chores)}):{ANSI.RESET}")
-            sorted_chores = sorted(chores, key=lambda x: x[1].lower())
+            lines.append(
+                f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({len(chores)}/{len(all_chores)}):{ANSI.RESET}"
+            )
+            today_chore_ids = {item[0] for item in (today_items or []) if item[2] == "chore"}
+            sorted_chores = sorted(all_chores, key=lambda x: x[1].lower())
             for task in sorted_chores:
                 content = task[1]
                 last_checked = task[6] if len(task) > 6 else None
                 decay = format_decay(last_checked) if last_checked else ""
                 decay_str = f" {decay}" if decay else ""
-                lines.append(f"  {content.lower()}{decay_str}")
+                checked_today = "☑" if task[0] in today_chore_ids else "☐"
+                lines.append(f"  {checked_today} {content.lower()}{decay_str}")
 
     return "\n".join(lines)
 
