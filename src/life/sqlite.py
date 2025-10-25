@@ -32,6 +32,15 @@ def init_db():
             FOREIGN KEY (reminder_id) REFERENCES tasks(id)
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS task_tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            tag TEXT NOT NULL,
+            FOREIGN KEY (task_id) REFERENCES tasks(id),
+            UNIQUE(task_id, tag)
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -331,6 +340,53 @@ def set_neurotype(neurotype):
     """Set current neurotype"""
     LIFE_DIR.mkdir(exist_ok=True)
     NEUROTYPE_PATH.write_text(neurotype)
+
+
+def add_tag(task_id, tag):
+    """Add a tag to a task"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            "INSERT INTO task_tags (task_id, tag) VALUES (?, ?)",
+            (task_id, tag.lower()),
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        pass
+    finally:
+        conn.close()
+
+
+def get_tags(task_id):
+    """Get all tags for a task"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT tag FROM task_tags WHERE task_id = ?", (task_id,))
+    tags = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return tags
+
+
+def get_tasks_by_tag(tag):
+    """Get all pending tasks with a specific tag"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute(
+        """
+        SELECT t.id, t.content, t.category, t.focus, t.due, t.created, MAX(c.checked), COUNT(c.id), t.target_count
+        FROM tasks t
+        LEFT JOIN checks c ON t.id = c.reminder_id
+        INNER JOIN task_tags tt ON t.id = tt.task_id
+        WHERE t.completed IS NULL AND tt.tag = ?
+        GROUP BY t.id
+        ORDER BY t.focus DESC, t.due ASC NULLS LAST, t.created ASC
+    """,
+        (tag.lower(),),
+    )
+    tasks = cursor.fetchall()
+    conn.close()
+    return tasks
 
 
 def get_today_completed():

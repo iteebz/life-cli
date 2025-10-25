@@ -10,10 +10,12 @@ import typer
 from .display import render_dashboard, render_task_list
 from .personas import get_persona
 from .sqlite import (
+    add_tag,
     add_task,
     get_context,
     get_neurotype,
     get_pending_tasks,
+    get_tasks_by_tag,
     get_today_completed,
     set_context,
     set_neurotype,
@@ -83,6 +85,7 @@ def _known_commands() -> set[str]:
         "focus",
         "due",
         "edit",
+        "tag",
         "context",
         "neurotype",
         "roast",
@@ -345,6 +348,32 @@ def neurotype(
             typer.echo(f"Current neurotype: {current}")
         else:
             typer.echo("No neurotype set")
+
+
+@app.command()
+def tag(
+    tag_name: str = typer.Argument(..., help="Tag name"),
+    partial: str = typer.Argument(None, help="Partial task content for fuzzy matching"),
+):
+    """Add tag to task (fuzzy match), or view tasks by tag"""
+    if partial:
+        from .utils import find_task
+
+        task = find_task(partial)
+        if task:
+            add_tag(task[0], tag_name)
+            typer.echo(f"Tagged: {task[1]} → #{tag_name}")
+        else:
+            typer.echo(f"No match for: {partial}")
+    else:
+        tasks = get_tasks_by_tag(tag_name)
+        if tasks:
+            from .display import render_task_list
+
+            typer.echo(f"\n{tag_name.upper()} ({len(tasks)}):")
+            typer.echo(render_task_list(tasks))
+        else:
+            typer.echo(f"No tasks tagged with #{tag_name}")
 
 
 def main_with_personas():

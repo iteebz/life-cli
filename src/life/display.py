@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from .lib.ansi import ANSI, md_to_ansi
+from .sqlite import get_tags
 from .utils import format_decay, format_due_date
 
 
@@ -76,23 +77,50 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
                 f"\n{ANSI.BOLD}{ANSI.RED}🔥 FOCUS ({len(focus_sorted)}/3 max):{ANSI.RESET}"
             )
             for task in focus_sorted:
-                _task_id, content, _category, _focus, due = task[:5]
+                task_id, content, _category, _focus, due = task[:5]
                 due_str = f" {format_due_date(due)}" if due else ""
-                lines.append(f"  {ANSI.BOLD}{content.lower()}{ANSI.RESET}{due_str}")
+                tags = get_tags(task_id)
+                tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
+                lines.append(f"  {ANSI.BOLD}{content.lower()}{ANSI.RESET}{due_str}{tags_str}")
 
         scheduled_sorted = sorted(scheduled_tasks, key=lambda x: x[4])
         if scheduled_sorted:
             lines.append(f"\n{ANSI.BOLD}{ANSI.CYAN}SCHEDULE ({len(scheduled_sorted)}):{ANSI.RESET}")
             for task in scheduled_sorted:
-                _task_id, content, _category, _focus, due = task[:5]
+                task_id, content, _category, _focus, due = task[:5]
                 due_str = f" {format_due_date(due)}"
-                lines.append(f"  {content.lower()}{due_str}")
+                tags = get_tags(task_id)
+                tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
+                lines.append(f"  {content.lower()}{due_str}{tags_str}")
 
-        backlog_sorted = sorted(backlog_tasks, key=lambda x: x[1].lower())
-        if backlog_sorted:
-            lines.append(f"\n{ANSI.BOLD}{ANSI.YELLOW}BACKLOG ({len(backlog_sorted)}):{ANSI.RESET}")
-            for task in backlog_sorted:
-                _task_id, content = task[:2]
+        tagged_backlog = {}
+        untagged_backlog = []
+
+        for task in backlog_tasks:
+            task_id = task[0]
+            tags = get_tags(task_id)
+            if tags:
+                for tag in tags:
+                    if tag not in tagged_backlog:
+                        tagged_backlog[tag] = []
+                    tagged_backlog[tag].append(task)
+            else:
+                untagged_backlog.append(task)
+
+        for tag in sorted(tagged_backlog.keys()):
+            tag_tasks = sorted(tagged_backlog[tag], key=lambda x: x[1].lower())
+            lines.append(f"\n{ANSI.BOLD}{ANSI.CYAN}#{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}")
+            for task in tag_tasks:
+                task_id, content = task[:2]
+                other_tags = [t for t in get_tags(task_id) if t != tag]
+                tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
+                lines.append(f"  {content.lower()}{tags_str}")
+
+        if untagged_backlog:
+            untagged_sorted = sorted(untagged_backlog, key=lambda x: x[1].lower())
+            lines.append(f"\n{ANSI.BOLD}{ANSI.YELLOW}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
+            for task in untagged_sorted:
+                task_id, content = task[:2]
                 lines.append(f"  {content.lower()}")
 
         if all_habits:
@@ -137,6 +165,8 @@ def render_task_list(tasks):
         focus_label = "🔥" if focus else ""
         due_str = f" {format_due_date(due)}" if due else ""
         cat_label = f"[{category}]" if category != "task" else ""
-        lines.append(f"{task_id}: {focus_label}{content.lower()}{due_str} {cat_label}")
+        tags = get_tags(task_id)
+        tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
+        lines.append(f"{task_id}: {focus_label}{content.lower()}{due_str} {cat_label}{tags_str}")
 
     return "\n".join(lines)
