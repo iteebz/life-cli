@@ -1,6 +1,5 @@
 import re
 
-
 PERSONA_COLORS = {
     "roast": "\033[91m",
     "pepper": "\033[93m",
@@ -22,7 +21,7 @@ class ANSI:
     WHITE = "\033[97m"
     GREY = "\033[90m"
     RESET = "\033[0m"
-    
+
     POOL = [RED, BLUE, MAGENTA, CYAN, YELLOW, GREEN]
 
 

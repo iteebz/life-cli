@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
-from .lib.ansi import ANSI, md_to_ansi
-from .sqlite import get_tags
+from .lib.ansi import ANSI
+from .tasks import get_tags
 from .utils import format_decay, format_due_date
 
 
@@ -87,7 +87,9 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
         for idx, tag in enumerate(sorted(tagged_all.keys())):
             tasks_by_tag = sort_tasks(tagged_all[tag])
             tag_color = ANSI.POOL[idx % len(ANSI.POOL)]
-            lines.append(f"\n{ANSI.BOLD}{tag_color}#{tag.upper()} ({len(tasks_by_tag)}):{ANSI.RESET}")
+            lines.append(
+                f"\n{ANSI.BOLD}{tag_color}#{tag.upper()} ({len(tasks_by_tag)}):{ANSI.RESET}"
+            )
             for task in tasks_by_tag:
                 task_id, content, _category, _focus, due = task[:5]
                 due_str = format_due_date(due) if due else ""
@@ -108,7 +110,9 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
                 lines.append(f"  {indicator}{due_part}{content.lower()}")
 
         if all_habits:
-            active_habits = [t for t in all_habits if t[6] is not None and date.fromisoformat(t[6][:10]) == today]
+            active_habits = [
+                t for t in all_habits if t[6] is not None and date.fromisoformat(t[6][:10]) == today
+            ]
             total_habit_completions = sum(task[7] if len(task) > 7 else 0 for task in active_habits)
             lines.append(
                 f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({total_habit_completions}/{len(all_habits)}):{ANSI.RESET}"
@@ -124,7 +128,9 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
                 lines.append(f"  {checked_today} {content.lower()}{decay_str}")
 
         if all_chores:
-            active_chores = [t for t in all_chores if t[6] is not None and date.fromisoformat(t[6][:10]) == today]
+            active_chores = [
+                t for t in all_chores if t[6] is not None and date.fromisoformat(t[6][:10]) == today
+            ]
             total_chore_completions = sum(task[7] if len(task) > 7 else 0 for task in active_chores)
             lines.append(
                 f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({total_chore_completions}/{len(all_chores)}):{ANSI.RESET}"

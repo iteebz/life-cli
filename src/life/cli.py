@@ -7,23 +7,24 @@ import time
 
 import typer
 
-from . import sqlite as db
-from .display import render_dashboard
-from .personas import get_persona
-from .sqlite import (
-    add_tag,
-    add_task,
+from . import config as db
+from .config import (
     get_context,
     get_default_persona,
     get_profile,
-    get_pending_tasks,
-    get_tasks_by_tag,
-    get_today_completed,
     set_context,
     set_default_persona,
     set_profile,
+)
+from .display import render_dashboard
+from .personas import get_persona
+from .tasks import (
+    add_tag,
+    add_task,
+    get_pending_tasks,
+    get_tasks_by_tag,
+    get_today_completed,
     today_completed,
-    uncomplete_task,
     weekly_momentum,
 )
 from .utils import complete_fuzzy, remove_fuzzy, toggle_fuzzy, uncomplete_fuzzy
@@ -106,9 +107,7 @@ def _is_message(raw_args: list[str]) -> bool:
     first_arg = raw_args[0].lower()
     if first_arg in _known_commands():
         return False
-    if first_arg.startswith("-"):
-        return False
-    return True
+    return not first_arg.startswith("-")
 
 
 def _spawn_persona(message: str, persona: str = "roast") -> None:
@@ -117,9 +116,9 @@ def _spawn_persona(message: str, persona: str = "roast") -> None:
 
     persona_instructions = get_persona(persona)
     profile = get_profile()
-    
+
     profile_section = f"PROFILE:\n{profile}\n\n" if profile else ""
-    
+
     task_prompt = f"""{persona_instructions}
 
 {profile_section}---
@@ -163,7 +162,7 @@ def _maybe_spawn_persona() -> bool:
         return False
 
     valid_personas = {"roast", "pepper", "kim"}
-    
+
     if raw_args[0] in valid_personas:
         persona = raw_args[0]
         raw_args = raw_args[1:]
@@ -195,18 +194,18 @@ def main(ctx: typer.Context):
 
 @app.command()
 def task(
-    args: list[str] = typer.Argument(..., help="Task content"),
-    focus: bool = typer.Option(False, "-f", "--focus", help="Mark as focus task"),
-    due: str = typer.Option(None, "-d", "--due", help="Due date (YYYY-MM-DD)"),
-    done: bool = typer.Option(False, "-x", "--done", help="Immediately mark task as done"),
-    tag: list[str] = typer.Option(None, "-t", "--tag", help="Add tags to task"),
+    args: list[str] = typer.Argument(..., help="Task content"),  # noqa: B008
+    focus: bool = typer.Option(False, "-f", "--focus", help="Mark as focus task"),  # noqa: B008
+    due: str = typer.Option(None, "-d", "--due", help="Due date (YYYY-MM-DD)"),  # noqa: B008
+    done: bool = typer.Option(False, "-x", "--done", help="Immediately mark task as done"),  # noqa: B008
+    tag: list[str] = typer.Option(None, "-t", "--tag", help="Add tags to task"),  # noqa: B008
 ):
     """Add task"""
     content = " ".join(args)
     task_id = add_task(content, focus=focus, due=due)
     focus_str = " [FOCUS]" if focus else ""
     due_str = f" due {due}" if due else ""
-    
+
     tags = []
     if tag:
         for t in tag:
@@ -246,8 +245,8 @@ def chore(
 
 @app.command()
 def done(
-    args: list[str] = typer.Argument(None, help="Task content for fuzzy matching"),
-    undo: bool = typer.Option(False, "-u", "--undo", "-r", "--remove", help="Undo task completion"),
+    args: list[str] = typer.Argument(None, help="Task content for fuzzy matching"),  # noqa: B008
+    undo: bool = typer.Option(False, "-u", "--undo", "-r", "--remove", help="Undo task completion"),  # noqa: B008
 ):
     """Complete task (fuzzy match)"""
     if not args:
@@ -270,11 +269,13 @@ def done(
 
 @app.command()
 def check(
-    args: list[str] = typer.Argument(..., help="Habit/chore content for fuzzy matching"),
-    when: str = typer.Option(None, "-w", "--when", help="Check date (YYYY-MM-DD), defaults to today"),
+    args: list[str] = typer.Argument(..., help="Habit/chore content for fuzzy matching"),  # noqa: B008
+    when: str = typer.Option(
+        None, "-w", "--when", help="Check date (YYYY-MM-DD), defaults to today"
+    ),  # noqa: B008
 ):
     """Check habit or chore (fuzzy match)"""
-    from .sqlite import check_reminder, get_pending_tasks
+    from .repeats import check_repeat
     from .utils import find_task
 
     partial = " ".join(args)
@@ -282,7 +283,7 @@ def check(
     if not task:
         task = find_task(partial, category="chore")
     if task:
-        check_reminder(task[0], when)
+        check_repeat(task[0], when)
         refresh = [t for t in get_pending_tasks() if t[0] == task[0]]
         if refresh:
             count, target = refresh[0][7], refresh[0][8]
@@ -295,7 +296,7 @@ def check(
 
 @app.command()
 def rm(
-    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),
+    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),  # noqa: B008
 ):
     """Remove task (fuzzy match)"""
     partial = " ".join(args)
@@ -308,7 +309,7 @@ def rm(
 
 @app.command()
 def focus(
-    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),
+    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),  # noqa: B008
 ):
     """Toggle focus on task (fuzzy match)"""
     partial = " ".join(args)
@@ -321,31 +322,30 @@ def focus(
 
 @app.command()
 def due(
-    args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and task content"),
-    remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),
+    args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and task content"),  # noqa: B008
+    remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),  # noqa: B008
 ):
     """Set due date on task (fuzzy match)"""
+    import re
+
     from .sqlite import update_task
     from .utils import find_task
-    
-    import re
-    
+
     if not args:
         typer.echo("Due date and task required")
         return
-    
+
     date_str = None
     task_args = args
-    
-    if not remove and len(args) > 0:
-        if re.match(r'^\d{4}-\d{2}-\d{2}$', args[0]):
-            date_str = args[0]
-            task_args = args[1:]
-    
+
+    if not remove and len(args) > 0 and re.match(r"^\d{4}-\d{2}-\d{2}$", args[0]):
+        date_str = args[0]
+        task_args = args[1:]
+
     if not task_args:
         typer.echo("Task name required")
         return
-    
+
     partial = " ".join(task_args)
     task = find_task(partial)
     if task:
@@ -364,8 +364,8 @@ def due(
 
 @app.command()
 def edit(
-    new_content: str = typer.Argument(..., help="New task description"),
-    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),
+    new_content: str = typer.Argument(..., help="New task description"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),  # noqa: B008
 ):
     """Edit task description (fuzzy match)"""
     from .sqlite import update_task
@@ -382,9 +382,9 @@ def edit(
 
 @app.command()
 def tag(
-    tag_name: str = typer.Argument(..., help="Tag name"),
-    args: list[str] = typer.Argument(None, help="Task content for fuzzy matching"),
-    remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),
+    tag_name: str = typer.Argument(..., help="Tag name"),  # noqa: B008
+    args: list[str] = typer.Argument(None, help="Task content for fuzzy matching"),  # noqa: B008
+    remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),  # noqa: B008
 ):
     """Add/remove tag to/from task (fuzzy match), or view tasks by tag"""
     if args:
@@ -442,7 +442,7 @@ def context(
 @app.command()
 def personas(
     name: str = typer.Argument(None, help="Persona name (roast, pepper, kim)"),
-    default: bool = typer.Option(False, "-d", "--default", help="Set as default persona"),
+    set: bool = typer.Option(False, "-s", "--set", help="Set as default persona"),
     prompt: bool = typer.Option(False, "-p", "--prompt", help="Show full ephemeral prompt"),
 ):
     """Show available personas or view/set a specific persona"""
@@ -451,7 +451,7 @@ def personas(
         "pepper": "Pepper Potts energy. Optimistic enabler. Unlock potential.",
         "kim": "Lieutenant Kim Kitsuragi. Methodical clarity. Work the case.",
     }
-    
+
     if not name:
         typer.echo("Available personas:")
         curr_default = get_default_persona()
@@ -459,14 +459,14 @@ def personas(
             marker = "‣ " if p == curr_default else "  "
             typer.echo(f"{marker}{p:8} - {descriptions[p]}")
         return
-    
+
     aliases = {"kitsuragi": "kim"}
     resolved_name = aliases.get(name, name)
     if resolved_name not in ("roast", "pepper", "kim"):
         typer.echo(f"Unknown persona: {resolved_name}", err=True)
         raise typer.Exit(1)
-    
-    if default:
+
+    if set:
         set_default_persona(resolved_name)
         typer.echo(f"Default persona set to: {resolved_name}")
     elif prompt:
@@ -474,16 +474,16 @@ def personas(
             persona_instructions = get_persona(resolved_name)
             profile = get_profile()
             context = get_context()
-            
+
             life_output = subprocess.run(
                 ["life"],
                 capture_output=True,
                 text=True,
             ).stdout.lstrip()
-            
+
             profile_section = f"PROFILE:\n{profile if profile else '(no profile set)'}"
             context_section = f"CONTEXT:\n{context if context and context != 'No context set' else '(no context set)'}"
-            
+
             sections = [
                 persona_instructions,
                 "⸻",
@@ -494,19 +494,19 @@ def personas(
                 "⸻",
                 "USER MESSAGE: [your message here]",
             ]
-            
+
             full_prompt = "\n\n".join(sections)
             typer.echo(full_prompt)
         except ValueError as e:
             typer.echo(f"Error: {e}", err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None  # noqa: B904
     else:
         try:
             persona = get_persona(resolved_name)
             typer.echo(persona)
         except ValueError as e:
             typer.echo(f"Error: {e}", err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None  # noqa: B904
 
 
 @app.command()

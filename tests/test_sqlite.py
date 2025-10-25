@@ -1,34 +1,17 @@
-import tempfile
-from pathlib import Path
-
-import pytest
-
-from life.sqlite import (
+from life.config import get_context, set_context
+from life.repeats import check_repeat as check_reminder
+from life.sqlite import init_db
+from life.tasks import (
     add_tag,
     add_task,
-    check_reminder,
     complete_task,
     delete_task,
-    get_context,
     get_pending_tasks,
     get_tags,
     get_tasks_by_tag,
-    init_db,
-    set_context,
     toggle_focus,
     update_task,
 )
-
-
-@pytest.fixture
-def tmp_life_dir(monkeypatch):
-    with tempfile.TemporaryDirectory() as td:
-        tmp = Path(td)
-        monkeypatch.setattr("life.sqlite.LIFE_DIR", tmp)
-        monkeypatch.setattr("life.sqlite.DB_PATH", tmp / "store.db")
-        monkeypatch.setattr("life.sqlite.CONTEXT_PATH", tmp / "context.md")
-        monkeypatch.setattr("life.sqlite.NEUROTYPE_PATH", tmp / "neurotype.txt")
-        yield tmp
 
 
 def test_init_creates_db(tmp_life_dir):
@@ -63,13 +46,12 @@ def test_complete_task(tmp_life_dir):
 
 
 def test_completed_task_excluded_from_pending(tmp_life_dir):
-    add_task("a")
-    add_task("b")
-    tasks = get_pending_tasks()
-    complete_task(tasks[0][0])
+    task_a = add_task("a")
+    task_b = add_task("b")
+    complete_task(task_a)
     remaining = get_pending_tasks()
     assert len(remaining) == 1
-    assert remaining[0][1] == "b"
+    assert remaining[0][0] == task_b
 
 
 def test_toggle_focus(tmp_life_dir):
@@ -157,10 +139,11 @@ def test_check_habit(tmp_life_dir):
 
 def test_check_counts_to_completion(tmp_life_dir):
     from datetime import date, timedelta
+
     add_task("5x", category="habit", target_count=5)
     task_id = get_pending_tasks()[0][0]
     for i in range(5):
-        check_date = (date.today() - timedelta(days=5-i)).isoformat()
+        check_date = (date.today() - timedelta(days=5 - i)).isoformat()
         check_reminder(task_id, check_date)
     assert len(get_pending_tasks()) == 0
 
@@ -199,12 +182,12 @@ def test_tag_case_normalized(tmp_life_dir):
 
 
 def test_get_tasks_by_tag(tmp_life_dir):
-    add_task("a")
+    task_a = add_task("a")
     add_task("b")
-    add_tag(get_pending_tasks()[0][0], "focus")
+    add_tag(task_a, "focus")
     tagged = get_tasks_by_tag("focus")
     assert len(tagged) == 1
-    assert tagged[0][1] == "a"
+    assert tagged[0][0] == task_a
 
 
 def test_context_lifecycle(tmp_life_dir):
