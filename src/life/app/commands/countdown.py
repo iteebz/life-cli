@@ -5,14 +5,14 @@ from ...config import add_countdown, get_countdowns, remove_countdown
 cmd = typer.Typer()
 
 
-@cmd.command()
+@cmd.callback(invoke_without_command=True)
 def countdown(
     action: str = typer.Argument(None, help="add, remove, or list"),  # noqa: B008
     name: str = typer.Argument(None, help="Countdown name"),  # noqa: B008
     date_str: str = typer.Argument(None, help="Target date (YYYY-MM-DD)"),  # noqa: B008
     emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for countdown"),  # noqa: B008
 ):
-    """Manage countdowns"""
+    """Add, remove, or list countdowns to target dates"""
     if not action:
         countdowns = get_countdowns()
         if countdowns:

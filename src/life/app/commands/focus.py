@@ -5,11 +5,15 @@ from ...lib.match import toggle
 cmd = typer.Typer()
 
 
-@cmd.command()
+@cmd.callback(invoke_without_command=True)
 def focus(
     args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
-    """Toggle focus on item (fuzzy match)"""
+    """Toggle focus status on item (fuzzy match)"""
     partial = " ".join(args)
-    status, content = toggle(partial)
-    typer.echo(f"{status}: {content}" if status else f"No match for: {partial}")
+    result = toggle(partial)
+    if result is None:
+        typer.echo(f"Cannot focus habits/chores: {partial}")
+    else:
+        status, content = result
+        typer.echo(f"{status}: {content}")

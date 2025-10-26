@@ -10,7 +10,7 @@ def rm(
     ctx: typer.Context,
     args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
 ):
-    """Remove item (fuzzy match)"""
+    """Delete item or completed task (fuzzy match)"""
     if ctx.invoked_subcommand is not None:
         return
     if not args:
