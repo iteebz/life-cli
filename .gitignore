@@ -3,3 +3,4 @@ dist/
 .venv/
 .ruff_cache/
 .pytest_cache/
+.coverage

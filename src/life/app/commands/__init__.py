@@ -20,13 +20,11 @@ from .tag import cmd as tag_cmd
 from .task import cmd as task_cmd
 
 KNOWN_COMMANDS = {
-    "add",
     "task",
     "habit",
     "chore",
     "done",
     "rm",
-    "delete",
     "focus",
     "due",
     "edit",
@@ -79,12 +77,10 @@ def maybe_spawn_persona() -> bool:
 def register_commands(app: typer.Typer):
     """Register all command modules with the app."""
     app.add_typer(task_cmd, name="task")
-    app.add_typer(task_cmd, name="add")
     app.add_typer(habit_cmd, name="habit")
     app.add_typer(chore_cmd, name="chore")
     app.add_typer(done_cmd, name="done")
     app.add_typer(rm_cmd, name="rm")
-    app.add_typer(rm_cmd, name="delete")
     app.add_typer(focus_cmd, name="focus")
     app.add_typer(due_cmd, name="due")
     app.add_typer(edit_cmd, name="edit")
