@@ -2,7 +2,7 @@ import sqlite3
 import uuid
 from datetime import date, timedelta
 
-from .sqlite import DB_PATH, init_db
+from ..lib.sqlite import DB_PATH, init_db
 
 _CLEAR = object()
 
@@ -243,7 +243,7 @@ def get_today_completed():
 
 def is_repeating(item_id):
     """Check if item is a repeating item (has habit or chore tag)"""
-    from .tags import get_tags
+    from .tag import get_tags
     
     tags = get_tags(item_id)
     return any(tag in ("habit", "chore") for tag in tags)
@@ -251,18 +251,18 @@ def is_repeating(item_id):
 
 def add_task(content, focus=False, due=None, done=False, tags=None):
     """Add task, optionally complete immediately. Returns message string."""
-    from .display import fmt_add_task
+    from ..app.render import fmt_add_task
     
     item_id = add_item(content, focus=focus, due=due, tags=tags)
     if done:
-        from .utils import complete_fuzzy
+        from ..lib.match import complete_fuzzy
         complete_fuzzy(content)
     return fmt_add_task(content, focus=focus, due=due, done=done, tags=tags)
 
 
 def add_habit(content):
     """Add habit item. Returns message string."""
-    from .display import fmt_add_habit
+    from ..app.render import fmt_add_habit
     
     add_item(content, tags=["habit"])
     return fmt_add_habit(content)
@@ -270,7 +270,7 @@ def add_habit(content):
 
 def add_chore(content):
     """Add chore item. Returns message string."""
-    from .display import fmt_add_chore
+    from ..app.render import fmt_add_chore
     
     add_item(content, tags=["chore"])
     return fmt_add_chore(content)
@@ -278,8 +278,8 @@ def add_chore(content):
 
 def done_item(partial, undo=False):
     """Complete or undo item. Returns message string."""
-    from .utils import complete_fuzzy, uncomplete_fuzzy, find_item
-    from .tags import get_tags
+    from ..lib.match import complete_fuzzy, uncomplete_fuzzy, find_item
+    from .tag import get_tags
     
     if not partial:
         return "No item specified"

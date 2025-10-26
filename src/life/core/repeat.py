@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import date
 
-from .sqlite import DB_PATH, init_db
+from ..lib.sqlite import DB_PATH, init_db
 
 
 def check_repeat(item_id, check_date=None):

@@ -3,7 +3,7 @@
 import sqlite3
 import uuid
 
-from .sqlite import DB_PATH, init_db
+from ..lib.sqlite import DB_PATH, init_db
 
 
 def add_tag(item_id, tag):
@@ -67,8 +67,8 @@ def remove_tag(item_id, tag):
 
 def manage_tag(tag_name, item_partial=None, remove=False):
 	"""Add/remove tag from item, or list items by tag. Returns message string."""
-	from .display import render_item_list
-	from .utils import find_item
+	from ..app.render import render_item_list
+	from ..lib.match import find_item
 	
 	if item_partial:
 		item = find_item(item_partial)

@@ -1,9 +1,9 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "life"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from lib.ansi import ANSI, md_to_ansi
+from life.lib.ansi import ANSI, md_to_ansi
 
 
 def test_bold():

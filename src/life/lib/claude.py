@@ -4,10 +4,10 @@ import os
 import subprocess
 import sys
 
-from .config import get_context, get_profile
-from .display import Spinner
-from .lib.ansi import ANSI, PERSONA_COLORS, md_to_ansi
-from .tasks import get_pending_items, get_today_completed, today_completed, weekly_momentum
+from ..config import get_context, get_profile
+from .render import Spinner, render_dashboard
+from ..lib.ansi import ANSI, PERSONA_COLORS, md_to_ansi
+from ..core.item import get_pending_items, get_today_completed, today_completed, weekly_momentum
 
 
 def build_context() -> str:
@@ -17,15 +17,14 @@ def build_context() -> str:
 	momentum = weekly_momentum()
 	life_context = get_context()
 	today_items = get_today_completed()
-	from .display import render_dashboard
 	return render_dashboard(items, today_count, momentum, life_context, today_items)
 
 
 def invoke(message: str, persona: str = "roast") -> None:
 	"""Spawn ephemeral Claude persona and invoke with message."""
-	from .personas import get_persona
+	from ..personas import get_persona as get_persona_instructions
 
-	persona_instructions = get_persona(persona)
+	persona_instructions = get_persona_instructions(persona)
 	profile = get_profile()
 
 	profile_section = f"PROFILE:\n{profile}\n\n" if profile else ""

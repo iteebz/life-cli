@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from .sqlite import DB_PATH, LIFE_DIR
+from .lib.sqlite import DB_PATH, LIFE_DIR
 
 CONTEXT_MD = LIFE_DIR / "context.md"
 PROFILE_MD = LIFE_DIR / "profile.md"
@@ -124,67 +124,3 @@ def get_or_set_context(context_text=None):
     else:
         ctx = get_context()
         return f"Context: {ctx if ctx else '(none)'}"
-
-
-def manage_personas(name=None, set_default=False, show_prompt=False):
-    """Show personas, view/set one, or show full prompt. Returns message string."""
-    descriptions = {
-        "roast": "The mirror. Call out patterns, push back on bullshit.",
-        "pepper": "Pepper Potts energy. Optimistic enabler. Unlock potential.",
-        "kim": "Lieutenant Kim Kitsuragi. Methodical clarity. Work the case.",
-    }
-
-    if not name:
-        lines = ["Available personas:"]
-        curr_default = get_default_persona()
-        for p in ("roast", "pepper", "kim"):
-            marker = "‣ " if p == curr_default else "  "
-            lines.append(f"{marker}{p:8} - {descriptions[p]}")
-        return "\n".join(lines)
-
-    aliases = {"kitsuragi": "kim"}
-    resolved_name = aliases.get(name, name)
-    if resolved_name not in ("roast", "pepper", "kim"):
-        raise ValueError(f"Unknown persona: {resolved_name}")
-
-    if set_default:
-        set_default_persona(resolved_name)
-        return f"Default persona set to: {resolved_name}"
-    elif show_prompt:
-        try:
-            from .personas.base import get_persona
-            import subprocess
-
-            persona_instructions = get_persona(resolved_name)
-            profile = get_profile()
-            context = get_context()
-
-            life_output = subprocess.run(
-                ["life"],
-                capture_output=True,
-                text=True,
-            ).stdout.lstrip()
-
-            profile_section = f"PROFILE:\n{profile if profile else '(no profile set)'}"
-            context_section = f"CONTEXT:\n{context if context and context != 'No context set' else '(no context set)'}"
-
-            sections = [
-                persona_instructions,
-                "⸻",
-                profile_section,
-                context_section,
-                "⸻",
-                f"CURRENT LIFE STATE:\n{life_output}",
-                "⸻",
-                "USER MESSAGE: [your message here]",
-            ]
-
-            return "\n\n".join(sections)
-        except ValueError as e:
-            raise ValueError(str(e)) from None
-    else:
-        try:
-            from .personas.base import get_persona
-            return get_persona(resolved_name)
-        except ValueError as e:
-            raise ValueError(str(e)) from None

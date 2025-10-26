@@ -1,8 +1,8 @@
 from life.config import get_context, set_context
-from life.repeats import check_repeat
-from life.sqlite import init_db
-from life.tags import add_tag, get_items_by_tag, get_tags
-from life.tasks import (
+from life.core.repeat import check_repeat
+from life.lib.sqlite import init_db
+from life.core.tag import add_tag, get_items_by_tag, get_tags
+from life.core.item import (
     add_item,
     complete_item,
     delete_item,

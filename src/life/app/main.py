@@ -2,13 +2,13 @@ import sys
 
 import typer
 
-from .claude import invoke as invoke_claude
-from .config import get_default_persona, backup, get_or_set_profile, get_or_set_context, manage_personas
-from .display import render_dashboard
-from .tags import manage_tag
-from .tasks import add_task, add_habit, add_chore, done_item, get_pending_items, today_completed, weekly_momentum, get_today_completed
-from .utils import delete_item_msg, toggle_focus_msg, set_due, edit_item
-from .config import get_context
+from ..lib.claude import invoke as invoke_claude
+from ..config import get_default_persona, backup, get_or_set_profile, get_or_set_context, get_context
+from ..personas import manage_personas
+from .render import render_dashboard
+from ..core.tag import manage_tag
+from ..core.item import add_task, add_habit, add_chore, done_item, get_pending_items, today_completed, weekly_momentum, get_today_completed
+from ..lib.match import delete_item_msg, toggle_focus_msg, set_due, edit_item
 
 app = typer.Typer()
 

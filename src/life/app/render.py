@@ -4,9 +4,9 @@ import threading
 import time
 from datetime import date, datetime
 
-from .lib.ansi import ANSI
-from .tags import get_tags
-from .utils import format_decay, format_due_date
+from ..lib.ansi import ANSI
+from ..core.tag import get_tags
+from ..lib.format import format_decay, format_due_date
 
 
 class Spinner:
