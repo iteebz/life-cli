@@ -11,6 +11,7 @@ def tmp_life_dir(monkeypatch, tmp_path):
     monkeypatch.setattr("life.sqlite.LIFE_DIR", tmp_path)
     monkeypatch.setattr("life.sqlite.DB_PATH", db_path)
     monkeypatch.setattr("life.tasks.DB_PATH", db_path)
+    monkeypatch.setattr("life.tags.DB_PATH", db_path)
     monkeypatch.setattr("life.config.LIFE_DIR", tmp_path)
     monkeypatch.setattr("life.config.CONTEXT_MD", ctx_path)
     monkeypatch.setattr("life.config.PROFILE_MD", prof_path)

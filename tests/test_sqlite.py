@@ -1,16 +1,15 @@
 from life.config import get_context, set_context
-from life.repeats import check_repeat as check_reminder
+from life.repeats import check_repeat
 from life.sqlite import init_db
+from life.tags import add_tag, get_items_by_tag, get_tags
 from life.tasks import (
-    add_tag,
-    add_task,
-    complete_task,
-    delete_task,
-    get_pending_tasks,
-    get_tags,
-    get_tasks_by_tag,
+    add_item,
+    complete_item,
+    delete_item,
+    get_pending_items,
     toggle_focus,
-    update_task,
+    update_item,
+    is_repeating,
 )
 
 
@@ -19,175 +18,172 @@ def test_init_creates_db(tmp_life_dir):
     assert (tmp_life_dir / "store.db").exists()
 
 
-def test_add_task(tmp_life_dir):
-    add_task("test task")
-    tasks = get_pending_tasks()
-    assert len(tasks) == 1
-    assert tasks[0][1] == "test task"
+def test_add_item(tmp_life_dir):
+    add_item("test item")
+    items = get_pending_items()
+    assert len(items) == 1
+    assert items[0][1] == "test item"
 
 
-def test_add_task_with_focus(tmp_life_dir):
-    add_task("important", focus=True)
-    tasks = get_pending_tasks()
-    assert tasks[0][3] == 1
+def test_add_item_with_focus(tmp_life_dir):
+    add_item("important", focus=True)
+    items = get_pending_items()
+    assert items[0][2] == 1
 
 
-def test_add_task_with_due(tmp_life_dir):
-    add_task("deadline", due="2025-12-31")
-    tasks = get_pending_tasks()
-    assert tasks[0][4] == "2025-12-31"
+def test_add_item_with_due(tmp_life_dir):
+    add_item("deadline", due="2025-12-31")
+    items = get_pending_items()
+    assert items[0][3] == "2025-12-31"
 
 
-def test_complete_task(tmp_life_dir):
-    add_task("task")
-    tasks = get_pending_tasks()
-    complete_task(tasks[0][0])
-    assert len(get_pending_tasks()) == 0
+def test_complete_item(tmp_life_dir):
+    add_item("item")
+    items = get_pending_items()
+    complete_item(items[0][0])
+    assert len(get_pending_items()) == 0
 
 
-def test_completed_task_excluded_from_pending(tmp_life_dir):
-    task_a = add_task("a")
-    task_b = add_task("b")
-    complete_task(task_a)
-    remaining = get_pending_tasks()
+def test_completed_item_excluded_from_pending(tmp_life_dir):
+    item_a = add_item("a")
+    item_b = add_item("b")
+    complete_item(item_a)
+    remaining = get_pending_items()
     assert len(remaining) == 1
-    assert remaining[0][0] == task_b
+    assert remaining[0][0] == item_b
 
 
 def test_toggle_focus(tmp_life_dir):
-    add_task("task")
-    tasks = get_pending_tasks()
-    task_id, _, _, focus, *_ = tasks[0]
+    add_item("item")
+    items = get_pending_items()
+    item_id, _, focus, *_ = items[0]
     assert focus == 0
-    new_focus = toggle_focus(task_id, focus)
+    new_focus = toggle_focus(item_id, focus)
     assert new_focus == 1
 
 
 def test_toggle_focus_twice(tmp_life_dir):
-    add_task("task")
-    tasks = get_pending_tasks()
-    task_id = tasks[0][0]
-    toggle_focus(task_id, 0)
-    toggle_focus(task_id, 1)
-    tasks = get_pending_tasks()
-    assert tasks[0][3] == 0
-
-
-def test_focus_noop_on_habits(tmp_life_dir):
-    add_task("habit", category="habit")
-    tasks = get_pending_tasks()
-    task_id, _, cat, focus, *_ = tasks[0]
-    new_focus = toggle_focus(task_id, focus, category=cat)
-    assert new_focus == focus
+    add_item("item")
+    items = get_pending_items()
+    item_id = items[0][0]
+    toggle_focus(item_id, 0)
+    toggle_focus(item_id, 1)
+    items = get_pending_items()
+    assert items[0][2] == 0
 
 
 def test_update_content(tmp_life_dir):
-    add_task("old")
-    tasks = get_pending_tasks()
-    update_task(tasks[0][0], content="new")
-    tasks = get_pending_tasks()
-    assert tasks[0][1] == "new"
+    add_item("old")
+    items = get_pending_items()
+    update_item(items[0][0], content="new")
+    items = get_pending_items()
+    assert items[0][1] == "new"
 
 
 def test_update_due(tmp_life_dir):
-    add_task("task")
-    tasks = get_pending_tasks()
-    update_task(tasks[0][0], due="2025-12-31")
-    tasks = get_pending_tasks()
-    assert tasks[0][4] == "2025-12-31"
+    add_item("item")
+    items = get_pending_items()
+    update_item(items[0][0], due="2025-12-31")
+    items = get_pending_items()
+    assert items[0][3] == "2025-12-31"
 
 
 def test_update_multiple_fields(tmp_life_dir):
-    add_task("old")
-    tasks = get_pending_tasks()
-    task_id = tasks[0][0]
-    update_task(task_id, content="new", due="2025-06-01", focus=True)
-    tasks = get_pending_tasks()
-    assert tasks[0][1] == "new"
-    assert tasks[0][3] == 1
-    assert tasks[0][4] == "2025-06-01"
+    add_item("old")
+    items = get_pending_items()
+    item_id = items[0][0]
+    update_item(item_id, content="new", due="2025-06-01", focus=True)
+    items = get_pending_items()
+    assert items[0][1] == "new"
+    assert items[0][2] == 1
+    assert items[0][3] == "2025-06-01"
 
 
 def test_add_habit(tmp_life_dir):
-    add_task("meditate", category="habit")
-    tasks = get_pending_tasks()
-    assert tasks[0][2] == "habit"
+    add_item("meditate", tags=["habit"])
+    items = get_pending_items()
+    tags = get_tags(items[0][0])
+    assert "habit" in tags
 
 
 def test_add_chore(tmp_life_dir):
-    add_task("dishes", category="chore")
-    tasks = get_pending_tasks()
-    assert tasks[0][2] == "chore"
+    add_item("dishes", tags=["chore"])
+    items = get_pending_items()
+    tags = get_tags(items[0][0])
+    assert "chore" in tags
 
 
 def test_categories_mix(tmp_life_dir):
-    add_task("task", category="task")
-    add_task("habit", category="habit")
-    add_task("chore", category="chore")
-    tasks = get_pending_tasks()
-    assert len(tasks) == 3
-    assert {t[2] for t in tasks} == {"task", "habit", "chore"}
+    add_item("task")
+    add_item("habit", tags=["habit"])
+    add_item("chore", tags=["chore"])
+    items = get_pending_items()
+    assert len(items) == 3
+    tags_sets = [set(get_tags(i[0])) for i in items]
+    assert any("habit" in t for t in tags_sets)
+    assert any("chore" in t for t in tags_sets)
 
 
 def test_check_habit(tmp_life_dir):
-    add_task("hydrate", category="habit")
-    tasks = get_pending_tasks()
-    check_reminder(tasks[0][0])
-    tasks = get_pending_tasks()
-    assert tasks[0][2] == "habit"
+    add_item("hydrate", tags=["habit"])
+    items = get_pending_items()
+    check_repeat(items[0][0])
+    items = get_pending_items()
+    tags = get_tags(items[0][0])
+    assert "habit" in tags
 
 
 def test_check_counts_to_completion(tmp_life_dir):
     from datetime import date, timedelta
 
-    add_task("5x", category="habit", target_count=5)
-    task_id = get_pending_tasks()[0][0]
+    add_item("5x", tags=["habit"], target_count=5)
+    item_id = get_pending_items()[0][0]
     for i in range(5):
         check_date = (date.today() - timedelta(days=5 - i)).isoformat()
-        check_reminder(task_id, check_date)
-    assert len(get_pending_tasks()) == 0
+        check_repeat(item_id, check_date)
+    assert len(get_pending_items()) == 0
 
 
 def test_check_duplicate_same_day_ignored(tmp_life_dir):
-    add_task("check", category="habit")
-    task_id = get_pending_tasks()[0][0]
-    check_reminder(task_id)
-    check_reminder(task_id)
-    assert get_pending_tasks()[0][7] == 1
+    add_item("check", tags=["habit"])
+    item_id = get_pending_items()[0][0]
+    check_repeat(item_id)
+    check_repeat(item_id)
+    assert get_pending_items()[0][6] == 1
 
 
 def test_add_tag(tmp_life_dir):
-    add_task("task")
-    task_id = get_pending_tasks()[0][0]
-    add_tag(task_id, "urgent")
-    tags = get_tags(task_id)
+    add_item("item")
+    item_id = get_pending_items()[0][0]
+    add_tag(item_id, "urgent")
+    tags = get_tags(item_id)
     assert "urgent" in tags
 
 
 def test_duplicate_tag_ignored(tmp_life_dir):
-    add_task("task")
-    task_id = get_pending_tasks()[0][0]
-    add_tag(task_id, "work")
-    add_tag(task_id, "work")
-    tags = get_tags(task_id)
+    add_item("item")
+    item_id = get_pending_items()[0][0]
+    add_tag(item_id, "work")
+    add_tag(item_id, "work")
+    tags = get_tags(item_id)
     assert len(tags) == 1
 
 
 def test_tag_case_normalized(tmp_life_dir):
-    add_task("task")
-    task_id = get_pending_tasks()[0][0]
-    add_tag(task_id, "URGENT")
-    tags = get_tags(task_id)
+    add_item("item")
+    item_id = get_pending_items()[0][0]
+    add_tag(item_id, "URGENT")
+    tags = get_tags(item_id)
     assert "urgent" in tags
 
 
-def test_get_tasks_by_tag(tmp_life_dir):
-    task_a = add_task("a")
-    add_task("b")
-    add_tag(task_a, "focus")
-    tagged = get_tasks_by_tag("focus")
+def test_get_items_by_tag(tmp_life_dir):
+    item_a = add_item("a")
+    add_item("b")
+    add_tag(item_a, "focus")
+    tagged = get_items_by_tag("focus")
     assert len(tagged) == 1
-    assert tagged[0][0] == task_a
+    assert tagged[0][0] == item_a
 
 
 def test_context_lifecycle(tmp_life_dir):
@@ -197,39 +193,63 @@ def test_context_lifecycle(tmp_life_dir):
     assert (tmp_life_dir / "context.md").exists()
 
 
-def test_delete_task(tmp_life_dir):
-    add_task("a")
-    add_task("b")
-    task_id = get_pending_tasks()[0][0]
-    delete_task(task_id)
-    assert len(get_pending_tasks()) == 1
+def test_delete_item(tmp_life_dir):
+    add_item("a")
+    add_item("b")
+    item_id = get_pending_items()[0][0]
+    delete_item(item_id)
+    assert len(get_pending_items()) == 1
 
 
 def test_delete_removes_tags(tmp_life_dir):
-    add_task("a")
-    task_id = get_pending_tasks()[0][0]
-    add_tag(task_id, "focus")
-    delete_task(task_id)
-    assert len(get_tasks_by_tag("focus")) == 0
+    add_item("a")
+    item_id = get_pending_items()[0][0]
+    add_tag(item_id, "focus")
+    delete_item(item_id)
+    assert len(get_items_by_tag("focus")) == 0
 
 
 def test_pending_ordered_by_focus(tmp_life_dir):
-    add_task("b")
-    add_task("a", focus=True)
-    tasks = get_pending_tasks()
-    assert tasks[0][1] == "a"
-    assert tasks[0][3] == 1
+    add_item("b")
+    add_item("a", focus=True)
+    items = get_pending_items()
+    assert items[0][1] == "a"
+    assert items[0][2] == 1
 
 
 def test_pending_ordered_by_due(tmp_life_dir):
-    add_task("later", due="2025-12-31")
-    add_task("sooner", due="2025-01-01")
-    tasks = get_pending_tasks()
-    assert tasks[0][1] == "sooner"
+    add_item("later", due="2025-12-31")
+    add_item("sooner", due="2025-01-01")
+    items = get_pending_items()
+    assert items[0][1] == "sooner"
 
 
 def test_focus_trumps_due(tmp_life_dir):
-    add_task("focus", focus=True, due="2025-12-31")
-    add_task("due_soon", due="2025-01-01")
-    tasks = get_pending_tasks()
-    assert tasks[0][1] == "focus"
+    add_item("focus", focus=True, due="2025-12-31")
+    add_item("due_soon", due="2025-01-01")
+    items = get_pending_items()
+    assert items[0][1] == "focus"
+
+
+def test_is_repeating_habit(tmp_life_dir):
+    add_item("habit", tags=["habit"])
+    item_id = get_pending_items()[0][0]
+    assert is_repeating(item_id)
+
+
+def test_is_repeating_chore(tmp_life_dir):
+    add_item("chore", tags=["chore"])
+    item_id = get_pending_items()[0][0]
+    assert is_repeating(item_id)
+
+
+def test_is_not_repeating_task(tmp_life_dir):
+    add_item("task")
+    item_id = get_pending_items()[0][0]
+    assert not is_repeating(item_id)
+
+
+def test_is_not_repeating_with_custom_tags(tmp_life_dir):
+    add_item("item", tags=["work", "urgent"])
+    item_id = get_pending_items()[0][0]
+    assert not is_repeating(item_id)

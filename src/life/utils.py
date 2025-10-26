@@ -3,123 +3,123 @@ from difflib import get_close_matches
 
 from .repeats import check_repeat
 from .tasks import (
-    complete_task,
-    delete_task,
-    get_pending_tasks,
+    complete_item,
+    delete_item,
+    get_pending_items,
     get_today_completed,
     toggle_focus,
-    uncomplete_task,
-    update_task,
+    uncomplete_item,
+    update_item,
+    is_repeating,
 )
 
 
-def find_task(partial, category=None):
-    """Find task by fuzzy matching partial string or UUID prefix"""
-    pending = get_pending_tasks()
+def find_item(partial, tags_filter=None):
+    """Find item by fuzzy matching partial string or UUID prefix"""
+    pending = get_pending_items()
     if not pending:
         return None
 
-    # Filter by category if specified
-    if category:
-        pending = [task for task in pending if task[2] == category]
-
     partial_lower = partial.lower()
 
-    # First: UUID prefix match (8+ chars)
     if len(partial) >= 8:
-        for task in pending:
-            if task[0].startswith(partial):
-                return task
+        for item in pending:
+            if item[0].startswith(partial):
+                return item
 
-    # Second: exact substring matches on content
-    for task in pending:
-        if partial_lower in task[1].lower():
-            return task
+    for item in pending:
+        if partial_lower in item[1].lower():
+            return item
 
-    # Fallback: fuzzy matching with high threshold
-    contents = [task[1] for task in pending]
+    contents = [item[1] for item in pending]
     matches = get_close_matches(partial_lower, [c.lower() for c in contents], n=1, cutoff=0.8)
 
     if matches:
         match_content = matches[0]
-        for task in pending:
-            if task[1].lower() == match_content:
-                return task
+        for item in pending:
+            if item[1].lower() == match_content:
+                return item
 
     return None
 
 
-def complete_fuzzy(partial, category=None):
-    """Complete task or check repeat using fuzzy matching"""
-    task = find_task(partial, category=category)
-    if task:
-        if category == "repeat":
-            check_repeat(task[0])
+def complete_fuzzy(partial):
+    """Complete or check item using fuzzy matching"""
+    item = find_item(partial)
+    if item:
+        if is_repeating(item[0]):
+            check_repeat(item[0])
         else:
-            complete_task(task[0])
-        return task[1]
+            complete_item(item[0])
+        return item[1]
     return None
 
 
 def uncomplete_fuzzy(partial):
-    """Uncomplete task using fuzzy matching"""
+    """Uncomplete item using fuzzy matching"""
     today_items = get_today_completed()
-    today_completed_tasks = [t for t in today_items if t[2] == "task"]
 
-    if not today_completed_tasks:
+    if not today_items:
         return None
 
     partial_lower = partial.lower()
 
-    for task in today_completed_tasks:
-        if partial_lower in task[1].lower():
-            uncomplete_task(task[0])
-            return task[1]
+    for item in today_items:
+        if partial_lower in item[1].lower():
+            uncomplete_item(item[0])
+            return item[1]
 
-    from difflib import get_close_matches
-
-    contents = [task[1] for task in today_completed_tasks]
+    contents = [item[1] for item in today_items]
     matches = get_close_matches(partial_lower, [c.lower() for c in contents], n=1, cutoff=0.8)
 
     if matches:
         match_content = matches[0]
-        for task in today_completed_tasks:
-            if task[1].lower() == match_content:
-                uncomplete_task(task[0])
-                return task[1]
+        for item in today_items:
+            if item[1].lower() == match_content:
+                uncomplete_item(item[0])
+                return item[1]
 
     return None
 
 
 def toggle_fuzzy(partial):
-    """Toggle focus on task using fuzzy matching (tasks only)"""
-    task = find_task(partial)
-    if task:
-        if task[2] != "task":
-            return None, None
-        new_focus = toggle_focus(task[0], task[3], category=task[2])
+    """Toggle focus on item using fuzzy matching"""
+    item = find_item(partial)
+    if item:
+        new_focus = toggle_focus(item[0], item[2])
         status = "Focused" if new_focus else "Unfocused"
-        return status, task[1]
+        return status, item[1]
     return None, None
 
 
 def update_fuzzy(partial, content=None, due=None, focus=None):
-    """Update task using fuzzy matching"""
-    task = find_task(partial)
-    if task:
-        update_task(task[0], content=content, due=due, focus=focus)
-        # Return the new content value or the original if not updated
-        return content if content is not None else task[1]
+    """Update item using fuzzy matching"""
+    item = find_item(partial)
+    if item:
+        update_item(item[0], content=content, due=due, focus=focus)
+        return content if content is not None else item[1]
     return None
 
 
 def remove_fuzzy(partial):
-    """Remove task using fuzzy matching"""
-    task = find_task(partial)
-    if task:
-        delete_task(task[0])
-        return task[1]
+    """Remove item using fuzzy matching"""
+    item = find_item(partial)
+    if item:
+        delete_item(item[0])
+        return item[1]
     return None
+
+
+def delete_item_msg(partial):
+    """Delete item. Returns message string."""
+    removed = remove_fuzzy(partial)
+    return f"Removed: {removed}" if removed else f"No match for: {partial}"
+
+
+def toggle_focus_msg(partial):
+    """Toggle focus. Returns message string."""
+    status, content = toggle_fuzzy(partial)
+    return f"{status}: {content}" if status else f"No match for: {partial}"
 
 
 def format_due_date(due_date_str):
@@ -131,6 +131,8 @@ def format_due_date(due_date_str):
     today = date.today()
     diff = (due - today).days
 
+    if diff == 0:
+        return "today:"
     if diff > 0:
         return f"{diff}d:"
     return f"{abs(diff)}d overdue:"
@@ -157,3 +159,45 @@ def format_decay(completed_str):
         return f"- {mins}m ago"
     except Exception:
         return ""
+
+
+def set_due(args, remove=False):
+    """Set or remove due date. Returns message string."""
+    import re
+    
+    if not args:
+        return "Due date and item required"
+
+    date_str = None
+    item_args = args
+
+    if not remove and len(args) > 0 and re.match(r"^\d{4}-\d{2}-\d{2}$", args[0]):
+        date_str = args[0]
+        item_args = args[1:]
+
+    if not item_args:
+        return "Item name required"
+
+    partial = " ".join(item_args)
+    item = find_item(partial)
+    if item:
+        if remove:
+            update_item(item[0], due=None)
+            return f"Due date removed: {item[1]}"
+        else:
+            if not date_str:
+                return "Due date required (YYYY-MM-DD) or use -r/--remove to clear"
+            update_item(item[0], due=date_str)
+            return f"Due: {item[1]} on {date_str}"
+    else:
+        return f"No match for: {partial}"
+
+
+def edit_item(new_content, partial):
+    """Edit item content. Returns message string."""
+    item = find_item(partial)
+    if item:
+        update_item(item[0], content=new_content)
+        return f"Updated: {item[1]} → {new_content}"
+    else:
+        return f"No match for: {partial}"

@@ -7,65 +7,65 @@ from .sqlite import DB_PATH, init_db
 _CLEAR = object()
 
 
-def add_task(content, category="task", focus=False, due=None, target_count=5):
-    """Add task to database"""
+def add_item(content, focus=False, due=None, target_count=5, tags=None):
+    """Add item to database"""
     init_db()
-    task_id = str(uuid.uuid4())
+    item_id = str(uuid.uuid4())
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
-        "INSERT INTO tasks (id, content, category, focus, due, target_count) VALUES (?, ?, ?, ?, ?, ?)",
-        (task_id, content, category, focus, due, target_count),
+        "INSERT INTO items (id, content, focus, due, target_count) VALUES (?, ?, ?, ?, ?)",
+        (item_id, content, focus, due, target_count),
     )
+    
+    if tags:
+        for tag in tags:
+            conn.execute(
+                "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)",
+                (str(uuid.uuid4()), item_id, tag.lower()),
+            )
+    
     conn.commit()
     conn.close()
-    return task_id
+    return item_id
 
 
-def get_pending_tasks():
-    """Get all pending tasks ordered by focus and due date"""
+def get_pending_items():
+    """Get all pending items ordered by focus and due date"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("""
-        SELECT t.id, t.content, t.category, t.focus, t.due, t.created, MAX(c.checked), COUNT(c.id), t.target_count
-        FROM tasks t
-        LEFT JOIN checks c ON t.id = c.reminder_id
-        WHERE t.completed IS NULL
-        GROUP BY t.id
-        ORDER BY t.focus DESC, t.due ASC NULLS LAST, t.created ASC
+        SELECT i.id, i.content, i.focus, i.due, i.created, MAX(c.checked), COUNT(c.id), i.target_count
+        FROM items i
+        LEFT JOIN checks c ON i.id = c.item_id
+        WHERE i.completed IS NULL
+        GROUP BY i.id
+        ORDER BY i.focus DESC, i.due IS NULL, i.due ASC, i.created ASC
     """)
-    tasks = cursor.fetchall()
+    items = cursor.fetchall()
     conn.close()
-    return tasks
+    return items
 
 
 def today_completed():
-    """Get count of tasks completed and checks today"""
+    """Get count of items completed today (both regular and repeats)"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
     today_str = date.today().isoformat()
 
     cursor = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM tasks
-        WHERE DATE(completed) = ?
-    """,
+        "SELECT COUNT(*) FROM items WHERE DATE(completed) = ?",
         (today_str,),
     )
-    task_count = cursor.fetchone()[0]
+    item_count = cursor.fetchone()[0]
 
     cursor = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM checks
-        WHERE DATE(checked) = ?
-    """,
+        "SELECT COUNT(*) FROM checks WHERE DATE(checked) = ?",
         (today_str,),
     )
     check_count = cursor.fetchone()[0]
 
     conn.close()
-    return task_count + check_count
+    return item_count + check_count
 
 
 def weekly_momentum():
@@ -84,33 +84,20 @@ def weekly_momentum():
     last_week_end_str = last_week_end.isoformat()
 
     cursor = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM tasks
-        WHERE completed IS NOT NULL
-        AND DATE(completed) >= ?
-    """,
+        "SELECT COUNT(*) FROM items WHERE completed IS NOT NULL AND DATE(completed) >= ?",
         (week_start_str,),
     )
-    this_week_tasks = cursor.fetchone()[0]
+    this_week_items = cursor.fetchone()[0]
 
     cursor = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM checks
-        WHERE DATE(checked) >= ?
-    """,
+        "SELECT COUNT(*) FROM checks WHERE DATE(checked) >= ?",
         (week_start_str,),
     )
     this_week_checks = cursor.fetchone()[0]
-    this_week_completed = this_week_tasks + this_week_checks
+    this_week_completed = this_week_items + this_week_checks
 
     cursor = conn.execute(
-        """
-        SELECT COUNT(*)
-        FROM tasks
-        WHERE DATE(created) >= ?
-    """,
+        "SELECT COUNT(*) FROM items WHERE DATE(created) >= ?",
         (week_start_str,),
     )
     this_week_added = cursor.fetchone()[0]
@@ -118,14 +105,14 @@ def weekly_momentum():
     cursor = conn.execute(
         """
         SELECT COUNT(*)
-        FROM tasks
+        FROM items
         WHERE completed IS NOT NULL
         AND DATE(completed) >= ?
         AND DATE(completed) < ?
     """,
         (last_week_start_str, last_week_end_str),
     )
-    last_week_tasks = cursor.fetchone()[0]
+    last_week_items = cursor.fetchone()[0]
 
     cursor = conn.execute(
         """
@@ -137,12 +124,12 @@ def weekly_momentum():
         (last_week_start_str, last_week_end_str),
     )
     last_week_checks = cursor.fetchone()[0]
-    last_week_completed = last_week_tasks + last_week_checks
+    last_week_completed = last_week_items + last_week_checks
 
     cursor = conn.execute(
         """
         SELECT COUNT(*)
-        FROM tasks
+        FROM items
         WHERE DATE(created) >= ?
         AND DATE(created) < ?
     """,
@@ -154,28 +141,28 @@ def weekly_momentum():
     return this_week_completed, this_week_added, last_week_completed, last_week_added
 
 
-def complete_task(task_id):
-    """Mark task as completed and unfocus"""
+def complete_item(item_id):
+    """Mark item as completed"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
-        "UPDATE tasks SET completed = CURRENT_TIMESTAMP, focus = 0 WHERE id = ?", (task_id,)
+        "UPDATE items SET completed = CURRENT_TIMESTAMP, focus = 0 WHERE id = ?", (item_id,)
     )
     conn.commit()
     conn.close()
 
 
-def uncomplete_task(task_id):
-    """Mark task as incomplete"""
+def uncomplete_item(item_id):
+    """Mark item as incomplete"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("UPDATE tasks SET completed = NULL WHERE id = ?", (task_id,))
+    conn.execute("UPDATE items SET completed = NULL WHERE id = ?", (item_id,))
     conn.commit()
     conn.close()
 
 
-def update_task(task_id, content=None, due=_CLEAR, focus=None):
-    """Update task fields"""
+def update_item(item_id, content=None, due=_CLEAR, focus=None):
+    """Update item fields"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
 
@@ -193,128 +180,57 @@ def update_task(task_id, content=None, due=_CLEAR, focus=None):
         params.append(1 if focus else 0)
 
     if updates:
-        query = f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?"
-        params.append(task_id)
+        query = f"UPDATE items SET {', '.join(updates)} WHERE id = ?"
+        params.append(item_id)
         conn.execute(query, params)
         conn.commit()
 
     conn.close()
 
 
-def toggle_focus(task_id, current_focus, category=None):
-    """Toggle focus status of task (tasks only)"""
+def toggle_focus(item_id, current_focus):
+    """Toggle focus status of item"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    if category and category != "task":
-        conn.close()
-        return current_focus
     new_focus = 1 if current_focus == 0 else 0
-    conn.execute("UPDATE tasks SET focus = ? WHERE id = ?", (new_focus, task_id))
+    conn.execute("UPDATE items SET focus = ? WHERE id = ?", (new_focus, item_id))
     conn.commit()
     conn.close()
     return new_focus
 
 
-def clear_all_tasks():
-    """Delete all tasks"""
+def delete_item(item_id):
+    """Delete an item from the database"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("DELETE FROM tasks")
-    conn.commit()
-    conn.close()
-
-
-def delete_task(task_id):
-    """Delete a task from the database"""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-    conn.commit()
-    conn.close()
-
-
-def add_tag(task_id, tag):
-    """Add a tag to a task"""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    try:
-        conn.execute(
-            "INSERT INTO task_tags (task_id, tag) VALUES (?, ?)",
-            (task_id, tag.lower()),
-        )
-        conn.commit()
-    except sqlite3.IntegrityError:
-        pass
-    finally:
-        conn.close()
-
-
-def get_tags(task_id):
-    """Get all tags for a task"""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT tag FROM task_tags WHERE task_id = ?", (task_id,))
-    tags = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    return tags
-
-
-def get_tasks_by_tag(tag):
-    """Get all pending tasks with a specific tag"""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute(
-        """
-        SELECT t.id, t.content, t.category, t.focus, t.due, t.created, MAX(c.checked), COUNT(c.id), t.target_count
-        FROM tasks t
-        LEFT JOIN checks c ON t.id = c.reminder_id
-        INNER JOIN task_tags tt ON t.id = tt.task_id
-        WHERE t.completed IS NULL AND tt.tag = ?
-        GROUP BY t.id
-        ORDER BY t.focus DESC, t.due ASC NULLS LAST, t.created ASC
-    """,
-        (tag.lower(),),
-    )
-    tasks = cursor.fetchall()
-    conn.close()
-    return tasks
-
-
-def remove_tag(task_id, tag):
-    """Remove a tag from a task"""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "DELETE FROM task_tags WHERE task_id = ? AND tag = ?",
-        (task_id, tag.lower()),
-    )
+    conn.execute("DELETE FROM items WHERE id = ?", (item_id,))
     conn.commit()
     conn.close()
 
 
 def get_today_completed():
-    """Get all tasks completed today and habit/chore checks today"""
+    """Get all items completed today (both regular and repeats)"""
     init_db()
     conn = sqlite3.connect(DB_PATH)
     today_str = date.today().isoformat()
 
     cursor = conn.execute(
         """
-        SELECT id, content, category, completed
-        FROM tasks
-        WHERE DATE(completed) = ? AND category = 'task'
+        SELECT id, content, completed
+        FROM items
+        WHERE DATE(completed) = ?
         ORDER BY completed DESC
     """,
         (today_str,),
     )
-    completed_tasks = cursor.fetchall()
+    completed_items = cursor.fetchall()
 
     cursor = conn.execute(
         """
-        SELECT t.id, t.content, t.category, c.checked
-        FROM tasks t
-        INNER JOIN checks c ON t.id = c.reminder_id
-        WHERE DATE(c.checked) = ? AND (t.category = 'habit' OR t.category = 'chore')
+        SELECT i.id, i.content, c.checked
+        FROM items i
+        INNER JOIN checks c ON i.id = c.item_id
+        WHERE DATE(c.checked) = ?
         ORDER BY c.checked DESC
     """,
         (today_str,),
@@ -322,4 +238,63 @@ def get_today_completed():
     checked_items = cursor.fetchall()
 
     conn.close()
-    return completed_tasks + checked_items
+    return completed_items + checked_items
+
+
+def is_repeating(item_id):
+    """Check if item is a repeating item (has habit or chore tag)"""
+    from .tags import get_tags
+    
+    tags = get_tags(item_id)
+    return any(tag in ("habit", "chore") for tag in tags)
+
+
+def add_task(content, focus=False, due=None, done=False, tags=None):
+    """Add task, optionally complete immediately. Returns message string."""
+    from .display import fmt_add_task
+    
+    item_id = add_item(content, focus=focus, due=due, tags=tags)
+    if done:
+        from .utils import complete_fuzzy
+        complete_fuzzy(content)
+    return fmt_add_task(content, focus=focus, due=due, done=done, tags=tags)
+
+
+def add_habit(content):
+    """Add habit item. Returns message string."""
+    from .display import fmt_add_habit
+    
+    add_item(content, tags=["habit"])
+    return fmt_add_habit(content)
+
+
+def add_chore(content):
+    """Add chore item. Returns message string."""
+    from .display import fmt_add_chore
+    
+    add_item(content, tags=["chore"])
+    return fmt_add_chore(content)
+
+
+def done_item(partial, undo=False):
+    """Complete or undo item. Returns message string."""
+    from .utils import complete_fuzzy, uncomplete_fuzzy, find_item
+    from .tags import get_tags
+    
+    if not partial:
+        return "No item specified"
+    
+    if undo:
+        uncompleted = uncomplete_fuzzy(partial)
+        return f"✓ {uncompleted}" if uncompleted else f"No match for: {partial}"
+    
+    completed = complete_fuzzy(partial)
+    if not completed:
+        return f"No match for: {partial}"
+    
+    item = find_item(partial)
+    if item:
+        tags = get_tags(item[0])
+        tags_str = " " + " ".join(f"#{t}" for t in tags) if tags else ""
+        return f"✓ {completed}{tags_str}"
+    return f"✓ {completed}"

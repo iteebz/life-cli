@@ -11,46 +11,58 @@ def init_db():
     LIFE_DIR.mkdir(exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
 
-    cursor = conn.execute("PRAGMA table_info(tasks)")
+    cursor = conn.execute("PRAGMA table_info(items)")
     cols = cursor.fetchall()
-    has_tasks_table = bool(cols)
-    is_old_schema = has_tasks_table and cols[0][1] == "id" and "INT" in cols[0][2].upper()
+    has_items_table = bool(cols)
 
-    if is_old_schema:
-        _migrate_to_uuid(conn)
-    else:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS tasks (
-                id TEXT PRIMARY KEY,
-                content TEXT NOT NULL,
-                category TEXT DEFAULT 'task',
-                focus BOOLEAN DEFAULT 0,
-                due DATE NULL,
-                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed TIMESTAMP NULL,
-                target_count INTEGER DEFAULT 5
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS checks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                reminder_id TEXT NOT NULL,
-                checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (reminder_id) REFERENCES tasks(id)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS task_tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                task_id TEXT NOT NULL,
-                tag TEXT NOT NULL,
-                FOREIGN KEY (task_id) REFERENCES tasks(id),
-                UNIQUE(task_id, tag)
-            )
-        """)
+    if not has_items_table:
+        cursor = conn.execute("PRAGMA table_info(tasks)")
+        cols = cursor.fetchall()
+        has_tasks_table = bool(cols)
+        is_old_schema = has_tasks_table and len(cols) > 0 and cols[0][1] == "id" and "INT" in cols[0][2].upper()
 
-    conn.commit()
+        if is_old_schema:
+            _migrate_to_uuid(conn)
+        elif has_tasks_table:
+            _migrate_tasks_to_items(conn)
+        else:
+            _create_schema(conn)
+        
+        conn.commit()
+    
     conn.close()
+
+
+def _create_schema(conn):
+    """Create new unified schema"""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS items (
+            id TEXT PRIMARY KEY,
+            content TEXT NOT NULL,
+            focus BOOLEAN DEFAULT 0,
+            due DATE NULL,
+            created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed TIMESTAMP NULL,
+            target_count INTEGER DEFAULT 5
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS checks (
+            id TEXT PRIMARY KEY,
+            item_id TEXT NOT NULL,
+            checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (item_id) REFERENCES items(id)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS item_tags (
+            id TEXT PRIMARY KEY,
+            item_id TEXT NOT NULL,
+            tag TEXT NOT NULL,
+            FOREIGN KEY (item_id) REFERENCES items(id),
+            UNIQUE(item_id, tag)
+        )
+    """)
 
 
 def _migrate_to_uuid(conn):
@@ -63,35 +75,7 @@ def _migrate_to_uuid(conn):
         conn.execute("ALTER TABLE checks RENAME TO checks_old")
         conn.execute("ALTER TABLE task_tags RENAME TO task_tags_old")
 
-        conn.execute("""
-            CREATE TABLE tasks (
-                id TEXT PRIMARY KEY,
-                content TEXT NOT NULL,
-                category TEXT DEFAULT 'task',
-                focus BOOLEAN DEFAULT 0,
-                due DATE NULL,
-                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed TIMESTAMP NULL,
-                target_count INTEGER DEFAULT 5
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE checks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                reminder_id TEXT NOT NULL,
-                checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (reminder_id) REFERENCES tasks(id)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE task_tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                task_id TEXT NOT NULL,
-                tag TEXT NOT NULL,
-                FOREIGN KEY (task_id) REFERENCES tasks(id),
-                UNIQUE(task_id, tag)
-            )
-        """)
+        _create_schema(conn)
 
         cursor = conn.execute(
             "SELECT id, content, category, focus, due, created, completed, target_count FROM tasks_old"
@@ -108,17 +92,22 @@ def _migrate_to_uuid(conn):
         ) in cursor.fetchall():
             new_id = id_mapping[old_id]
             conn.execute(
-                "INSERT INTO tasks (id, content, category, focus, due, created, completed, target_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (new_id, content, category, focus, due, created, completed, target_count),
+                "INSERT INTO items (id, content, focus, due, created, completed, target_count) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (new_id, content, focus, due, created, completed, target_count),
             )
+            if category in ("habit", "chore"):
+                conn.execute(
+                    "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)",
+                    (str(uuid.uuid4()), new_id, category),
+                )
 
         cursor = conn.execute("SELECT id, reminder_id, checked FROM checks_old")
         for _check_id, old_reminder_id, checked in cursor.fetchall():
             new_reminder_id = id_mapping.get(old_reminder_id)
             if new_reminder_id:
                 conn.execute(
-                    "INSERT INTO checks (reminder_id, checked) VALUES (?, ?)",
-                    (new_reminder_id, checked),
+                    "INSERT INTO checks (id, item_id, checked) VALUES (?, ?, ?)",
+                    (str(uuid.uuid4()), new_reminder_id, checked),
                 )
 
         cursor = conn.execute("SELECT id, task_id, tag FROM task_tags_old")
@@ -126,12 +115,69 @@ def _migrate_to_uuid(conn):
             new_task_id = id_mapping.get(old_task_id)
             if new_task_id:
                 conn.execute(
-                    "INSERT INTO task_tags (task_id, tag) VALUES (?, ?)", (new_task_id, tag)
+                    "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)", (str(uuid.uuid4()), new_task_id, tag)
                 )
 
         conn.execute("DROP TABLE tasks_old")
         conn.execute("DROP TABLE checks_old")
         conn.execute("DROP TABLE task_tags_old")
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def _migrate_tasks_to_items(conn):
+    """Migrate tasks table to new items/item_tags schema"""
+    try:
+        conn.execute("ALTER TABLE tasks RENAME TO tasks_old")
+        conn.execute("ALTER TABLE task_tags RENAME TO task_tags_old")
+
+        _create_schema(conn)
+
+        cursor = conn.execute(
+            "SELECT id, content, category, focus, due, created, completed, target_count FROM tasks_old"
+        )
+        for (
+            task_id,
+            content,
+            category,
+            focus,
+            due,
+            created,
+            completed,
+            target_count,
+        ) in cursor.fetchall():
+            conn.execute(
+                "INSERT INTO items (id, content, focus, due, created, completed, target_count) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (task_id, content, focus, due, created, completed, target_count),
+            )
+            if category in ("habit", "chore"):
+                conn.execute(
+                    "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)",
+                    (str(uuid.uuid4()), task_id, category),
+                )
+
+        cursor = conn.execute("SELECT id, task_id, tag FROM task_tags_old")
+        for _tag_id, task_id, tag in cursor.fetchall():
+            conn.execute(
+                "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)", (str(uuid.uuid4()), task_id, tag)
+            )
+
+        conn.execute("DROP TABLE tasks_old")
+        conn.execute("DROP TABLE task_tags_old")
+        conn.execute("DROP TABLE checks")
+
+        cursor = conn.execute("PRAGMA table_info(checks_old)")
+        if cursor.fetchall():
+            cursor = conn.execute("SELECT id, reminder_id, checked FROM checks_old")
+            for _check_id, reminder_id, checked in cursor.fetchall():
+                conn.execute(
+                    "INSERT INTO checks (id, item_id, checked) VALUES (?, ?, ?)",
+                    (str(uuid.uuid4()), reminder_id, checked),
+                )
+            conn.execute("DROP TABLE checks_old")
 
         conn.commit()
     except Exception:

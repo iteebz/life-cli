@@ -1,157 +1,30 @@
-import itertools
-import os
-import subprocess
 import sys
-import threading
-import time
 
 import typer
 
-from . import config as db
-from .config import (
-    get_context,
-    get_default_persona,
-    get_profile,
-    set_context,
-    set_default_persona,
-    set_profile,
-)
+from .claude import invoke as invoke_claude
+from .config import get_default_persona, backup, get_or_set_profile, get_or_set_context, manage_personas
 from .display import render_dashboard
-from .personas import get_persona
-from .tasks import (
-    add_tag,
-    add_task,
-    get_pending_tasks,
-    get_tasks_by_tag,
-    get_today_completed,
-    today_completed,
-    weekly_momentum,
-)
-from .utils import complete_fuzzy, remove_fuzzy, toggle_fuzzy, uncomplete_fuzzy
-
-DATABASE = "~/.life/store.db"
+from .tags import manage_tag
+from .tasks import add_task, add_habit, add_chore, done_item, get_pending_items, today_completed, weekly_momentum, get_today_completed
+from .utils import delete_item_msg, toggle_focus_msg, set_due, edit_item
+from .config import get_context
 
 app = typer.Typer()
 
-
-class Spinner:
-    """Simple CLI spinner for async feedback."""
-
-    def __init__(self, persona: str = "roast"):
-        self.stop_event = threading.Event()
-        self.spinner_frames = itertools.cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
-        self.persona = persona
-        self.thread = None
-
-    def _animate(self):
-        """Run spinner animation in background thread."""
-        actions = {"roast": "roasting", "pepper": "peppering", "kim": "investigating"}
-        action = actions.get(self.persona, "thinking")
-        while not self.stop_event.is_set():
-            frame = next(self.spinner_frames)
-            sys.stderr.write(f"\r{frame} {action}... ")
-            sys.stderr.flush()
-            time.sleep(0.1)
-        sys.stderr.write("\r" + " " * 30 + "\r")
-        sys.stderr.flush()
-
-    def start(self):
-        """Start the spinner."""
-        self.thread = threading.Thread(target=self._animate, daemon=True)
-        self.thread.start()
-
-    def stop(self):
-        """Stop the spinner."""
-        self.stop_event.set()
-        if self.thread:
-            self.thread.join(timeout=0.5)
-
-
-def _build_roast_context() -> str:
-    """Build context for ephemeral claude roast."""
-    tasks = get_pending_tasks()
-    today_count = today_completed()
-    momentum = weekly_momentum()
-    life_context = get_context()
-    today_items = get_today_completed()
-    return render_dashboard(tasks, today_count, momentum, life_context, today_items)
-
-
-def _known_commands() -> set[str]:
-    """Return set of known CLI commands."""
-    return {
-        "task",
-        "habit",
-        "chore",
-        "done",
-        "check",
-        "rm",
-        "focus",
-        "due",
-        "edit",
-        "tag",
-        "profile",
-        "context",
-        "backup",
-        "personas",
-        "help",
-        "--help",
-        "-h",
-    }
+KNOWN_COMMANDS = {
+    "add", "task", "habit", "chore", "done", "rm", "delete", "focus",
+    "due", "edit", "tag", "profile", "context", "backup", "personas",
+    "help", "--help", "-h",
+}
 
 
 def _is_message(raw_args: list[str]) -> bool:
-    """Detect if args represent a chat message (not a command)."""
+    """Check if args represent a chat message (not a command)."""
     if not raw_args:
         return False
     first_arg = raw_args[0].lower()
-    if first_arg in _known_commands():
-        return False
-    return not first_arg.startswith("-")
-
-
-def _spawn_persona(message: str, persona: str = "roast") -> None:
-    """Spawn ephemeral claude persona."""
-    from .lib.ansi import md_to_ansi
-
-    persona_instructions = get_persona(persona)
-    profile = get_profile()
-
-    profile_section = f"PROFILE:\n{profile}\n\n" if profile else ""
-
-    task_prompt = f"""{persona_instructions}
-
-{profile_section}---
-USER MESSAGE: {message}
-
-RESPONSE PROTOCOL:
-- Be concise and direct
-- Use `life` CLI output to assess current state
-- Provide actionable analysis or next steps
-- Format markdown for bold/emphasis where helpful"""
-
-    env = os.environ.copy()
-    env["LIFE_PERSONA"] = persona
-
-    spinner = Spinner(persona)
-    spinner.start()
-
-    result = subprocess.run(
-        ["claude", "--model", "claude-haiku-4-5", "-p", task_prompt, "--allowedTools", "Bash"],
-        env=env,
-        capture_output=True,
-        text=True,
-    )
-
-    spinner.stop()
-    from .lib.ansi import ANSI, PERSONA_COLORS
-
-    formatted = md_to_ansi(result.stdout)
-    color = PERSONA_COLORS.get(persona, ANSI.WHITE)
-    header = f"\n{ANSI.BOLD}{color}[{persona}]:{ANSI.RESET}\n\n"
-    sys.stdout.write(header + formatted + "\n")
-    sys.stdout.flush()
-    sys.exit(result.returncode)
+    return first_arg not in KNOWN_COMMANDS and not first_arg.startswith("-")
 
 
 def _maybe_spawn_persona() -> bool:
@@ -168,13 +41,13 @@ def _maybe_spawn_persona() -> bool:
         raw_args = raw_args[1:]
         if _is_message(raw_args):
             message = " ".join(raw_args)
-            _spawn_persona(message, persona)
+            invoke_claude(message, persona)
             return True
     elif _is_message(raw_args):
         default = get_default_persona()
         if default:
             message = " ".join(raw_args)
-            _spawn_persona(message, default)
+            invoke_claude(message, default)
             return True
 
     return False
@@ -184,336 +57,131 @@ def _maybe_spawn_persona() -> bool:
 def main(ctx: typer.Context):
     """Ephemeral life agent"""
     if ctx.invoked_subcommand is None:
-        tasks = get_pending_tasks()
+        items = get_pending_items()
         today_count = today_completed()
         momentum = weekly_momentum()
         life_context = get_context()
         today_items = get_today_completed()
-        typer.echo(render_dashboard(tasks, today_count, momentum, life_context, today_items))
+        typer.echo(render_dashboard(items, today_count, momentum, life_context, today_items))
 
 
 @app.command()
 def task(
     args: list[str] = typer.Argument(..., help="Task content"),  # noqa: B008
-    focus: bool = typer.Option(False, "-f", "--focus", help="Mark as focus task"),  # noqa: B008
+    focus: bool = typer.Option(False, "-f", "--focus", help="Mark as focus item"),  # noqa: B008
     due: str = typer.Option(None, "-d", "--due", help="Due date (YYYY-MM-DD)"),  # noqa: B008
-    done: bool = typer.Option(False, "-x", "--done", help="Immediately mark task as done"),  # noqa: B008
-    tag: list[str] = typer.Option(None, "-t", "--tag", help="Add tags to task"),  # noqa: B008
+    done: bool = typer.Option(False, "-x", "--done", help="Immediately mark item as done"),  # noqa: B008
+    tag: list[str] = typer.Option(None, "-t", "--tag", help="Add tags to item"),  # noqa: B008
 ):
     """Add task"""
-    content = " ".join(args)
-    task_id = add_task(content, focus=focus, due=due)
-    focus_str = " [FOCUS]" if focus else ""
-    due_str = f" due {due}" if due else ""
+    typer.echo(add_task(" ".join(args), focus=focus, due=due, done=done, tags=tag))
 
-    tags = []
-    if tag:
-        for t in tag:
-            try:
-                add_tag(task_id, t)
-                tags.append(f"#{t}")
-            except Exception:
-                pass
-    tag_str = f" {' '.join(tags)}" if tags else ""
 
-    if done:
-        from .utils import complete_fuzzy
-
-        complete_fuzzy(content)
-        typer.echo(f"Added & completed: {content}{focus_str}{due_str}{tag_str}")
-    else:
-        typer.echo(f"Added: {content}{focus_str}{due_str}{tag_str}")
+app.command(name="add")(task)
 
 
 @app.command()
-def habit(
-    content: str = typer.Argument(..., help="Habit content"),
-):
+def habit(content: str = typer.Argument(..., help="Habit content")):  # noqa: B008
     """Add habit"""
-    _ = add_task(content, category="habit")
-    typer.echo(f"Added habit: {content}")
+    typer.echo(add_habit(content))
 
 
 @app.command()
-def chore(
-    content: str = typer.Argument(..., help="Chore content"),
-):
+def chore(content: str = typer.Argument(..., help="Chore content")):  # noqa: B008
     """Add chore"""
-    _ = add_task(content, category="chore")
-    typer.echo(f"Added chore: {content}")
+    typer.echo(add_chore(content))
 
 
 @app.command()
 def done(
-    args: list[str] = typer.Argument(None, help="Task content for fuzzy matching"),  # noqa: B008
-    undo: bool = typer.Option(False, "-u", "--undo", "-r", "--remove", help="Undo task completion"),  # noqa: B008
+    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
+    undo: bool = typer.Option(False, "-u", "--undo", "-r", "--remove", help="Undo item completion"),  # noqa: B008
 ):
-    """Complete task (fuzzy match)"""
-    if not args:
-        typer.echo("No task specified")
-        return
-    partial = " ".join(args)
-    if undo:
-        uncompleted = uncomplete_fuzzy(partial)
-        if uncompleted:
-            typer.echo(f"Uncompleted: {uncompleted}")
-        else:
-            typer.echo(f"No match for: {partial}")
-    else:
-        completed = complete_fuzzy(partial)
-        if completed:
-            typer.echo(f"Completed: {completed}")
-        else:
-            typer.echo(f"No match for: {partial}")
+    """Complete or check item (fuzzy match)"""
+    typer.echo(done_item(" ".join(args) if args else "", undo=undo))
 
 
-@app.command()
-def check(
-    args: list[str] = typer.Argument(..., help="Habit/chore content for fuzzy matching"),  # noqa: B008
-    when: str = typer.Option(
-        None, "-w", "--when", help="Check date (YYYY-MM-DD), defaults to today"
-    ),  # noqa: B008
+@app.command(name="rm")
+def delete_item(
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
-    """Check habit or chore (fuzzy match)"""
-    from .repeats import check_repeat
-    from .utils import find_task
-
-    partial = " ".join(args)
-    task = find_task(partial, category="habit")
-    if not task:
-        task = find_task(partial, category="chore")
-    if task:
-        check_repeat(task[0], when)
-        refresh = [t for t in get_pending_tasks() if t[0] == task[0]]
-        if refresh:
-            count, target = refresh[0][7], refresh[0][8]
-            typer.echo(f"✓ {task[1]} ({count}/{target})")
-        else:
-            typer.echo(f"✓ {task[1]} - DONE!")
-    else:
-        typer.echo(f"No habit/chore match for: {partial}")
+    """Remove item (fuzzy match)"""
+    typer.echo(delete_item_msg(" ".join(args)))
 
 
-@app.command()
-def rm(
-    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),  # noqa: B008
-):
-    """Remove task (fuzzy match)"""
-    partial = " ".join(args)
-    removed = remove_fuzzy(partial)
-    if removed:
-        typer.echo(f"Removed: {removed}")
-    else:
-        typer.echo(f"No match for: {partial}")
+app.command(name="delete")(delete_item)
 
 
 @app.command()
 def focus(
-    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
-    """Toggle focus on task (fuzzy match)"""
-    partial = " ".join(args)
-    status, content = toggle_fuzzy(partial)
-    if status:
-        typer.echo(f"{status}: {content}")
-    else:
-        typer.echo(f"No match for: {partial}")
+    """Toggle focus on item (fuzzy match)"""
+    typer.echo(toggle_focus_msg(" ".join(args)))
 
 
 @app.command()
 def due(
-    args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and task content"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and item content"),  # noqa: B008
     remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),  # noqa: B008
 ):
-    """Set due date on task (fuzzy match)"""
-    import re
-
-    from .sqlite import update_task
-    from .utils import find_task
-
-    if not args:
-        typer.echo("Due date and task required")
-        return
-
-    date_str = None
-    task_args = args
-
-    if not remove and len(args) > 0 and re.match(r"^\d{4}-\d{2}-\d{2}$", args[0]):
-        date_str = args[0]
-        task_args = args[1:]
-
-    if not task_args:
-        typer.echo("Task name required")
-        return
-
-    partial = " ".join(task_args)
-    task = find_task(partial)
-    if task:
-        if remove:
-            update_task(task[0], due=None)
-            typer.echo(f"Due date removed: {task[1]}")
-        else:
-            if not date_str:
-                typer.echo("Due date required (YYYY-MM-DD) or use -r/--remove to clear")
-                return
-            update_task(task[0], due=date_str)
-            typer.echo(f"Due: {task[1]} on {date_str}")
-    else:
-        typer.echo(f"No match for: {partial}")
+    """Set due date on item (fuzzy match)"""
+    typer.echo(set_due(list(args) if args else [], remove=remove))
 
 
 @app.command()
 def edit(
-    new_content: str = typer.Argument(..., help="New task description"),  # noqa: B008
-    args: list[str] = typer.Argument(..., help="Task content for fuzzy matching"),  # noqa: B008
+    new_content: str = typer.Argument(..., help="New item description"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
-    """Edit task description (fuzzy match)"""
-    from .sqlite import update_task
-    from .utils import find_task
-
-    partial = " ".join(args)
-    task = find_task(partial)
-    if task:
-        update_task(task[0], content=new_content)
-        typer.echo(f"Updated: {task[1]} → {new_content}")
-    else:
-        typer.echo(f"No match for: {partial}")
+    """Edit item description (fuzzy match)"""
+    typer.echo(edit_item(new_content, " ".join(args)))
 
 
 @app.command()
 def tag(
     tag_name: str = typer.Argument(..., help="Tag name"),  # noqa: B008
-    args: list[str] = typer.Argument(None, help="Task content for fuzzy matching"),  # noqa: B008
+    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
     remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),  # noqa: B008
 ):
-    """Add/remove tag to/from task (fuzzy match), or view tasks by tag"""
-    if args:
-        from .sqlite import remove_tag
-        from .utils import find_task
-
-        partial = " ".join(args)
-        task = find_task(partial)
-        if task:
-            if remove:
-                remove_tag(task[0], tag_name)
-                typer.echo(f"Untagged: {task[1]} ← #{tag_name}")
-            else:
-                add_tag(task[0], tag_name)
-                typer.echo(f"Tagged: {task[1]} → #{tag_name}")
-        else:
-            typer.echo(f"No match for: {partial}")
-    else:
-        tasks = get_tasks_by_tag(tag_name)
-        if tasks:
-            from .display import render_task_list
-
-            typer.echo(f"\n{tag_name.upper()} ({len(tasks)}):")
-            typer.echo(render_task_list(tasks))
-        else:
-            typer.echo(f"No tasks tagged with #{tag_name}")
+    """Add/remove tag to/from item (fuzzy match), or view items by tag"""
+    typer.echo(manage_tag(tag_name, " ".join(args) if args else None, remove=remove))
 
 
 @app.command()
 def profile(
-    profile_text: str = typer.Argument(None, help="Profile to set"),
+    profile_text: str = typer.Argument(None, help="Profile to set"),  # noqa: B008
 ):
     """View or update your profile"""
-    if profile_text:
-        set_profile(profile_text)
-        typer.echo(f"Profile: {profile_text}")
-    else:
-        prof = get_profile()
-        typer.echo(f"Profile: {prof if prof else '(none)'}")
+    typer.echo(get_or_set_profile(profile_text))
 
 
 @app.command()
 def context(
-    context_text: str = typer.Argument(None, help="Context text to set"),
+    context_text: str = typer.Argument(None, help="Context text to set"),  # noqa: B008
 ):
     """View or update your context"""
-    if context_text:
-        set_context(context_text)
-        typer.echo(f"Context: {context_text}")
-    else:
-        ctx = get_context()
-        typer.echo(f"Context: {ctx if ctx else '(none)'}")
+    typer.echo(get_or_set_context(context_text))
 
 
 @app.command()
 def personas(
-    name: str = typer.Argument(None, help="Persona name (roast, pepper, kim)"),
-    set: bool = typer.Option(False, "-s", "--set", help="Set as default persona"),
-    prompt: bool = typer.Option(False, "-p", "--prompt", help="Show full ephemeral prompt"),
+    name: str = typer.Argument(None, help="Persona name (roast, pepper, kim)"),  # noqa: B008
+    set: bool = typer.Option(False, "-s", "--set", help="Set as default persona"),  # noqa: B008
+    prompt: bool = typer.Option(False, "-p", "--prompt", help="Show full ephemeral prompt"),  # noqa: B008
 ):
     """Show available personas or view/set a specific persona"""
-    descriptions = {
-        "roast": "The mirror. Call out patterns, push back on bullshit.",
-        "pepper": "Pepper Potts energy. Optimistic enabler. Unlock potential.",
-        "kim": "Lieutenant Kim Kitsuragi. Methodical clarity. Work the case.",
-    }
-
-    if not name:
-        typer.echo("Available personas:")
-        curr_default = get_default_persona()
-        for p in ("roast", "pepper", "kim"):
-            marker = "‣ " if p == curr_default else "  "
-            typer.echo(f"{marker}{p:8} - {descriptions[p]}")
-        return
-
-    aliases = {"kitsuragi": "kim"}
-    resolved_name = aliases.get(name, name)
-    if resolved_name not in ("roast", "pepper", "kim"):
-        typer.echo(f"Unknown persona: {resolved_name}", err=True)
-        raise typer.Exit(1)
-
-    if set:
-        set_default_persona(resolved_name)
-        typer.echo(f"Default persona set to: {resolved_name}")
-    elif prompt:
-        try:
-            persona_instructions = get_persona(resolved_name)
-            profile = get_profile()
-            context = get_context()
-
-            life_output = subprocess.run(
-                ["life"],
-                capture_output=True,
-                text=True,
-            ).stdout.lstrip()
-
-            profile_section = f"PROFILE:\n{profile if profile else '(no profile set)'}"
-            context_section = f"CONTEXT:\n{context if context and context != 'No context set' else '(no context set)'}"
-
-            sections = [
-                persona_instructions,
-                "⸻",
-                profile_section,
-                context_section,
-                "⸻",
-                f"CURRENT LIFE STATE:\n{life_output}",
-                "⸻",
-                "USER MESSAGE: [your message here]",
-            ]
-
-            full_prompt = "\n\n".join(sections)
-            typer.echo(full_prompt)
-        except ValueError as e:
-            typer.echo(f"Error: {e}", err=True)
-            raise typer.Exit(1) from None  # noqa: B904
-    else:
-        try:
-            persona = get_persona(resolved_name)
-            typer.echo(persona)
-        except ValueError as e:
-            typer.echo(f"Error: {e}", err=True)
-            raise typer.Exit(1) from None  # noqa: B904
+    try:
+        typer.echo(manage_personas(name, set_default=set, show_prompt=prompt))
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from None  # noqa: B904
 
 
 @app.command()
-def backup():
+def backup_cmd():
     """Backup database"""
-    backup_path = db.backup()
-    typer.echo(f"{backup_path}")
+    typer.echo(backup())
 
 
 def main_with_personas():

@@ -1,57 +1,58 @@
 from unittest.mock import patch
 
-from life.display import render_dashboard, render_task_list
+from life.display import render_dashboard, render_item_list
 
 
 def test_render_dashboard_empty():
     with patch("life.display.get_tags", return_value=[]):
         output = render_dashboard([], 0, (0, 0, 0, 0), "test context")
-        assert "No pending tasks" in output
+        assert "No pending items" in output
 
 
-def test_render_dashboard_with_focus_tasks():
-    tasks = [(1, "focus task", "task", 1, None, None, None)]
+def test_render_dashboard_with_focus_items():
+    items = [(1, "focus item", 1, None, None, None, None)]
     with patch("life.display.get_tags", return_value=[]):
-        output = render_dashboard(tasks, 0, (0, 0, 0, 0), "context")
-        assert "focus task" in output
+        output = render_dashboard(items, 0, (0, 0, 0, 0), "context")
+        assert "focus item" in output
         assert "🔥" in output
 
 
 def test_render_dashboard_with_scheduled():
-    tasks = [(1, "scheduled task", "task", 0, "2025-12-01", None, None)]
+    items = [(1, "scheduled item", 0, "2025-12-01", None, None, None)]
     with patch("life.display.get_tags", return_value=[]):
-        output = render_dashboard(tasks, 0, (0, 0, 0, 0), "context")
-        assert "scheduled task" in output
+        output = render_dashboard(items, 0, (0, 0, 0, 0), "context")
+        assert "scheduled item" in output
 
 
 def test_render_dashboard_with_backlog():
-    tasks = [(1, "backlog task", "task", 0, None, None, None)]
+    items = [(1, "backlog item", 0, None, None, None, None)]
     with patch("life.display.get_tags", return_value=[]):
-        output = render_dashboard(tasks, 0, (0, 0, 0, 0), "context")
+        output = render_dashboard(items, 0, (0, 0, 0, 0), "context")
         assert "BACKLOG" in output
 
 
 def test_render_dashboard_with_habits():
-    tasks = [(1, "meditate", "habit", 0, None, None, None)]
-    with patch("life.display.get_tags", return_value=[]):
-        output = render_dashboard(tasks, 0, (0, 0, 0, 0), "context")
+    items = [(1, "meditate", 0, None, None, None, None)]
+    with patch("life.display.get_tags", return_value=["habit"]):
+        output = render_dashboard(items, 0, (0, 0, 0, 0), "context")
         assert "HABITS" in output
 
 
 def test_render_dashboard_with_chores():
-    tasks = [(1, "dishes", "chore", 0, None, None, None)]
-    with patch("life.display.get_tags", return_value=[]):
-        output = render_dashboard(tasks, 0, (0, 0, 0, 0), "context")
+    items = [(1, "dishes", 0, None, None, None, None)]
+    with patch("life.display.get_tags", return_value=["chore"]):
+        output = render_dashboard(items, 0, (0, 0, 0, 0), "context")
         assert "CHORES" in output
 
 
-def test_render_task_list_empty():
-    output = render_task_list([])
-    assert "No pending tasks" in output
+def test_render_item_list_empty():
+    output = render_item_list([])
+    assert "No pending items" in output
 
 
-def test_render_task_list_with_tasks():
-    tasks = [(1, "task 1", "task", 0, None), (2, "task 2", "task", 1, None)]
-    output = render_task_list(tasks)
-    assert "task 1" in output
-    assert "task 2" in output
+def test_render_item_list_with_items():
+    items = [(1, "item 1", 0, None), (2, "item 2", 1, None)]
+    with patch("life.display.get_tags", return_value=[]):
+        output = render_item_list(items)
+        assert "item 1" in output
+        assert "item 2" in output

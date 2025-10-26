@@ -1,8 +1,45 @@
+import itertools
+import sys
+import threading
+import time
 from datetime import date, datetime
 
 from .lib.ansi import ANSI
-from .tasks import get_tags
+from .tags import get_tags
 from .utils import format_decay, format_due_date
+
+
+class Spinner:
+	"""Simple CLI spinner for async feedback."""
+
+	def __init__(self, persona: str = "roast"):
+		self.stop_event = threading.Event()
+		self.spinner_frames = itertools.cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
+		self.persona = persona
+		self.thread = None
+
+	def _animate(self):
+		"""Run spinner animation in background thread."""
+		actions = {"roast": "roasting", "pepper": "peppering", "kim": "investigating"}
+		action = actions.get(self.persona, "thinking")
+		while not self.stop_event.is_set():
+			frame = next(self.spinner_frames)
+			sys.stderr.write(f"\r{frame} {action}... ")
+			sys.stderr.flush()
+			time.sleep(0.1)
+		sys.stderr.write("\r" + " " * 30 + "\r")
+		sys.stderr.flush()
+
+	def start(self):
+		"""Start the spinner."""
+		self.thread = threading.Thread(target=self._animate, daemon=True)
+		self.thread.start()
+
+	def stop(self):
+		"""Stop the spinner."""
+		self.stop_event.set()
+		if self.thread:
+			self.thread.join(timeout=0.5)
 
 
 def render_today_completed(today_items):
@@ -12,29 +49,18 @@ def render_today_completed(today_items):
 
     lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}✅ DONE TODAY:{ANSI.RESET}"]
 
-    tasks = [t for t in today_items if t[2] == "task"]
-    habits = [t for t in today_items if t[2] == "habit"]
-    chores = [t for t in today_items if t[2] == "chore"]
-
-    if tasks:
-        for task in tasks:
-            time_str = f" {format_decay(task[3])}" if task[3] else ""
-            lines.append(f"  ☑ {task[1].lower()}{time_str}")
-
-    if habits:
-        for habit in habits:
-            time_str = f" {format_decay(habit[3])}" if habit[3] else ""
-            lines.append(f"  ☑ {habit[1].lower()} #habit{time_str}")
-
-    if chores:
-        for chore in chores:
-            time_str = f" {format_decay(chore[3])}" if chore[3] else ""
-            lines.append(f"  ☑ {chore[1].lower()} #chore{time_str}")
+    for item in today_items:
+        item_id = item[0]
+        content = item[1]
+        time_str = f" {format_decay(item[2])}" if item[2] else ""
+        tags = get_tags(item_id)
+        tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+        lines.append(f"  ✓ {content.lower()}{tags_str}{time_str}")
 
     return "\n".join(lines)
 
 
-def render_dashboard(tasks, today_count, momentum, context, today_items=None):
+def render_dashboard(items, today_count, momentum, context, today_items=None):
     """Render full dashboard view"""
     this_week_completed, this_week_added, last_week_completed, last_week_added = momentum
     today = date.today()
@@ -53,115 +79,155 @@ def render_dashboard(tasks, today_count, momentum, context, today_items=None):
     if today_items:
         lines.append(render_today_completed(today_items))
 
-    if not tasks:
-        lines.append("\nNo pending tasks. You're either productive or fucked.")
+    if not items:
+        lines.append("\nNo pending items. You're either productive or fucked.")
     else:
-        all_tasks = [t for t in tasks if t[2] == "task"]
-        habits = [t for t in tasks if t[2] == "habit"]
-        chores = [t for t in tasks if t[2] == "chore"]
+        regular_items = []
+        habits = []
+        chores = []
 
-        # Filter habits/chores: only show if streak broken (last check older than today)
+        for item in items:
+            item_id = item[0]
+            item_tags = get_tags(item_id)
+            if "habit" in item_tags:
+                habits.append(item)
+            elif "chore" in item_tags:
+                chores.append(item)
+            else:
+                regular_items.append(item)
+
         today = date.today()
-        all_habits = habits
-        all_chores = chores
-        habits = [t for t in habits if t[6] is None or date.fromisoformat(t[6][:10]) < today]
-        chores = [t for t in chores if t[6] is None or date.fromisoformat(t[6][:10]) < today]
 
-        tagged_all = {}
+        tagged_regular = {}
         untagged = []
 
-        for task in all_tasks:
-            task_id = task[0]
-            task_tags = get_tags(task_id)
-            if task_tags:
-                for tag in task_tags:
-                    if tag not in tagged_all:
-                        tagged_all[tag] = []
-                    tagged_all[tag].append(task)
+        for item in regular_items:
+            item_id = item[0]
+            item_tags = get_tags(item_id)
+            filtered_tags = [t for t in item_tags if t not in ("habit", "chore")]
+            if filtered_tags:
+                for tag in filtered_tags:
+                    if tag not in tagged_regular:
+                        tagged_regular[tag] = []
+                    tagged_regular[tag].append(item)
             else:
-                untagged.append(task)
+                untagged.append(item)
 
-        def sort_tasks(task_list):
-            return sorted(task_list, key=lambda x: (not x[3], x[4] or "", x[1].lower()))
+        def sort_items(item_list):
+            return sorted(item_list, key=lambda x: (not x[2], x[3] is None, x[3] or "", x[1].lower()))
 
-        for idx, tag in enumerate(sorted(tagged_all.keys())):
-            tasks_by_tag = sort_tasks(tagged_all[tag])
+        for idx, tag in enumerate(sorted(tagged_regular.keys())):
+            items_by_tag = sort_items(tagged_regular[tag])
             tag_color = ANSI.POOL[idx % len(ANSI.POOL)]
             lines.append(
-                f"\n{ANSI.BOLD}{tag_color}#{tag.upper()} ({len(tasks_by_tag)}):{ANSI.RESET}"
+                f"\n{ANSI.BOLD}{tag_color}#{tag.upper()} ({len(items_by_tag)}):{ANSI.RESET}"
             )
-            for task in tasks_by_tag:
-                task_id, content, _category, _focus, due = task[:5]
+            for item in items_by_tag:
+                item_id, content, _focus, due = item[:4]
                 due_str = format_due_date(due) if due else ""
-                other_tags = [t for t in get_tags(task_id) if t != tag]
+                other_tags = [t for t in get_tags(item_id) if t != tag and t not in ("habit", "chore")]
                 tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
                 due_part = f"{due_str} " if due_str else ""
                 lines.append(f"  {indicator}{due_part}{content.lower()}{tags_str}")
 
-        untagged_sorted = sort_tasks(untagged)
+        untagged_sorted = sort_items(untagged)
         if untagged_sorted:
             lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
-            for task in untagged_sorted:
-                task_id, content, _category, _focus, due = task[:5]
+            for item in untagged_sorted:
+                item_id, content, _focus, due = item[:4]
                 due_str = format_due_date(due) if due else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
                 due_part = f"{due_str} " if due_str else ""
                 lines.append(f"  {indicator}{due_part}{content.lower()}")
 
-        if all_habits:
-            active_habits = [
-                t for t in all_habits if t[6] is not None and date.fromisoformat(t[6][:10]) == today
-            ]
-            total_habit_completions = sum(task[7] if len(task) > 7 else 0 for task in active_habits)
+        all_habits = [t for t in habits if t[5] is not None and date.fromisoformat(t[5][:10]) >= today]
+        if all_habits or habits:
+            checked_today = len({item[0] for item in (today_items or []) if "habit" in get_tags(item[0])})
             lines.append(
-                f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({total_habit_completions}/{len(all_habits)}):{ANSI.RESET}"
+                f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({checked_today}/{len(habits)}):{ANSI.RESET}"
             )
-            today_habit_ids = {item[0] for item in (today_items or []) if item[2] == "habit"}
-            sorted_habits = sorted(all_habits, key=lambda x: x[1].lower())
-            for task in sorted_habits:
-                content = task[1]
-                last_checked = task[6] if len(task) > 6 else None
+            today_habit_ids = {item[0] for item in (today_items or []) if "habit" in get_tags(item[0])}
+            sorted_habits = sorted(habits, key=lambda x: x[1].lower())
+            for item in sorted_habits:
+                content = item[1]
+                last_checked = item[5] if len(item) > 5 else None
                 decay = format_decay(last_checked) if last_checked else ""
                 decay_str = f" {decay}" if decay else ""
-                checked_today = "☑" if task[0] in today_habit_ids else "☐"
+                checked_today = "✓" if item[0] in today_habit_ids else "□"
                 lines.append(f"  {checked_today} {content.lower()}{decay_str}")
 
-        if all_chores:
-            active_chores = [
-                t for t in all_chores if t[6] is not None and date.fromisoformat(t[6][:10]) == today
-            ]
-            total_chore_completions = sum(task[7] if len(task) > 7 else 0 for task in active_chores)
+        all_chores = [t for t in chores if t[5] is not None and date.fromisoformat(t[5][:10]) >= today]
+        if all_chores or chores:
+            chores_checked_today = len({item[0] for item in (today_items or []) if "chore" in get_tags(item[0])})
             lines.append(
-                f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({total_chore_completions}/{len(all_chores)}):{ANSI.RESET}"
+                f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({chores_checked_today}/{len(chores)}):{ANSI.RESET}"
             )
-            today_chore_ids = {item[0] for item in (today_items or []) if item[2] == "chore"}
-            sorted_chores = sorted(all_chores, key=lambda x: x[1].lower())
-            for task in sorted_chores:
-                content = task[1]
-                last_checked = task[6] if len(task) > 6 else None
+            today_chore_ids = {item[0] for item in (today_items or []) if "chore" in get_tags(item[0])}
+            sorted_chores = sorted(chores, key=lambda x: x[1].lower())
+            for item in sorted_chores:
+                content = item[1]
+                last_checked = item[5] if len(item) > 5 else None
                 decay = format_decay(last_checked) if last_checked else ""
                 decay_str = f" {decay}" if decay else ""
-                checked_today = "☑" if task[0] in today_chore_ids else "☐"
+                checked_today = "✓" if item[0] in today_chore_ids else "□"
                 lines.append(f"  {checked_today} {content.lower()}{decay_str}")
 
     return "\n".join(lines)
 
 
-def render_task_list(tasks):
-    """Render task list view with IDs"""
-    if not tasks:
-        return "No pending tasks."
+def render_item_list(items):
+    """Render item list view with IDs"""
+    if not items:
+        return "No pending items."
 
     lines = []
-    for task in tasks:
-        task_id, content, category, focus, due = task[:5]
+    for item in items:
+        item_id, content, focus, due = item[:4]
         focus_label = "🔥" if focus else ""
         due_str = format_due_date(due) if due else ""
         due_part = f"{due_str} " if due_str else ""
-        cat_label = f"[{category}]" if category != "task" else ""
-        tags = get_tags(task_id)
+        tags = get_tags(item_id)
         tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
-        lines.append(f"{task_id}: {focus_label}{due_part}{content.lower()} {cat_label}{tags_str}")
+        lines.append(f"{item_id}: {focus_label}{due_part}{content.lower()}{tags_str}")
 
     return "\n".join(lines)
+
+
+def fmt_add_task(content: str, focus: bool = False, due: str = None, done: bool = False, tags: list[str] = None) -> str:
+    """Format add task message"""
+    focus_str = " [FOCUS]" if focus else ""
+    due_str = f" due {due}" if due else ""
+    tag_list = [f"#{t}" for t in tags] if tags else []
+    tag_str = f" {' '.join(tag_list)}" if tag_list else ""
+    
+    if done:
+        return f"✓ {content}{focus_str}{due_str}{tag_str}"
+    return f"Added: {content}{focus_str}{due_str}{tag_str}"
+
+
+def fmt_add_habit(content: str) -> str:
+    """Format add habit message"""
+    return f"Added habit: {content}"
+
+
+def fmt_add_chore(content: str) -> str:
+    """Format add chore message"""
+    return f"Added chore: {content}"
+
+
+def fmt_done(content: str, undo: bool = False) -> str:
+    """Format done message with tags"""
+    from .tags import get_tags
+    from .utils import find_item
+    
+    item = find_item(content)
+    if not item:
+        return f"No match for: {content}"
+    
+    if undo:
+        return f"✓ {item[1]}"
+    
+    tags = get_tags(item[0])
+    tags_str = " " + " ".join(f"#{t}" for t in tags) if tags else ""
+    return f"✓ {item[1]}{tags_str}"
