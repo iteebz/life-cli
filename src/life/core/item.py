@@ -5,8 +5,8 @@ def add_item(content, focus=False, due=None, target_count=5, tags=None):
     return store.add_item(content, focus, due, target_count, tags)
 
 
-def get_pending_items():
-    return store.get_pending_items()
+def get_pending_items(asc=True):
+    return store.get_pending_items(asc=asc)
 
 
 def today_completed():
@@ -49,28 +49,30 @@ def is_repeating(item_id):
 
 
 def add_task(content, focus=False, due=None, done=False, tags=None):
-    from ..app.render import fmt_add_task
-
     add_item(content, focus=focus, due=due, tags=tags)
     if done:
         from ..lib.match import complete
 
         complete(content)
-    return fmt_add_task(content, focus=focus, due=due, done=done, tags=tags)
+
+    focus_str = " [FOCUS]" if focus else ""
+    due_str = f" due {due}" if due else ""
+    tag_list = [f"#{t}" for t in tags] if tags else []
+    tag_str = f" {' '.join(tag_list)}" if tag_list else ""
+
+    if done:
+        return f"✓ {content}{focus_str}{due_str}{tag_str}"
+    return f"Added: {content}{focus_str}{due_str}{tag_str}"
 
 
 def add_habit(content):
-    from ..app.render import fmt_add_habit
-
     add_item(content, tags=["habit"])
-    return fmt_add_habit(content)
+    return f"Added habit: {content}"
 
 
 def add_chore(content):
-    from ..app.render import fmt_add_chore
-
     add_item(content, tags=["chore"])
-    return fmt_add_chore(content)
+    return f"Added chore: {content}"
 
 
 def done_item(partial, undo=False):

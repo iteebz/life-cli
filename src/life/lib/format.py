@@ -1,8 +1,7 @@
 from datetime import date, datetime
 
 
-def format_due_date(due_date_str):
-    """Format due date with relative day difference"""
+def format_due(due_date_str):
     if not due_date_str:
         return ""
 
@@ -18,7 +17,6 @@ def format_due_date(due_date_str):
 
 
 def format_decay(completed_str):
-    """Format time since last checked as - Xd ago"""
     if not completed_str:
         return ""
 

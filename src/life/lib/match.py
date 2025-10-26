@@ -93,11 +93,23 @@ def update(partial: str, content=None, due=None, focus=None) -> str | None:
 
 
 def remove(partial: str) -> str | None:
-    """Remove item"""
-    item = find_item(partial)
+    """Remove item (LIFO - most recent match)
+
+    Searches: pending items, habits, chores, and completed items today
+    """
+    pending = get_pending_items(asc=False)
+
+    item = _find_by_partial(partial, pending)
     if item:
         delete_item(item[0])
         return item[1]
+
+    completed_today = get_today_completed()
+    item = _find_by_partial(partial, completed_today)
+    if item:
+        delete_item(item[0])
+        return item[1]
+
     return None
 
 

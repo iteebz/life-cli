@@ -24,16 +24,17 @@ def add_item(content, focus=False, due=None, target_count=5, tags=None):
     return item_id
 
 
-def get_pending_items():
+def get_pending_items(asc=True):
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("""
+    order = "ASC" if asc else "DESC"
+    cursor = conn.execute(f"""
         SELECT i.id, i.content, i.focus, i.due, i.created, MAX(c.checked), COUNT(c.id), i.target_count
         FROM items i
         LEFT JOIN checks c ON i.id = c.item_id
         WHERE i.completed IS NULL
         GROUP BY i.id
-        ORDER BY i.focus DESC, i.due IS NULL, i.due ASC, i.created ASC
+        ORDER BY i.focus DESC, i.due IS NULL, i.due ASC, i.created {order}
     """)
     items = cursor.fetchall()
     conn.close()

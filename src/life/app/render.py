@@ -7,7 +7,7 @@ from datetime import date, datetime
 from ..config import get_countdowns
 from ..core.tag import get_tags
 from ..lib.ansi import ANSI
-from ..lib.format import format_decay, format_due_date
+from ..lib.format import format_decay, format_due
 
 
 class Spinner:
@@ -132,7 +132,7 @@ def render_dashboard(items, today_count, momentum, context, today_items=None):
             )
             for item in items_by_tag:
                 item_id, content, _focus, due = item[:4]
-                due_str = format_due_date(due) if due else ""
+                due_str = format_due(due) if due else ""
                 other_tags = [
                     t for t in get_tags(item_id) if t != tag and t not in ("habit", "chore")
                 ]
@@ -146,7 +146,7 @@ def render_dashboard(items, today_count, momentum, context, today_items=None):
             lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
             for item in untagged_sorted:
                 item_id, content, _focus, due = item[:4]
-                due_str = format_due_date(due) if due else ""
+                due_str = format_due(due) if due else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
                 due_part = f"{due_str} " if due_str else ""
                 lines.append(f"  {indicator}{due_part}{content.lower()}")
@@ -207,34 +207,10 @@ def render_item_list(items):
     for item in items:
         item_id, content, focus, due = item[:4]
         focus_label = "🔥" if focus else ""
-        due_str = format_due_date(due) if due else ""
+        due_str = format_due(due) if due else ""
         due_part = f"{due_str} " if due_str else ""
         tags = get_tags(item_id)
         tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
         lines.append(f"{item_id}: {focus_label}{due_part}{content.lower()}{tags_str}")
 
     return "\n".join(lines)
-
-
-def fmt_add_task(
-    content: str, focus: bool = False, due: str = None, done: bool = False, tags: list[str] = None
-) -> str:
-    """Format add task message"""
-    focus_str = " [FOCUS]" if focus else ""
-    due_str = f" due {due}" if due else ""
-    tag_list = [f"#{t}" for t in tags] if tags else []
-    tag_str = f" {' '.join(tag_list)}" if tag_list else ""
-
-    if done:
-        return f"✓ {content}{focus_str}{due_str}{tag_str}"
-    return f"Added: {content}{focus_str}{due_str}{tag_str}"
-
-
-def fmt_add_habit(content: str) -> str:
-    """Format add habit message"""
-    return f"Added habit: {content}"
-
-
-def fmt_add_chore(content: str) -> str:
-    """Format add chore message"""
-    return f"Added chore: {content}"
