@@ -1,51 +1,59 @@
 import re
-from datetime import date, datetime
 from difflib import get_close_matches
 
-from ..core.repeat import check_repeat
 from ..core.item import (
     complete_item,
     delete_item,
     get_pending_items,
     get_today_completed,
+    is_repeating,
     toggle_focus,
     uncomplete_item,
     update_item,
-    is_repeating,
 )
+from ..core.repeat import check_repeat
+
+MIN_UUID_PREFIX = 8
+FUZZY_MATCH_THRESHOLD = 0.8
 
 
-def find_item(partial, tags_filter=None):
-    """Find item by fuzzy matching partial string or UUID prefix"""
-    pending = get_pending_items()
-    if not pending:
+def _find_by_partial(partial: str, pool: list[tuple]) -> tuple | None:
+    """Find item in pool: UUID prefix, substring, fuzzy match."""
+    if not pool:
         return None
 
     partial_lower = partial.lower()
 
-    if len(partial) >= 8:
-        for item in pending:
+    if len(partial) >= MIN_UUID_PREFIX:
+        for item in pool:
             if item[0].startswith(partial):
                 return item
 
-    for item in pending:
+    for item in pool:
         if partial_lower in item[1].lower():
             return item
 
-    contents = [item[1] for item in pending]
-    matches = get_close_matches(partial_lower, [c.lower() for c in contents], n=1, cutoff=0.8)
+    contents = [item[1] for item in pool]
+    matches = get_close_matches(
+        partial_lower, [c.lower() for c in contents], n=1, cutoff=FUZZY_MATCH_THRESHOLD
+    )
 
     if matches:
         match_content = matches[0]
-        for item in pending:
+        for item in pool:
             if item[1].lower() == match_content:
                 return item
 
     return None
 
 
-def complete_fuzzy(partial):
-    """Complete or check item using fuzzy matching"""
+def find_item(partial: str, tags_filter=None) -> tuple | None:
+    """Find item by fuzzy matching partial string or UUID prefix"""
+    return _find_by_partial(partial, get_pending_items())
+
+
+def complete(partial: str) -> str | None:
+    """Complete or check item"""
     item = find_item(partial)
     if item:
         if is_repeating(item[0]):
@@ -56,45 +64,27 @@ def complete_fuzzy(partial):
     return None
 
 
-def uncomplete_fuzzy(partial):
-    """Uncomplete item using fuzzy matching"""
-    today_items = get_today_completed()
-
-    if not today_items:
-        return None
-
-    partial_lower = partial.lower()
-
-    for item in today_items:
-        if partial_lower in item[1].lower():
-            uncomplete_item(item[0])
-            return item[1]
-
-    contents = [item[1] for item in today_items]
-    matches = get_close_matches(partial_lower, [c.lower() for c in contents], n=1, cutoff=0.8)
-
-    if matches:
-        match_content = matches[0]
-        for item in today_items:
-            if item[1].lower() == match_content:
-                uncomplete_item(item[0])
-                return item[1]
-
+def uncomplete(partial: str) -> str | None:
+    """Uncomplete item"""
+    item = _find_by_partial(partial, get_today_completed())
+    if item:
+        uncomplete_item(item[0])
+        return item[1]
     return None
 
 
-def toggle_fuzzy(partial):
-    """Toggle focus on item using fuzzy matching"""
+def toggle(partial: str) -> tuple[str, str] | None:
+    """Toggle focus on item"""
     item = find_item(partial)
     if item:
         new_focus = toggle_focus(item[0], item[2])
         status = "Focused" if new_focus else "Unfocused"
         return status, item[1]
-    return None, None
+    return None
 
 
-def update_fuzzy(partial, content=None, due=None, focus=None):
-    """Update item using fuzzy matching"""
+def update(partial: str, content=None, due=None, focus=None) -> str | None:
+    """Update item"""
     item = find_item(partial)
     if item:
         update_item(item[0], content=content, due=due, focus=focus)
@@ -102,25 +92,13 @@ def update_fuzzy(partial, content=None, due=None, focus=None):
     return None
 
 
-def remove_fuzzy(partial):
-    """Remove item using fuzzy matching"""
+def remove(partial: str) -> str | None:
+    """Remove item"""
     item = find_item(partial)
     if item:
         delete_item(item[0])
         return item[1]
     return None
-
-
-def delete_item_msg(partial):
-    """Delete item. Returns message string."""
-    removed = remove_fuzzy(partial)
-    return f"Removed: {removed}" if removed else f"No match for: {partial}"
-
-
-def toggle_focus_msg(partial):
-    """Toggle focus. Returns message string."""
-    status, content = toggle_fuzzy(partial)
-    return f"{status}: {content}" if status else f"No match for: {partial}"
 
 
 def set_due(args, remove=False):
@@ -144,20 +122,16 @@ def set_due(args, remove=False):
         if remove:
             update_item(item[0], due=None)
             return f"Due date removed: {item[1]}"
-        else:
-            if not date_str:
-                return "Due date required (YYYY-MM-DD) or use -r/--remove to clear"
-            update_item(item[0], due=date_str)
-            return f"Due: {item[1]} on {date_str}"
-    else:
-        return f"No match for: {partial}"
+        if not date_str:
+            return "Due date required (YYYY-MM-DD) or use -r/--remove to clear"
+        update_item(item[0], due=date_str)
+        return f"Due: {item[1]} on {date_str}"
+    return f"No match for: {partial}"
 
 
 def edit_item(new_content, partial):
     """Edit item content. Returns message string."""
-    item = find_item(partial)
-    if item:
-        update_item(item[0], content=new_content)
-        return f"Updated: {item[1]} → {new_content}"
-    else:
-        return f"No match for: {partial}"
+    result = update(partial, content=new_content)
+    if result:
+        return f"Updated: {result} → {new_content}"
+    return f"No match for: {partial}"

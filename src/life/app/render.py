@@ -4,42 +4,43 @@ import threading
 import time
 from datetime import date, datetime
 
-from ..lib.ansi import ANSI
+from ..config import get_countdowns
 from ..core.tag import get_tags
+from ..lib.ansi import ANSI
 from ..lib.format import format_decay, format_due_date
 
 
 class Spinner:
-	"""Simple CLI spinner for async feedback."""
+    """Simple CLI spinner for async feedback."""
 
-	def __init__(self, persona: str = "roast"):
-		self.stop_event = threading.Event()
-		self.spinner_frames = itertools.cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
-		self.persona = persona
-		self.thread = None
+    def __init__(self, persona: str = "roast"):
+        self.stop_event = threading.Event()
+        self.spinner_frames = itertools.cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
+        self.persona = persona
+        self.thread = None
 
-	def _animate(self):
-		"""Run spinner animation in background thread."""
-		actions = {"roast": "roasting", "pepper": "peppering", "kim": "investigating"}
-		action = actions.get(self.persona, "thinking")
-		while not self.stop_event.is_set():
-			frame = next(self.spinner_frames)
-			sys.stderr.write(f"\r{frame} {action}... ")
-			sys.stderr.flush()
-			time.sleep(0.1)
-		sys.stderr.write("\r" + " " * 30 + "\r")
-		sys.stderr.flush()
+    def _animate(self):
+        """Run spinner animation in background thread."""
+        actions = {"roast": "roasting", "pepper": "peppering", "kim": "investigating"}
+        action = actions.get(self.persona, "thinking")
+        while not self.stop_event.is_set():
+            frame = next(self.spinner_frames)
+            sys.stderr.write(f"\r{frame} {action}... ")
+            sys.stderr.flush()
+            time.sleep(0.1)
+        sys.stderr.write("\r" + " " * 30 + "\r")
+        sys.stderr.flush()
 
-	def start(self):
-		"""Start the spinner."""
-		self.thread = threading.Thread(target=self._animate, daemon=True)
-		self.thread.start()
+    def start(self):
+        """Start the spinner."""
+        self.thread = threading.Thread(target=self._animate, daemon=True)
+        self.thread.start()
 
-	def stop(self):
-		"""Stop the spinner."""
-		self.stop_event.set()
-		if self.thread:
-			self.thread.join(timeout=0.5)
+    def stop(self):
+        """Stop the spinner."""
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=0.5)
 
 
 def render_today_completed(today_items):
@@ -69,9 +70,14 @@ def render_dashboard(items, today_count, momentum, context, today_items=None):
 
     lines = []
     lines.append(f"\nToday: {today} {current_time}")
-    wedding_date = date(2025, 11, 15)
-    days_until_wedding = (wedding_date - today).days
-    lines.append(f"👰‍♀️ {days_until_wedding} days until wedding!")
+    countdowns = get_countdowns()
+    if countdowns:
+        upcoming = sorted(countdowns, key=lambda x: x["date"])
+        next_cd = upcoming[0]
+        days = (date.fromisoformat(next_cd["date"]) - today).days
+        emoji = next_cd.get("emoji", "📌")
+        name = next_cd.get("name", "event")
+        lines.append(f"{emoji} {days} days until {name}!")
     lines.append(f"\nCompleted today: {today_count}")
     lines.append(f"\nThis week: {this_week_completed} completed, {this_week_added} added")
     lines.append(f"Last week: {last_week_completed} completed, {last_week_added} added")
@@ -114,7 +120,9 @@ def render_dashboard(items, today_count, momentum, context, today_items=None):
                 untagged.append(item)
 
         def sort_items(item_list):
-            return sorted(item_list, key=lambda x: (not x[2], x[3] is None, x[3] or "", x[1].lower()))
+            return sorted(
+                item_list, key=lambda x: (not x[2], x[3] is None, x[3] or "", x[1].lower())
+            )
 
         for idx, tag in enumerate(sorted(tagged_regular.keys())):
             items_by_tag = sort_items(tagged_regular[tag])
@@ -125,7 +133,9 @@ def render_dashboard(items, today_count, momentum, context, today_items=None):
             for item in items_by_tag:
                 item_id, content, _focus, due = item[:4]
                 due_str = format_due_date(due) if due else ""
-                other_tags = [t for t in get_tags(item_id) if t != tag and t not in ("habit", "chore")]
+                other_tags = [
+                    t for t in get_tags(item_id) if t != tag and t not in ("habit", "chore")
+                ]
                 tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
                 due_part = f"{due_str} " if due_str else ""
@@ -141,13 +151,19 @@ def render_dashboard(items, today_count, momentum, context, today_items=None):
                 due_part = f"{due_str} " if due_str else ""
                 lines.append(f"  {indicator}{due_part}{content.lower()}")
 
-        all_habits = [t for t in habits if t[5] is not None and date.fromisoformat(t[5][:10]) >= today]
+        all_habits = [
+            t for t in habits if t[5] is not None and date.fromisoformat(t[5][:10]) >= today
+        ]
         if all_habits or habits:
-            checked_today = len({item[0] for item in (today_items or []) if "habit" in get_tags(item[0])})
+            checked_today = len(
+                {item[0] for item in (today_items or []) if "habit" in get_tags(item[0])}
+            )
             lines.append(
                 f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({checked_today}/{len(habits)}):{ANSI.RESET}"
             )
-            today_habit_ids = {item[0] for item in (today_items or []) if "habit" in get_tags(item[0])}
+            today_habit_ids = {
+                item[0] for item in (today_items or []) if "habit" in get_tags(item[0])
+            }
             sorted_habits = sorted(habits, key=lambda x: x[1].lower())
             for item in sorted_habits:
                 content = item[1]
@@ -157,13 +173,19 @@ def render_dashboard(items, today_count, momentum, context, today_items=None):
                 checked_today = "✓" if item[0] in today_habit_ids else "□"
                 lines.append(f"  {checked_today} {content.lower()}{decay_str}")
 
-        all_chores = [t for t in chores if t[5] is not None and date.fromisoformat(t[5][:10]) >= today]
+        all_chores = [
+            t for t in chores if t[5] is not None and date.fromisoformat(t[5][:10]) >= today
+        ]
         if all_chores or chores:
-            chores_checked_today = len({item[0] for item in (today_items or []) if "chore" in get_tags(item[0])})
+            chores_checked_today = len(
+                {item[0] for item in (today_items or []) if "chore" in get_tags(item[0])}
+            )
             lines.append(
                 f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({chores_checked_today}/{len(chores)}):{ANSI.RESET}"
             )
-            today_chore_ids = {item[0] for item in (today_items or []) if "chore" in get_tags(item[0])}
+            today_chore_ids = {
+                item[0] for item in (today_items or []) if "chore" in get_tags(item[0])
+            }
             sorted_chores = sorted(chores, key=lambda x: x[1].lower())
             for item in sorted_chores:
                 content = item[1]
@@ -194,13 +216,15 @@ def render_item_list(items):
     return "\n".join(lines)
 
 
-def fmt_add_task(content: str, focus: bool = False, due: str = None, done: bool = False, tags: list[str] = None) -> str:
+def fmt_add_task(
+    content: str, focus: bool = False, due: str = None, done: bool = False, tags: list[str] = None
+) -> str:
     """Format add task message"""
     focus_str = " [FOCUS]" if focus else ""
     due_str = f" due {due}" if due else ""
     tag_list = [f"#{t}" for t in tags] if tags else []
     tag_str = f" {' '.join(tag_list)}" if tag_list else ""
-    
+
     if done:
         return f"✓ {content}{focus_str}{due_str}{tag_str}"
     return f"Added: {content}{focus_str}{due_str}{tag_str}"
@@ -214,20 +238,3 @@ def fmt_add_habit(content: str) -> str:
 def fmt_add_chore(content: str) -> str:
     """Format add chore message"""
     return f"Added chore: {content}"
-
-
-def fmt_done(content: str, undo: bool = False) -> str:
-    """Format done message with tags"""
-    from .tags import get_tags
-    from .utils import find_item
-    
-    item = find_item(content)
-    if not item:
-        return f"No match for: {content}"
-    
-    if undo:
-        return f"✓ {item[1]}"
-    
-    tags = get_tags(item[0])
-    tags_str = " " + " ".join(f"#{t}" for t in tags) if tags else ""
-    return f"✓ {item[1]}{tags_str}"

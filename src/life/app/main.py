@@ -2,20 +2,52 @@ import sys
 
 import typer
 
+from ..config import (
+    add_countdown,
+    backup,
+    get_context,
+    get_default_persona,
+    get_or_set_context,
+    get_or_set_profile,
+    remove_countdown,
+)
+from ..core.item import (
+    add_chore,
+    add_habit,
+    add_task,
+    get_pending_items,
+    get_today_completed,
+    today_completed,
+    weekly_momentum,
+)
+from ..core.tag import manage_tag
 from ..lib.claude import invoke as invoke_claude
-from ..config import get_default_persona, backup, get_or_set_profile, get_or_set_context, get_context
+from ..lib.match import complete, edit_item, remove, set_due, toggle, uncomplete
 from ..personas import manage_personas
 from .render import render_dashboard
-from ..core.tag import manage_tag
-from ..core.item import add_task, add_habit, add_chore, done_item, get_pending_items, today_completed, weekly_momentum, get_today_completed
-from ..lib.match import delete_item_msg, toggle_focus_msg, set_due, edit_item
 
 app = typer.Typer()
 
 KNOWN_COMMANDS = {
-    "add", "task", "habit", "chore", "done", "rm", "delete", "focus",
-    "due", "edit", "tag", "profile", "context", "backup", "personas",
-    "help", "--help", "-h",
+    "add",
+    "task",
+    "habit",
+    "chore",
+    "done",
+    "rm",
+    "delete",
+    "focus",
+    "due",
+    "edit",
+    "tag",
+    "profile",
+    "context",
+    "countdown",
+    "backup",
+    "personas",
+    "help",
+    "--help",
+    "-h",
 }
 
 
@@ -98,7 +130,18 @@ def done(
     undo: bool = typer.Option(False, "-u", "--undo", "-r", "--remove", help="Undo item completion"),  # noqa: B008
 ):
     """Complete or check item (fuzzy match)"""
-    typer.echo(done_item(" ".join(args) if args else "", undo=undo))
+    partial = " ".join(args) if args else ""
+    if not partial:
+        typer.echo("No item specified")
+        return
+
+    op = uncomplete if undo else complete
+    result = op(partial)
+
+    if result:
+        typer.echo(f"✓ {result}")
+    else:
+        typer.echo(f"No match for: {partial}")
 
 
 @app.command(name="rm")
@@ -106,7 +149,9 @@ def delete_item(
     args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
     """Remove item (fuzzy match)"""
-    typer.echo(delete_item_msg(" ".join(args)))
+    partial = " ".join(args)
+    result = remove(partial)
+    typer.echo(f"Removed: {result}" if result else f"No match for: {partial}")
 
 
 app.command(name="delete")(delete_item)
@@ -117,7 +162,9 @@ def focus(
     args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
     """Toggle focus on item (fuzzy match)"""
-    typer.echo(toggle_focus_msg(" ".join(args)))
+    partial = " ".join(args)
+    status, content = toggle(partial)
+    typer.echo(f"{status}: {content}" if status else f"No match for: {partial}")
 
 
 @app.command()
@@ -176,6 +223,42 @@ def personas(
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None  # noqa: B904
+
+
+@app.command()
+def countdown(
+    action: str = typer.Argument(None, help="add, remove, or list"),  # noqa: B008
+    name: str = typer.Argument(None, help="Countdown name"),  # noqa: B008
+    date_str: str = typer.Argument(None, help="Target date (YYYY-MM-DD)"),  # noqa: B008
+    emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for countdown"),  # noqa: B008
+):
+    """Manage countdowns"""
+    if not action:
+        from ..config import get_countdowns
+
+        countdowns = get_countdowns()
+        if countdowns:
+            for cd in sorted(countdowns, key=lambda x: x["date"]):
+                typer.echo(f"{cd.get('emoji', '📌')} {cd['name']} - {cd['date']}")
+        else:
+            typer.echo("No countdowns set")
+        return
+
+    if action == "add":
+        if not name or not date_str:
+            typer.echo("Error: add requires name and date (YYYY-MM-DD)", err=True)
+            raise typer.Exit(1)
+        add_countdown(name, date_str, emoji)
+        typer.echo(f"Added countdown: {emoji} {name} on {date_str}")
+    elif action == "remove":
+        if not name:
+            typer.echo("Error: remove requires name", err=True)
+            raise typer.Exit(1)
+        remove_countdown(name)
+        typer.echo(f"Removed countdown: {name}")
+    else:
+        typer.echo(f"Error: unknown action '{action}' (use: add, remove, or list)", err=True)
+        raise typer.Exit(1)
 
 
 @app.command()

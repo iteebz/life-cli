@@ -16,14 +16,14 @@ def add_item(content, focus=False, due=None, target_count=5, tags=None):
         "INSERT INTO items (id, content, focus, due, target_count) VALUES (?, ?, ?, ?, ?)",
         (item_id, content, focus, due, target_count),
     )
-    
+
     if tags:
         for tag in tags:
             conn.execute(
                 "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)",
                 (str(uuid.uuid4()), item_id, tag.lower()),
             )
-    
+
     conn.commit()
     conn.close()
     return item_id
@@ -244,7 +244,7 @@ def get_today_completed():
 def is_repeating(item_id):
     """Check if item is a repeating item (has habit or chore tag)"""
     from .tag import get_tags
-    
+
     tags = get_tags(item_id)
     return any(tag in ("habit", "chore") for tag in tags)
 
@@ -252,18 +252,19 @@ def is_repeating(item_id):
 def add_task(content, focus=False, due=None, done=False, tags=None):
     """Add task, optionally complete immediately. Returns message string."""
     from ..app.render import fmt_add_task
-    
-    item_id = add_item(content, focus=focus, due=due, tags=tags)
+
+    add_item(content, focus=focus, due=due, tags=tags)
     if done:
-        from ..lib.match import complete_fuzzy
-        complete_fuzzy(content)
+        from ..lib.match import complete
+
+        complete(content)
     return fmt_add_task(content, focus=focus, due=due, done=done, tags=tags)
 
 
 def add_habit(content):
     """Add habit item. Returns message string."""
     from ..app.render import fmt_add_habit
-    
+
     add_item(content, tags=["habit"])
     return fmt_add_habit(content)
 
@@ -271,27 +272,27 @@ def add_habit(content):
 def add_chore(content):
     """Add chore item. Returns message string."""
     from ..app.render import fmt_add_chore
-    
+
     add_item(content, tags=["chore"])
     return fmt_add_chore(content)
 
 
 def done_item(partial, undo=False):
     """Complete or undo item. Returns message string."""
-    from ..lib.match import complete_fuzzy, uncomplete_fuzzy, find_item
+    from ..lib.match import complete, find_item, uncomplete
     from .tag import get_tags
-    
+
     if not partial:
         return "No item specified"
-    
+
     if undo:
-        uncompleted = uncomplete_fuzzy(partial)
+        uncompleted = uncomplete(partial)
         return f"✓ {uncompleted}" if uncompleted else f"No match for: {partial}"
-    
-    completed = complete_fuzzy(partial)
+
+    completed = complete(partial)
     if not completed:
         return f"No match for: {partial}"
-    
+
     item = find_item(partial)
     if item:
         tags = get_tags(item[0])

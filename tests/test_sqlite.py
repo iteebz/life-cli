@@ -1,16 +1,16 @@
 from life.config import get_context, set_context
-from life.core.repeat import check_repeat
-from life.lib.sqlite import init_db
-from life.core.tag import add_tag, get_items_by_tag, get_tags
 from life.core.item import (
     add_item,
     complete_item,
     delete_item,
     get_pending_items,
+    is_repeating,
     toggle_focus,
     update_item,
-    is_repeating,
 )
+from life.core.repeat import check_repeat
+from life.core.tag import add_tag, get_items_by_tag, get_tags
+from life.lib.sqlite import init_db
 
 
 def test_init_creates_db(tmp_life_dir):

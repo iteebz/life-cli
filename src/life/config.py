@@ -95,7 +95,7 @@ def restore(backup_name: str):
     config_file = backup_path / "config.yaml"
     if config_file.exists():
         shutil.copy2(config_file, CONFIG_PATH)
-    
+
     ctx_file = backup_path / "context.md"
     if ctx_file.exists():
         shutil.copy2(ctx_file, CONFIG_PATH / ".context_legacy")
@@ -118,9 +118,8 @@ def get_or_set_profile(profile_text=None):
     if profile_text:
         set_profile(profile_text)
         return f"Profile: {profile_text}"
-    else:
-        prof = get_profile()
-        return f"Profile: {prof if prof else '(none)'}"
+    prof = get_profile()
+    return f"Profile: {prof if prof else '(none)'}"
 
 
 def get_or_set_context(context_text=None):
@@ -128,9 +127,8 @@ def get_or_set_context(context_text=None):
     if context_text:
         set_context(context_text)
         return f"Context: {context_text}"
-    else:
-        ctx = get_context()
-        return f"Context: {ctx if ctx else '(none)'}"
+    ctx = get_context()
+    return f"Context: {ctx if ctx else '(none)'}"
 
 
 def get_countdowns() -> list[dict]:
@@ -144,11 +142,13 @@ def add_countdown(name: str, date: str, emoji: str = "📌") -> None:
     config = _load_config()
     if "countdowns" not in config:
         config["countdowns"] = []
-    config["countdowns"].append({
-        "name": name,
-        "date": date,
-        "emoji": emoji,
-    })
+    config["countdowns"].append(
+        {
+            "name": name,
+            "date": date,
+            "emoji": emoji,
+        }
+    )
     _save_config(config)
 
 

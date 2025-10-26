@@ -6,7 +6,6 @@ from .kim import kim
 from .pepper import pepper
 from .roast import roast
 
-
 PERSONAS = {
     "roast": roast,
     "pepper": pepper,
@@ -15,81 +14,83 @@ PERSONAS = {
 
 
 def get_persona(name: str = "roast") -> str:
-	"""Get persona instructions by name. Defaults to roast."""
-	if name not in PERSONAS:
-		raise ValueError(f"Unknown persona: {name}. Available: {list(PERSONAS.keys())}")
-	return PERSONAS[name]()
+    """Get persona instructions by name. Defaults to roast."""
+    if name not in PERSONAS:
+        raise ValueError(f"Unknown persona: {name}. Available: {list(PERSONAS.keys())}")
+    return PERSONAS[name]()
 
 
 def get_default_persona_name() -> str | None:
-	"""Get default persona name from config, or None if not set."""
-	from ..config import get_default_persona
-	return get_default_persona()
+    """Get default persona name from config, or None if not set."""
+    from ..config import get_default_persona
+
+    return get_default_persona()
 
 
 def set_default_persona_name(persona: str) -> None:
-	"""Set default persona name in config."""
-	from ..config import set_default_persona
-	set_default_persona(persona)
+    """Set default persona name in config."""
+    from ..config import set_default_persona
+
+    set_default_persona(persona)
 
 
 def manage_personas(name=None, set_default=False, show_prompt=False):
-	"""Show personas, view/set one, or show full prompt. Returns message string."""
-	from ..config import get_context, get_profile
-	
-	descriptions = {
-		"roast": "The mirror. Call out patterns, push back on bullshit.",
-		"pepper": "Pepper Potts energy. Optimistic enabler. Unlock potential.",
-		"kim": "Lieutenant Kim Kitsuragi. Methodical clarity. Work the case.",
-	}
+    """Show personas, view/set one, or show full prompt. Returns message string."""
+    from ..config import get_context, get_profile
 
-	if not name:
-		lines = ["Available personas:"]
-		curr_default = get_default_persona_name()
-		for p in ("roast", "pepper", "kim"):
-			marker = "# " if p == curr_default else "  "
-			lines.append(f"{marker}{p:8} - {descriptions[p]}")
-		return "\n".join(lines)
+    descriptions = {
+        "roast": "The mirror. Call out patterns, push back on bullshit.",
+        "pepper": "Pepper Potts energy. Optimistic enabler. Unlock potential.",
+        "kim": "Lieutenant Kim Kitsuragi. Methodical clarity. Work the case.",
+    }
 
-	aliases = {"kitsuragi": "kim"}
-	resolved_name = aliases.get(name, name)
-	if resolved_name not in ("roast", "pepper", "kim"):
-		raise ValueError(f"Unknown persona: {resolved_name}")
+    if not name:
+        lines = ["Available personas:"]
+        curr_default = get_default_persona_name()
+        for p in ("roast", "pepper", "kim"):
+            marker = "# " if p == curr_default else "  "
+            lines.append(f"{marker}{p:8} - {descriptions[p]}")
+        return "\n".join(lines)
 
-	if set_default:
-		set_default_persona_name(resolved_name)
-		return f"Default persona set to: {resolved_name}"
-	elif show_prompt:
-		try:
-			persona_instructions = get_persona(resolved_name)
-			profile = get_profile()
-			context = get_context()
+    aliases = {"kitsuragi": "kim"}
+    resolved_name = aliases.get(name, name)
+    if resolved_name not in ("roast", "pepper", "kim"):
+        raise ValueError(f"Unknown persona: {resolved_name}")
 
-			life_output = subprocess.run(
-				["life"],
-				capture_output=True,
-				text=True,
-			).stdout.lstrip()
+    if set_default:
+        set_default_persona_name(resolved_name)
+        return f"Default persona set to: {resolved_name}"
+    if show_prompt:
+        try:
+            persona_instructions = get_persona(resolved_name)
+            profile = get_profile()
+            context = get_context()
 
-			profile_section = f"PROFILE:\n{profile if profile else '(no profile set)'}"
-			context_section = f"CONTEXT:\n{context if context and context != 'No context set' else '(no context set)'}"
+            life_output = subprocess.run(
+                ["life"],
+                capture_output=True,
+                text=True,
+            ).stdout.lstrip()
 
-			sections = [
-				persona_instructions,
-				";",
-				profile_section,
-				context_section,
-				";",
-				f"CURRENT LIFE STATE:\n{life_output}",
-				";",
-				"USER MESSAGE: [your message here]",
-			]
+            profile_section = f"PROFILE:\n{profile if profile else '(no profile set)'}"
+            context_section = f"CONTEXT:\n{context if context and context != 'No context set' else '(no context set)'}"
 
-			return "\n\n".join(sections)
-		except ValueError as e:
-			raise ValueError(str(e)) from None
-	else:
-		try:
-			return get_persona(resolved_name)
-		except ValueError as e:
-			raise ValueError(str(e)) from None
+            sections = [
+                persona_instructions,
+                ";",
+                profile_section,
+                context_section,
+                ";",
+                f"CURRENT LIFE STATE:\n{life_output}",
+                ";",
+                "USER MESSAGE: [your message here]",
+            ]
+
+            return "\n\n".join(sections)
+        except ValueError as e:
+            raise ValueError(str(e)) from None
+    else:
+        try:
+            return get_persona(resolved_name)
+        except ValueError as e:
+            raise ValueError(str(e)) from None

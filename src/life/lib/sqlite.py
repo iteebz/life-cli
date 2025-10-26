@@ -1,9 +1,24 @@
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 
 LIFE_DIR = Path.home() / ".life"
 DB_PATH = LIFE_DIR / "store.db"
+
+
+@contextmanager
+def get_db():
+    """Context manager for safe database connections with auto-commit/rollback."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def init_db():
@@ -19,7 +34,9 @@ def init_db():
         cursor = conn.execute("PRAGMA table_info(tasks)")
         cols = cursor.fetchall()
         has_tasks_table = bool(cols)
-        is_old_schema = has_tasks_table and len(cols) > 0 and cols[0][1] == "id" and "INT" in cols[0][2].upper()
+        is_old_schema = (
+            has_tasks_table and len(cols) > 0 and cols[0][1] == "id" and "INT" in cols[0][2].upper()
+        )
 
         if is_old_schema:
             _migrate_to_uuid(conn)
@@ -27,9 +44,9 @@ def init_db():
             _migrate_tasks_to_items(conn)
         else:
             _create_schema(conn)
-        
+
         conn.commit()
-    
+
     conn.close()
 
 
@@ -115,7 +132,8 @@ def _migrate_to_uuid(conn):
             new_task_id = id_mapping.get(old_task_id)
             if new_task_id:
                 conn.execute(
-                    "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)", (str(uuid.uuid4()), new_task_id, tag)
+                    "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)",
+                    (str(uuid.uuid4()), new_task_id, tag),
                 )
 
         conn.execute("DROP TABLE tasks_old")
@@ -162,7 +180,8 @@ def _migrate_tasks_to_items(conn):
         cursor = conn.execute("SELECT id, task_id, tag FROM task_tags_old")
         for _tag_id, task_id, tag in cursor.fetchall():
             conn.execute(
-                "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)", (str(uuid.uuid4()), task_id, tag)
+                "INSERT INTO item_tags (id, item_id, tag) VALUES (?, ?, ?)",
+                (str(uuid.uuid4()), task_id, tag),
             )
 
         conn.execute("DROP TABLE tasks_old")

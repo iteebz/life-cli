@@ -7,7 +7,7 @@ from ..lib.sqlite import DB_PATH, init_db
 def check_repeat(item_id, check_date=None):
     """Record a repeat check, one per day max. Skip if already checked today. Auto-complete if target reached."""
     import uuid
-    
+
     init_db()
     conn = sqlite3.connect(DB_PATH)
 
