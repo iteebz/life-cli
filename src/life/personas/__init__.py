@@ -2,7 +2,6 @@
 
 import subprocess
 
-from .base import get_persona as _get_persona
 from .kim import kim
 from .pepper import pepper
 from .roast import roast

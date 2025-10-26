@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 from ..config import get_context, get_profile
-from .render import Spinner, render_dashboard
+from ..app.render import Spinner, render_dashboard
 from ..lib.ansi import ANSI, PERSONA_COLORS, md_to_ansi
 from ..core.item import get_pending_items, get_today_completed, today_completed, weekly_momentum
 

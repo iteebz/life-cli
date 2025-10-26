@@ -190,7 +190,7 @@ def test_context_lifecycle(tmp_life_dir):
     set_context("Wedding: 30 days")
     ctx = get_context()
     assert ctx == "Wedding: 30 days"
-    assert (tmp_life_dir / "context.md").exists()
+    assert (tmp_life_dir / "config.yaml").exists()
 
 
 def test_delete_item(tmp_life_dir):

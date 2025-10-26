@@ -6,63 +6,66 @@ import yaml
 
 from .lib.sqlite import DB_PATH, LIFE_DIR
 
-CONTEXT_MD = LIFE_DIR / "context.md"
-PROFILE_MD = LIFE_DIR / "profile.md"
 CONFIG_PATH = LIFE_DIR / "config.yaml"
 BACKUP_DIR = Path.home() / ".life_backups"
 
 
+def _load_config() -> dict:
+    """Load config.yaml, return empty dict if not found"""
+    if not CONFIG_PATH.exists():
+        return {}
+    try:
+        with open(CONFIG_PATH) as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def _save_config(config: dict) -> None:
+    """Save config to YAML"""
+    LIFE_DIR.mkdir(exist_ok=True)
+    with open(CONFIG_PATH, "w") as f:
+        yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+
+
 def get_context():
     """Get current life context"""
-    if CONTEXT_MD.exists():
-        return CONTEXT_MD.read_text().strip()
-    return "No context set"
+    config = _load_config()
+    context = config.get("context", "").strip()
+    return context if context else "No context set"
 
 
 def set_context(context):
     """Set current life context"""
-    LIFE_DIR.mkdir(exist_ok=True)
-    CONTEXT_MD.write_text(context)
+    config = _load_config()
+    config["context"] = context
+    _save_config(config)
 
 
 def get_profile():
     """Get current profile"""
-    if PROFILE_MD.exists():
-        return PROFILE_MD.read_text().strip()
-    return ""
+    config = _load_config()
+    return config.get("profile", "").strip()
 
 
 def set_profile(profile):
     """Set current profile"""
-    LIFE_DIR.mkdir(exist_ok=True)
-    PROFILE_MD.write_text(profile)
+    config = _load_config()
+    config["profile"] = profile
+    _save_config(config)
 
 
 def get_default_persona() -> str | None:
     """Get default persona from config, or None if not set."""
-    if not CONFIG_PATH.exists():
-        return None
-    try:
-        with open(CONFIG_PATH) as f:
-            config = yaml.safe_load(f) or {}
-        return config.get("default_persona")
-    except Exception:
-        return None
+    config = _load_config()
+    return config.get("default_persona")
 
 
 def set_default_persona(persona: str) -> None:
     """Set default persona in config."""
-    LIFE_DIR.mkdir(exist_ok=True)
-    config = {}
-    if CONFIG_PATH.exists():
-        try:
-            with open(CONFIG_PATH) as f:
-                config = yaml.safe_load(f) or {}
-        except Exception:
-            pass
+    config = _load_config()
     config["default_persona"] = persona
-    with open(CONFIG_PATH, "w") as f:
-        yaml.dump(config, f)
+    _save_config(config)
 
 
 def backup():
@@ -89,13 +92,17 @@ def restore(backup_name: str):
     if db_file.exists():
         shutil.copy2(db_file, DB_PATH)
 
+    config_file = backup_path / "config.yaml"
+    if config_file.exists():
+        shutil.copy2(config_file, CONFIG_PATH)
+    
     ctx_file = backup_path / "context.md"
     if ctx_file.exists():
-        shutil.copy2(ctx_file, CONTEXT_MD)
+        shutil.copy2(ctx_file, CONFIG_PATH / ".context_legacy")
 
     profile_file = backup_path / "profile.md"
     if profile_file.exists():
-        shutil.copy2(profile_file, PROFILE_MD)
+        shutil.copy2(profile_file, CONFIG_PATH / ".profile_legacy")
 
 
 def list_backups() -> list[str]:
@@ -124,3 +131,30 @@ def get_or_set_context(context_text=None):
     else:
         ctx = get_context()
         return f"Context: {ctx if ctx else '(none)'}"
+
+
+def get_countdowns() -> list[dict]:
+    """Get list of countdowns from config"""
+    config = _load_config()
+    return config.get("countdowns", [])
+
+
+def add_countdown(name: str, date: str, emoji: str = "📌") -> None:
+    """Add a countdown to config"""
+    config = _load_config()
+    if "countdowns" not in config:
+        config["countdowns"] = []
+    config["countdowns"].append({
+        "name": name,
+        "date": date,
+        "emoji": emoji,
+    })
+    _save_config(config)
+
+
+def remove_countdown(name: str) -> None:
+    """Remove a countdown from config"""
+    config = _load_config()
+    if "countdowns" in config:
+        config["countdowns"] = [c for c in config["countdowns"] if c.get("name") != name]
+        _save_config(config)
