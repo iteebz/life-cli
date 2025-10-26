@@ -1,6 +1,6 @@
 import typer
 
-from ...lib.match import complete, uncomplete
+from ...lib.ops import complete, uncomplete
 
 cmd = typer.Typer()
 

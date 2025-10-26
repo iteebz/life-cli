@@ -76,7 +76,11 @@ def maybe_spawn_persona() -> bool:
 
 def register_commands(app: typer.Typer):
     """Register all command modules with the app."""
-    app.add_typer(task_cmd, name="task", help="Add task (supports focus, due date, tags, immediate completion)")
+    app.add_typer(
+        task_cmd,
+        name="task",
+        help="Add task (supports focus, due date, tags, immediate completion)",
+    )
     app.add_typer(habit_cmd, name="habit", help="Add daily habit (auto-resets on completion)")
     app.add_typer(chore_cmd, name="chore", help="Add repeating chore (auto-resets on completion)")
     app.add_typer(done_cmd, name="done", help="Mark item complete or undo completion (fuzzy match)")
@@ -87,6 +91,10 @@ def register_commands(app: typer.Typer):
     app.add_typer(tag_cmd, name="tag", help="Add, remove, or view items by tag (fuzzy match)")
     app.add_typer(profile_cmd, name="profile", help="View or set personal profile")
     app.add_typer(context_cmd, name="context", help="View or set current context")
-    app.add_typer(countdown_cmd, name="countdown", help="Add, remove, or list countdowns to target dates")
+    app.add_typer(
+        countdown_cmd, name="countdown", help="Add, remove, or list countdowns to target dates"
+    )
     app.add_typer(backup_cmd, name="backup", help="Create database backup")
-    app.add_typer(personas_cmd, name="personas", help="View or set AI personas (roast, pepper, kim)")
+    app.add_typer(
+        personas_cmd, name="personas", help="View or set AI personas (roast, pepper, kim)"
+    )

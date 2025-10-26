@@ -1,6 +1,6 @@
 import typer
 
-from ...lib.match import remove
+from ...lib.ops import remove
 
 cmd = typer.Typer()
 

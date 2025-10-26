@@ -1,6 +1,6 @@
 import typer
 
-from ...lib.match import set_due
+from ...lib.ops import set_due
 
 cmd = typer.Typer()
 

@@ -1,6 +1,6 @@
 import typer
 
-from ...lib.match import toggle
+from ...lib.ops import toggle
 
 cmd = typer.Typer()
 

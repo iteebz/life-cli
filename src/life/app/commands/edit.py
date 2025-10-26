@@ -1,6 +1,6 @@
 import typer
 
-from ...lib.match import edit_item
+from ...lib.ops import edit_item
 
 cmd = typer.Typer()
 

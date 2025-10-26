@@ -7,7 +7,7 @@ from life.core.item import (
     is_repeating,
 )
 from life.core.tag import add_tag, manage_tag
-from life.lib.match import (
+from life.lib.ops import (
     complete,
     edit_item,
     remove,

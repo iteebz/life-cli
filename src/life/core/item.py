@@ -51,7 +51,7 @@ def is_repeating(item_id):
 def add_task(content, focus=False, due=None, done=False, tags=None):
     add_item(content, focus=focus, due=due, tags=tags)
     if done:
-        from ..lib.match import complete
+        from ..lib.ops import complete
 
         complete(content)
 
@@ -76,7 +76,8 @@ def add_chore(content):
 
 
 def done_item(partial, undo=False):
-    from ..lib.match import complete, find_item, uncomplete
+    from ..lib.match import find_item
+    from ..lib.ops import complete, uncomplete
     from .tag import get_tags
 
     if not partial:
