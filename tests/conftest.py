@@ -8,10 +8,8 @@ def tmp_life_dir(monkeypatch, tmp_path):
 
     monkeypatch.setattr("life.lib.sqlite.LIFE_DIR", tmp_path)
     monkeypatch.setattr("life.lib.sqlite.DB_PATH", db_path)
-    monkeypatch.setattr("life.core.item.DB_PATH", db_path)
-    monkeypatch.setattr("life.core.tag.DB_PATH", db_path)
+    monkeypatch.setattr("life.lib.store.DB_PATH", db_path)
     monkeypatch.setattr("life.config.LIFE_DIR", tmp_path)
     monkeypatch.setattr("life.config.CONFIG_PATH", cfg_path)
     monkeypatch.setattr("life.config.BACKUP_DIR", tmp_path / "backups")
-    monkeypatch.setattr("life.core.repeat.DB_PATH", db_path)
     yield tmp_path
