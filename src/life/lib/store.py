@@ -341,3 +341,102 @@ def get_item_by_id(item_id):
     item = cursor.fetchone()
     conn.close()
     return item
+
+
+def get_today_breakdown():
+    """Get habits and tasks completed today"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    today_str = date.today().isoformat()
+
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM checks c
+        INNER JOIN item_tags it ON c.item_id = it.item_id
+        WHERE it.tag = 'habit'
+        AND DATE(c.checked) = ?
+    """,
+        (today_str,),
+    )
+    habits_today = cursor.fetchone()[0]
+
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM items
+        WHERE DATE(completed) = ?
+        AND id NOT IN (
+            SELECT item_id FROM item_tags WHERE tag IN ('habit', 'chore')
+        )
+    """,
+        (today_str,),
+    )
+    tasks_today = cursor.fetchone()[0]
+
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM checks c
+        INNER JOIN item_tags it ON c.item_id = it.item_id
+        WHERE it.tag = 'chore'
+        AND DATE(c.checked) = ?
+    """,
+        (today_str,),
+    )
+    chores_today = cursor.fetchone()[0]
+
+    conn.close()
+    return habits_today, tasks_today, chores_today
+
+
+def get_momentum_7d():
+    """Get 7-day averages for habits and tasks"""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+
+    today = date.today()
+    seven_days_ago = today - timedelta(days=7)
+    seven_days_ago_str = seven_days_ago.isoformat()
+
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM checks c
+        INNER JOIN item_tags it ON c.item_id = it.item_id
+        WHERE it.tag = 'habit'
+        AND DATE(c.checked) >= ?
+    """,
+        (seven_days_ago_str,),
+    )
+    habit_checks = cursor.fetchone()[0]
+
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM items
+        WHERE DATE(completed) >= ?
+        AND completed IS NOT NULL
+        AND id NOT IN (
+            SELECT item_id FROM item_tags WHERE tag IN ('habit', 'chore')
+        )
+    """,
+        (seven_days_ago_str,),
+    )
+    tasks_completed = cursor.fetchone()[0]
+
+    cursor = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM checks c
+        INNER JOIN item_tags it ON c.item_id = it.item_id
+        WHERE it.tag = 'chore'
+        AND DATE(c.checked) >= ?
+    """,
+        (seven_days_ago_str,),
+    )
+    chores_checks = cursor.fetchone()[0]
+
+    conn.close()
+
+    return habit_checks / 7.0, tasks_completed / 7.0, chores_checks / 7.0

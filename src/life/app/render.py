@@ -44,11 +44,14 @@ class Spinner:
 
 
 def render_today_completed(today_items):
-    """Render today's completed items with checkboxes"""
+    """Render today's completed items with checkboxes, separated by type"""
     if not today_items:
         return ""
 
     lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}✅ DONE TODAY:{ANSI.RESET}"]
+
+    habits = []
+    tasks = []
 
     for item in today_items:
         item_id = item[0]
@@ -56,14 +59,27 @@ def render_today_completed(today_items):
         time_str = f" {format_decay(item[2])}" if item[2] else ""
         tags = get_tags(item_id)
         tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-        lines.append(f"  ✓ {content.lower()}{tags_str}{time_str}")
+
+        if "habit" in tags:
+            habits.append(f"  ✓ {content.lower()}{tags_str}{time_str}")
+        else:
+            tasks.append(f"  ✓ {content.lower()}{tags_str}{time_str}")
+
+    if habits:
+        lines.append(f"{ANSI.DIM}Habits (upkeep):{ANSI.RESET}")
+        lines.extend(habits)
+
+    if tasks:
+        lines.append(f"{ANSI.DIM}Tasks (progression):{ANSI.RESET}")
+        lines.extend(tasks)
 
     return "\n".join(lines)
 
 
-def render_dashboard(items, today_count, momentum, context, today_items=None):
+def render_dashboard(items, today_breakdown, momentum_7d, context, today_items=None):
     """Render full dashboard view"""
-    this_week_completed, this_week_added, last_week_completed, last_week_added = momentum
+    habits_today, tasks_today, chores_today = today_breakdown
+    habits_avg, tasks_avg, chores_avg = momentum_7d
     today = date.today()
     now = datetime.now().astimezone()
     current_time = now.strftime("%H:%M")
@@ -78,9 +94,11 @@ def render_dashboard(items, today_count, momentum, context, today_items=None):
         emoji = next_cd.get("emoji", "📌")
         name = next_cd.get("name", "event")
         lines.append(f"{emoji} {days} days until {name}!")
-    lines.append(f"\nCompleted today: {today_count}")
-    lines.append(f"\nThis week: {this_week_completed} completed, {this_week_added} added")
-    lines.append(f"Last week: {last_week_completed} completed, {last_week_added} added")
+
+    lines.append(f"\nhabits: {habits_today} | tasks: {tasks_today} | chores: {chores_today}")
+    lines.append(
+        f"momentum: {habits_avg:.1f} habits/day | {tasks_avg:.1f} tasks/day | {chores_avg:.1f} chores/day"
+    )
 
     if today_items:
         lines.append(render_today_completed(today_items))

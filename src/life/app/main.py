@@ -6,8 +6,6 @@ from ..config import get_context
 from ..core.item import (
     get_pending_items,
     get_today_completed,
-    today_completed,
-    weekly_momentum,
 )
 from .commands import maybe_spawn_persona, register_commands
 from .render import render_dashboard
@@ -19,12 +17,14 @@ app = typer.Typer()
 def main(ctx: typer.Context):
     """Ephemeral life agent"""
     if ctx.invoked_subcommand is None:
+        from ..lib.store import get_momentum_7d, get_today_breakdown
+
         items = get_pending_items()
-        today_count = today_completed()
-        momentum = weekly_momentum()
         life_context = get_context()
         today_items = get_today_completed()
-        typer.echo(render_dashboard(items, today_count, momentum, life_context, today_items))
+        today_breakdown = get_today_breakdown()
+        momentum_7d = get_momentum_7d()
+        typer.echo(render_dashboard(items, today_breakdown, momentum_7d, life_context, today_items))
 
 
 register_commands(app)
