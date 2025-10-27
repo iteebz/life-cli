@@ -65,11 +65,10 @@ def maybe_spawn_persona() -> bool:
             invoke_claude(message, persona)
             return True
     elif _is_message(raw_args):
-        default = get_default_persona()
-        if default:
-            message = " ".join(raw_args)
-            invoke_claude(message, default)
-            return True
+        default = get_default_persona() or "roast"
+        message = " ".join(raw_args)
+        invoke_claude(message, default)
+        return True
 
     return False
 

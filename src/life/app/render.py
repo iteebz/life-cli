@@ -214,3 +214,20 @@ def render_item_list(items):
         lines.append(f"{item_id}: {focus_label}{due_part}{content.lower()}{tags_str}")
 
     return "\n".join(lines)
+
+
+def render_focus_items(items):
+    """Render focused items list"""
+    if not items:
+        return f"{ANSI.GREY}No focus items. Time to focus on something.{ANSI.RESET}"
+
+    lines = [f"{ANSI.BOLD}{ANSI.YELLOW}🔥 FOCUS ITEMS:{ANSI.RESET}\n"]
+    for item in items:
+        item_id, content, _, due = item[:4]
+        due_str = format_due(due) if due else ""
+        due_part = f"{due_str} " if due_str else ""
+        tags = get_tags(item_id)
+        tags_str = " " + " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags) if tags else ""
+        lines.append(f"  • {due_part}{content.lower()}{tags_str}")
+
+    return "\n".join(lines)

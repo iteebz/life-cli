@@ -41,6 +41,22 @@ def get_pending_items(asc=True):
     return items
 
 
+def get_focus_items():
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT i.id, i.content, i.focus, i.due, i.created, MAX(c.checked), COUNT(c.id), i.target_count
+        FROM items i
+        LEFT JOIN checks c ON i.id = c.item_id
+        WHERE i.completed IS NULL AND i.focus = 1
+        GROUP BY i.id
+        ORDER BY i.due IS NULL, i.due ASC, i.created ASC
+    """)
+    items = cursor.fetchall()
+    conn.close()
+    return items
+
+
 def get_today_completed():
     init_db()
     conn = sqlite3.connect(DB_PATH)
