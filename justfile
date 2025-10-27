@@ -13,7 +13,7 @@ install:
 ci: format fix test build
 
 test:
-    @poetry run python -m pytest tests -v
+    @poetry run python -m pytest tests -q
 
 format:
     @poetry run ruff format .

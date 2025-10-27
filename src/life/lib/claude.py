@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from ..app.render import Spinner, render_dashboard
 from ..config import get_context, get_profile
@@ -21,7 +22,11 @@ def build_context() -> str:
 
 
 def invoke(message: str, persona: str = "roast") -> None:
-    """Spawn ephemeral Claude persona and invoke with message."""
+    """Spawn ephemeral Claude persona and invoke with message.
+
+    Temporarily swaps ~/.claude/CLAUDE.md with persona constitution,
+    executes one Claude invocation, then restores original.
+    """
     from ..personas import get_persona as get_persona_instructions
 
     persona_instructions = get_persona_instructions(persona)
@@ -43,19 +48,31 @@ RESPONSE PROTOCOL:
     env = os.environ.copy()
     env["LIFE_PERSONA"] = persona
 
-    spinner = Spinner(persona)
-    spinner.start()
+    claude_path = Path.home() / ".claude" / "CLAUDE.md"
+    original_content = claude_path.read_text() if claude_path.exists() else ""
 
-    result = subprocess.run(
-        ["claude", "--model", "claude-haiku-4-5", "-p", task_prompt, "--allowedTools", "Bash"],
-        env=env,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        claude_path.parent.mkdir(parents=True, exist_ok=True)
+        claude_path.write_text(persona_instructions)
 
-    spinner.stop()
+        spinner = Spinner(persona)
+        spinner.start()
 
-    formatted = md_to_ansi(result.stdout)
-    color = PERSONA_COLORS.get(persona, ANSI.WHITE)
-    header = f"\n{ANSI.BOLD}{color}[{persona}]:{ANSI.RESET}\n\n"
-    sys.stdout.write(header + formatted + "\n")
+        result = subprocess.run(
+            ["claude", "--model", "claude-haiku-4-5", "-p", task_prompt, "--allowedTools", "Bash"],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+        spinner.stop()
+
+        formatted = md_to_ansi(result.stdout)
+        color = PERSONA_COLORS.get(persona, ANSI.WHITE)
+        header = f"\n{ANSI.BOLD}{color}[{persona}]:{ANSI.RESET}\n\n"
+        sys.stdout.write(header + formatted + "\n")
+    finally:
+        if original_content:
+            claude_path.write_text(original_content)
+        elif claude_path.exists():
+            claude_path.unlink()

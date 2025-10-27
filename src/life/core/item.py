@@ -49,11 +49,9 @@ def is_repeating(item_id):
 
 
 def add_task(content, focus=False, due=None, done=False, tags=None):
-    add_item(content, focus=focus, due=due, tags=tags)
+    item_id = add_item(content, focus=focus, due=due, tags=tags)
     if done:
-        from ..lib.ops import complete
-
-        complete(content)
+        complete_item(item_id)
 
     focus_str = " [FOCUS]" if focus else ""
     due_str = f" due {due}" if due else ""

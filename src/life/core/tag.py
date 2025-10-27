@@ -19,6 +19,7 @@ def remove_tag(item_id, tag):
 
 def manage_tag(tag_name, item_partial=None, remove=False):
     from ..app.render import render_item_list
+    from ..lib.ansi import ANSI
     from ..lib.match import find_item
 
     if item_partial:
@@ -26,9 +27,9 @@ def manage_tag(tag_name, item_partial=None, remove=False):
         if item:
             if remove:
                 remove_tag(item[0], tag_name)
-                return f"Untagged: {item[1]} ← #{tag_name}"
+                return f"Untagged: {item[1]} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}"
             add_tag(item[0], tag_name)
-            return f"Tagged: {item[1]} → #{tag_name}"
+            return f"Tagged: {item[1]} {ANSI.GREY}#{tag_name}{ANSI.RESET}"
         return f"No match for: {item_partial}"
     items = get_items_by_tag(tag_name)
     if items:

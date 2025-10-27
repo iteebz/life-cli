@@ -44,34 +44,28 @@ class Spinner:
 
 
 def render_today_completed(today_items):
-    """Render today's completed items with checkboxes, separated by type"""
+    """Render today's completed tasks only (habits/chores handled at bottom)"""
     if not today_items:
+        return ""
+
+    tasks_only = [
+        item
+        for item in today_items
+        if not any(tag in ("habit", "chore") for tag in get_tags(item[0]))
+    ]
+
+    if not tasks_only:
         return ""
 
     lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}✅ DONE TODAY:{ANSI.RESET}"]
 
-    habits = []
-    tasks = []
-
-    for item in today_items:
+    for item in tasks_only:
         item_id = item[0]
         content = item[1]
         time_str = f" {format_decay(item[2])}" if item[2] else ""
         tags = get_tags(item_id)
         tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-
-        if "habit" in tags:
-            habits.append(f"  ✓ {content.lower()}{tags_str}{time_str}")
-        else:
-            tasks.append(f"  ✓ {content.lower()}{tags_str}{time_str}")
-
-    if habits:
-        lines.append(f"{ANSI.DIM}Habits (upkeep):{ANSI.RESET}")
-        lines.extend(habits)
-
-    if tasks:
-        lines.append(f"{ANSI.DIM}Tasks (progression):{ANSI.RESET}")
-        lines.extend(tasks)
+        lines.append(f"  ✓ {content.lower()}{tags_str}{time_str}")
 
     return "\n".join(lines)
 
@@ -103,23 +97,71 @@ def render_dashboard(items, today_breakdown, momentum_7d, context, today_items=N
     if today_items:
         lines.append(render_today_completed(today_items))
 
-    if not items:
+    habits = []
+    chores = []
+    regular_items = []
+
+    for item in items:
+        item_id = item[0]
+        item_tags = get_tags(item_id)
+        if "habit" in item_tags:
+            habits.append(item)
+        elif "chore" in item_tags:
+            chores.append(item)
+        else:
+            regular_items.append(item)
+
+    all_habits = [t for t in habits if t[5] is not None and date.fromisoformat(t[5][:10]) >= today]
+    if all_habits or habits:
+        checked_today = len(
+            {item[0] for item in (today_items or []) if "habit" in get_tags(item[0])}
+        )
+        lines.append(
+            f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({checked_today}/{len(habits)}):{ANSI.RESET}"
+        )
+        today_habit_ids = {item[0] for item in (today_items or []) if "habit" in get_tags(item[0])}
+        undone_habits = [h for h in habits if h[0] not in today_habit_ids]
+        done_habits = [h for h in habits if h[0] in today_habit_ids]
+        sorted_habits = sorted(undone_habits, key=lambda x: x[1].lower()) + sorted(
+            done_habits, key=lambda x: x[1].lower()
+        )
+        for item in sorted_habits:
+            content = item[1]
+            last_checked = item[5] if len(item) > 5 else None
+            decay = format_decay(last_checked) if last_checked else ""
+            decay_str = f" {decay}" if decay else ""
+            if item[0] in today_habit_ids:
+                lines.append(f"  {ANSI.GREY}✓ {content.lower()}{decay_str}{ANSI.RESET}")
+            else:
+                lines.append(f"  □ {content.lower()}{decay_str}")
+
+    all_chores = [t for t in chores if t[5] is not None and date.fromisoformat(t[5][:10]) >= today]
+    if all_chores or chores:
+        chores_checked_today = len(
+            {item[0] for item in (today_items or []) if "chore" in get_tags(item[0])}
+        )
+        lines.append(
+            f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({chores_checked_today}/{len(chores)}):{ANSI.RESET}"
+        )
+        today_chore_ids = {item[0] for item in (today_items or []) if "chore" in get_tags(item[0])}
+        undone_chores = [c for c in chores if c[0] not in today_chore_ids]
+        done_chores = [c for c in chores if c[0] in today_chore_ids]
+        sorted_chores = sorted(undone_chores, key=lambda x: x[1].lower()) + sorted(
+            done_chores, key=lambda x: x[1].lower()
+        )
+        for item in sorted_chores:
+            content = item[1]
+            last_checked = item[5] if len(item) > 5 else None
+            decay = format_decay(last_checked) if last_checked else ""
+            decay_str = f" {decay}" if decay else ""
+            if item[0] in today_chore_ids:
+                lines.append(f"  {ANSI.GREY}✓ {content.lower()}{decay_str}{ANSI.RESET}")
+            else:
+                lines.append(f"  □ {content.lower()}{decay_str}")
+
+    if not regular_items:
         lines.append("\nNo pending items. You're either productive or fucked.")
     else:
-        regular_items = []
-        habits = []
-        chores = []
-
-        for item in items:
-            item_id = item[0]
-            item_tags = get_tags(item_id)
-            if "habit" in item_tags:
-                habits.append(item)
-            elif "chore" in item_tags:
-                chores.append(item)
-            else:
-                regular_items.append(item)
-
         today = date.today()
 
         tagged_regular = {}
@@ -168,50 +210,6 @@ def render_dashboard(items, today_breakdown, momentum_7d, context, today_items=N
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
                 due_part = f"{due_str} " if due_str else ""
                 lines.append(f"  {indicator}{due_part}{content.lower()}")
-
-        all_habits = [
-            t for t in habits if t[5] is not None and date.fromisoformat(t[5][:10]) >= today
-        ]
-        if all_habits or habits:
-            checked_today = len(
-                {item[0] for item in (today_items or []) if "habit" in get_tags(item[0])}
-            )
-            lines.append(
-                f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({checked_today}/{len(habits)}):{ANSI.RESET}"
-            )
-            today_habit_ids = {
-                item[0] for item in (today_items or []) if "habit" in get_tags(item[0])
-            }
-            sorted_habits = sorted(habits, key=lambda x: x[1].lower())
-            for item in sorted_habits:
-                content = item[1]
-                last_checked = item[5] if len(item) > 5 else None
-                decay = format_decay(last_checked) if last_checked else ""
-                decay_str = f" {decay}" if decay else ""
-                checked_today = "✓" if item[0] in today_habit_ids else "□"
-                lines.append(f"  {checked_today} {content.lower()}{decay_str}")
-
-        all_chores = [
-            t for t in chores if t[5] is not None and date.fromisoformat(t[5][:10]) >= today
-        ]
-        if all_chores or chores:
-            chores_checked_today = len(
-                {item[0] for item in (today_items or []) if "chore" in get_tags(item[0])}
-            )
-            lines.append(
-                f"\n{ANSI.BOLD}{ANSI.WHITE}CHORES ({chores_checked_today}/{len(chores)}):{ANSI.RESET}"
-            )
-            today_chore_ids = {
-                item[0] for item in (today_items or []) if "chore" in get_tags(item[0])
-            }
-            sorted_chores = sorted(chores, key=lambda x: x[1].lower())
-            for item in sorted_chores:
-                content = item[1]
-                last_checked = item[5] if len(item) > 5 else None
-                decay = format_decay(last_checked) if last_checked else ""
-                decay_str = f" {decay}" if decay else ""
-                checked_today = "✓" if item[0] in today_chore_ids else "□"
-                lines.append(f"  {checked_today} {content.lower()}{decay_str}")
 
     return "\n".join(lines)
 

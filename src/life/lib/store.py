@@ -62,12 +62,12 @@ def get_today_completed():
     conn = sqlite3.connect(DB_PATH)
     today_str = date.today().isoformat()
     cursor = conn.execute(
-        "SELECT COUNT(*) FROM items WHERE DATE(completed) = ?",
+        "SELECT COUNT(*) FROM items WHERE DATE(completed, 'localtime') = ?",
         (today_str,),
     )
     item_count = cursor.fetchone()[0]
     cursor = conn.execute(
-        "SELECT COUNT(*) FROM checks WHERE DATE(checked) = ?",
+        "SELECT COUNT(*) FROM checks WHERE DATE(checked, 'localtime') = ?",
         (today_str,),
     )
     check_count = cursor.fetchone()[0]
@@ -90,20 +90,20 @@ def get_weekly_momentum():
     last_week_end_str = last_week_end.isoformat()
 
     cursor = conn.execute(
-        "SELECT COUNT(*) FROM items WHERE completed IS NOT NULL AND DATE(completed) >= ?",
+        "SELECT COUNT(*) FROM items WHERE completed IS NOT NULL AND DATE(completed, 'localtime') >= ?",
         (week_start_str,),
     )
     this_week_items = cursor.fetchone()[0]
 
     cursor = conn.execute(
-        "SELECT COUNT(*) FROM checks WHERE DATE(checked) >= ?",
+        "SELECT COUNT(*) FROM checks WHERE DATE(checked, 'localtime') >= ?",
         (week_start_str,),
     )
     this_week_checks = cursor.fetchone()[0]
     this_week_completed = this_week_items + this_week_checks
 
     cursor = conn.execute(
-        "SELECT COUNT(*) FROM items WHERE DATE(created) >= ?",
+        "SELECT COUNT(*) FROM items WHERE DATE(created, 'localtime') >= ?",
         (week_start_str,),
     )
     this_week_added = cursor.fetchone()[0]
@@ -113,8 +113,8 @@ def get_weekly_momentum():
         SELECT COUNT(*)
         FROM items
         WHERE completed IS NOT NULL
-        AND DATE(completed) >= ?
-        AND DATE(completed) < ?
+        AND DATE(completed, 'localtime') >= ?
+        AND DATE(completed, 'localtime') < ?
     """,
         (last_week_start_str, last_week_end_str),
     )
@@ -124,8 +124,8 @@ def get_weekly_momentum():
         """
         SELECT COUNT(*)
         FROM checks
-        WHERE DATE(checked) >= ?
-        AND DATE(checked) < ?
+        WHERE DATE(checked, 'localtime') >= ?
+        AND DATE(checked, 'localtime') < ?
     """,
         (last_week_start_str, last_week_end_str),
     )
@@ -136,8 +136,8 @@ def get_weekly_momentum():
         """
         SELECT COUNT(*)
         FROM items
-        WHERE DATE(created) >= ?
-        AND DATE(created) < ?
+        WHERE DATE(created, 'localtime') >= ?
+        AND DATE(created, 'localtime') < ?
     """,
         (last_week_start_str, last_week_end_str),
     )
@@ -221,7 +221,7 @@ def get_completed_today():
         """
         SELECT id, content, completed
         FROM items
-        WHERE DATE(completed) = ?
+        WHERE DATE(completed, 'localtime') = ?
         ORDER BY completed DESC
     """,
         (today_str,),
@@ -233,7 +233,7 @@ def get_completed_today():
         SELECT i.id, i.content, c.checked
         FROM items i
         INNER JOIN checks c ON i.id = c.item_id
-        WHERE DATE(c.checked) = ?
+        WHERE DATE(c.checked, 'localtime') = ?
         ORDER BY c.checked DESC
     """,
         (today_str,),
@@ -307,7 +307,7 @@ def check_repeat(item_id, check_date=None):
         check_date = date.today().isoformat()
 
     cursor = conn.execute(
-        "SELECT id FROM checks WHERE item_id = ? AND DATE(checked) = ?",
+        "SELECT id FROM checks WHERE item_id = ? AND DATE(checked, 'localtime') = ?",
         (item_id, check_date),
     )
     if cursor.fetchone():
@@ -355,7 +355,7 @@ def get_today_breakdown():
         FROM checks c
         INNER JOIN item_tags it ON c.item_id = it.item_id
         WHERE it.tag = 'habit'
-        AND DATE(c.checked) = ?
+        AND DATE(c.checked, 'localtime') = ?
     """,
         (today_str,),
     )
@@ -365,7 +365,7 @@ def get_today_breakdown():
         """
         SELECT COUNT(*)
         FROM items
-        WHERE DATE(completed) = ?
+        WHERE DATE(completed, 'localtime') = ?
         AND id NOT IN (
             SELECT item_id FROM item_tags WHERE tag IN ('habit', 'chore')
         )
@@ -380,7 +380,7 @@ def get_today_breakdown():
         FROM checks c
         INNER JOIN item_tags it ON c.item_id = it.item_id
         WHERE it.tag = 'chore'
-        AND DATE(c.checked) = ?
+        AND DATE(c.checked, 'localtime') = ?
     """,
         (today_str,),
     )

@@ -10,11 +10,11 @@ from .context import cmd as context_cmd
 from .countdown import cmd as countdown_cmd
 from .done import cmd as done_cmd
 from .due import cmd as due_cmd
-from .edit import cmd as edit_cmd
 from .focus import cmd as focus_cmd
 from .habit import cmd as habit_cmd
 from .personas import cmd as personas_cmd
 from .profile import cmd as profile_cmd
+from .rename import cmd as rename_cmd
 from .rm import cmd as rm_cmd
 from .tag import cmd as tag_cmd
 from .task import cmd as task_cmd
@@ -27,7 +27,7 @@ KNOWN_COMMANDS = {
     "rm",
     "focus",
     "due",
-    "edit",
+    "rename",
     "tag",
     "profile",
     "context",
@@ -86,7 +86,7 @@ def register_commands(app: typer.Typer):
     app.add_typer(rm_cmd, name="rm", help="Delete item or completed task (fuzzy match)")
     app.add_typer(focus_cmd, name="focus", help="Toggle focus status on item (fuzzy match)")
     app.add_typer(due_cmd, name="due", help="Set or remove due date on item (fuzzy match)")
-    app.add_typer(edit_cmd, name="edit", help="Change item description (fuzzy match)")
+    app.add_typer(rename_cmd, name="rename", help="Change item description (fuzzy match)")
     app.add_typer(tag_cmd, name="tag", help="Add, remove, or view items by tag (fuzzy match)")
     app.add_typer(profile_cmd, name="profile", help="View or set personal profile")
     app.add_typer(context_cmd, name="context", help="View or set current context")

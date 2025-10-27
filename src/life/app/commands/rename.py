@@ -6,7 +6,7 @@ cmd = typer.Typer()
 
 
 @cmd.callback(invoke_without_command=True)
-def edit(
+def rename(
     new_content: str = typer.Argument(..., help="New item description"),  # noqa: B008
     args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
