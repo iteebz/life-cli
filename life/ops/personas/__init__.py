@@ -102,69 +102,7 @@ def manage_personas(name=None, set_default=False, show_prompt=False):
             raise ValueError(str(e)) from None
 
 
-def _get_known_commands() -> set[str]:
-    """Dynamically build set of known commands from cli/ directory and explicit aliases."""
-    return {
-        "help",
-        "--help",
-        "-h",
-        "chat",
-        "task",
-        "add",
-        "habit",
-        "chore",
-        "done",
-        "rm",
-        "focus",
-        "due",
-        "rename",
-        "tag",
-        "profile",
-        "context",
-        "countdown",
-        "backup",
-        "personas",
-    }
-
-
-KNOWN_COMMANDS = _get_known_commands()
-
-
-def _is_message(raw_args: list[str]) -> bool:
-    """Check if args represent a chat message (not a command)."""
-    if not raw_args:
-        return False
-    first_arg = raw_args[0].lower()
-    return first_arg not in KNOWN_COMMANDS and not first_arg.startswith("-")
-
-
-def maybe_spawn_persona() -> bool:
-    """Check if we should spawn persona. Returns True if spawned."""
-    raw_args = sys.argv[1:]
-
-    if not raw_args or raw_args[0] in ("--help", "-h", "--show-completion", "--install-completion"):
-        return False
-
-    valid_personas = {"roast", "pepper", "kim"}
-
-    if raw_args[0] in valid_personas:
-        persona = raw_args[0]
-        raw_args = raw_args[1:]
-        if _is_message(raw_args):
-            message = " ".join(raw_args)
-            invoke_claude(message, persona)
-            return True
-    elif _is_message(raw_args):
-        default = get_default_persona_name() or "roast"
-        message = " ".join(raw_args)
-        invoke_claude(message, default)
-        return True
-
-    return False
-
-
 __all__ = [
     "get_persona",
     "manage_personas",
-    "maybe_spawn_persona",
 ]

@@ -4,7 +4,7 @@ from .items import (
     manage_tag,
     set_due,
 )
-from .personas import get_persona, manage_personas, maybe_spawn_persona
+from .personas import get_persona, manage_personas
 from .tasks import done_item
 
 __all__ = [
