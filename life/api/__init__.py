@@ -14,15 +14,15 @@ from .dashboard import (
 )
 from .focus import (
     get_focus_items,
-    toggle_focus,
+)
+from .habits import (
+    get_habits,
+    is_habit,
 )
 from .items import (
     add_item,
-    complete_item,
     delete_item,
-    is_repeating,
-    uncomplete_item,
-    update_item,
+    get_item,
 )
 from .momentum import (
     weekly_momentum,
@@ -33,18 +33,22 @@ from .tag import (
     get_tags,
     remove_tag,
 )
+from .tasks import (
+    complete_item,
+    uncomplete_item,
+    update_item,
+    toggle_focus,
+)
 
 __all__ = [
     "add_item",
-    "complete_item",
+    "add_task",
+    "add_habit",
     "delete_item",
-    "is_repeating",
-    "uncomplete_item",
-    "update_item",
+    "get_item",
     "get_pending_items",
     "get_today_completed",
     "get_focus_items",
-    "toggle_focus",
     "get_today_breakdown",
     "weekly_momentum",
     "add_tag",
@@ -56,4 +60,10 @@ __all__ = [
     "backup",
     "restore",
     "list_backups",
+    "get_habits",
+    "is_habit",
+    "complete_item",
+    "uncomplete_item",
+    "update_item",
+    "toggle_focus",
 ]

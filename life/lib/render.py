@@ -1,11 +1,13 @@
 from datetime import date, timedelta
 
-from ..api import get_tags, get_checks, get_items_by_tag
+from ..api import get_checks, get_tags
+from ..api.habits import get_habits
 from ..api.models import Item
 from ..config import get_countdowns
 from . import clock
 from .ansi import ANSI
 from .format import format_decay, format_due
+
 
 def get_habit_trend(item_id: str) -> str:
     """Determine if a habit is trending up, down, or stable based on check counts."""
@@ -13,7 +15,7 @@ def get_habit_trend(item_id: str) -> str:
     check_dates = [date.fromisoformat(d) for d in check_dates_str]
 
     today = clock.today()
-    
+
     # Define two 7-day periods
     # Period 1: Last 7 days (today to 6 days ago)
     period1_start = today - timedelta(days=6)
@@ -26,10 +28,9 @@ def get_habit_trend(item_id: str) -> str:
 
     if check_count_p1 > check_count_p2:
         return "↗"
-    elif check_count_p1 < check_count_p2:
+    if check_count_p1 < check_count_p2:
         return "↘"
-    else:
-        return "→"
+    return "→"
 
 
 def render_today_completed(today_items: list[Item]):
@@ -172,11 +173,18 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             decay = format_decay(last_checked) if last_checked else ""
             decay_str = f" {decay}" if decay else ""
             tags = get_tags(item.id)
-            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+            filtered_tags = [t for t in tags if t != "habit"]  # Filter out "habit" tag
+            tags_str = (
+                " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in filtered_tags)
+                if filtered_tags
+                else ""
+            )
             trend_indicator = get_habit_trend(item.id)
             if item.id in today_habit_ids:
                 if content not in displayed_completed_content:
-                    lines.append(f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{decay_str}{ANSI.RESET}")
+                    lines.append(
+                        f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{decay_str}{ANSI.RESET}"
+                    )
                     displayed_completed_content.add(content)
             else:
                 lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}{decay_str}")
@@ -201,7 +209,12 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             decay = format_decay(last_checked) if last_checked else ""
             decay_str = f" {decay}" if decay else ""
             tags = get_tags(item.id)
-            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+            filtered_tags = [t for t in tags if t != "chore"]  # Filter out "chore" tag
+            tags_str = (
+                " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in filtered_tags)
+                if filtered_tags
+                else ""
+            )
             if item.id in today_chore_ids:
                 lines.append(f"  {ANSI.GREY}✓ {content.lower()}{tags_str}{decay_str}{ANSI.RESET}")
             else:
@@ -302,17 +315,21 @@ def render_focus_items(items: list[Item]):
 
     return "\n".join(lines)
 
+
 def render_habit_matrix() -> str:
     """Render a matrix of habits and their check-off status for the last 7 days."""
     lines = []
     lines.append("HABIT TRACKER (last 7 days)\n")
 
-    all_habits = get_items_by_tag("habit")
-    if not all_habits:
+    habit_matrix = get_habits()
+
+    if not habit_matrix:
         return "No habits found."
 
     today = clock.today()
-    day_names = [(today - timedelta(days=i)).strftime("%a").lower() for i in range(6, -1, -1)] # Mon, Tue, ... Sun
+    day_names = [
+        (today - timedelta(days=i)).strftime("%a").lower() for i in range(6, -1, -1)
+    ]  # Mon, Tue, ... Sun
     dates = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
 
     header = "habit           " + " ".join(day_names)
@@ -320,7 +337,7 @@ def render_habit_matrix() -> str:
     lines.append("-" * len(header))
 
     # Sort habits alphabetically for consistent display
-    sorted_habits = sorted(all_habits, key=lambda x: x.content.lower())
+    sorted_habits = sorted(habit_matrix, key=lambda x: x.content.lower())
 
     for habit in sorted_habits:
         habit_name = habit.content.lower()
@@ -336,7 +353,7 @@ def render_habit_matrix() -> str:
                 status_indicators.append("✓")
             else:
                 status_indicators.append("□")
-        
+
         lines.append(f"{padded_habit_name} {'   '.join(status_indicators)}")
 
     return "\n".join(lines)

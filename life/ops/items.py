@@ -4,17 +4,14 @@ from sqlite3 import IntegrityError
 
 from ..api import (
     add_tag,
-    complete_item,
     delete_item,
     get_items_by_tag,
-    is_repeating,
     remove_tag,
-    toggle_focus,
-    uncomplete_item,
-    update_item,
 )
 from ..api.checks import add_check, delete_check
 from ..api.dashboard import get_pending_items, get_today_completed
+from ..api.habits import is_habit
+from ..api.tasks import complete_item, toggle_focus, uncomplete_item, update_item
 from ..lib import clock
 from ..lib.ansi import ANSI
 from ..lib.match import _find_by_partial, find_item
@@ -25,7 +22,7 @@ def complete(partial: str) -> str | None:
     """Complete an item or record a check for repeating item (fuzzy match)."""
     item = find_item(partial)
     if item:
-        if is_repeating(item.id):
+        if is_habit(item.id):
             try:
                 add_check(item.id)
             except IntegrityError:
@@ -57,7 +54,7 @@ def toggle_complete(
         item = _find_by_partial(partial, completed_items)
         if item:
             item_id = item.id
-            if is_repeating(item_id):
+            if is_habit(item_id):
                 delete_check(item_id, check_date=date)
                 return "Pending", item.content
             uncomplete_item(item_id)
@@ -67,7 +64,7 @@ def toggle_complete(
         pending_item = find_item(partial)
         if pending_item:
             item_id = pending_item.id
-            if is_repeating(item_id):
+            if is_habit(item_id):
                 try:
                     add_check(item_id, check_date=date)
                     return "Checked", pending_item.content
