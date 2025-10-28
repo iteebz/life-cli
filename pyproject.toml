@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Life accountability CLI"
 authors = ["tyson <tyson.chan@proton.me>"]
 readme = "README.md"
-packages = [{include = "life", from = "src"}]
+packages = [{include = "life"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -16,7 +16,7 @@ typer = "^0.17.4"
 pyyaml = "^6.0.3"
 
 [tool.poetry.scripts]
-life = "life.app.main:main_with_personas"
+life = "life.cli:main"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.13.0"
@@ -52,4 +52,4 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-pythonpath = ["src"]
+

@@ -16,63 +16,26 @@ poetry install
 life --help
 ```
 
-## Setup: Profile & Context
+## Setup
 
-Before spawning personas, configure your profile and context. Personas use this to personalize their responses.
-
-### Profile: Identity & Preferences
-
-Your profile tells Claude about you. Be direct about how you work best.
+Before spawning personas, configure profile and context:
 
 ```bash
-# Set your profile
+# Set identity + work patterns
 life profile "Senior IC. ADHD. Respond to directness, not encouragement. No meetings before noon. Coding energizes me. Writing drains me."
 
-# View current profile
-life profile
-```
+# Set current reality (update when circumstances change)
+life context "Sprint deadline Friday. Auth module blocked. Running on 6h sleep. Relationship strain."
 
-**What to include:**
-- Role/seniority (IC, lead, manager, etc.)
-- Neurology/personality (ADHD, introvert, perfectionist, etc.)
-- Response triggers (harsh truth, gentle nudge, etc.)
-- Time patterns (morning person, night owl, etc.)
-- Energy sources (what energizes vs drains you)
-- Constraints (family, health, obligations)
-
-### Context: Current Situation
-
-Your context tells Claude about your immediate reality. Update it when circumstances change.
-
-```bash
-# Set current operational context
-life context "Sprint deadline Friday. Authentication module blocked on API responses. Running on 6h sleep. Relationship strain from work hours."
-
-# View current context
-life context
-```
-
-**What to include:**
-- Active deadlines or milestones
-- Technical blockers or dependencies
-- Physical state (sleep, health, stress)
-- Personal circumstances (relationships, family)
-- Competing priorities
-- Temporal constraints
-
-### Default Persona
-
-Set your preferred persona to avoid typing it each time.
-
-```bash
-# Set default to 'roast'
+# Set default persona to avoid typing it each time
 life personas roast -s
-
-# View default (marked with ‣)
-life personas
 ```
+
+See [docs/architecture.md](docs/architecture.md) for system design.
 
 ## Usage
+
+**Same interface for humans and agents.** Both run `life` to read task state. Agents add natural language to spawn personas.
 
 ### Dashboard
 ```bash
