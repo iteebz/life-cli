@@ -1,11 +1,35 @@
-from datetime import date
+from datetime import date, timedelta
 
-from ..api import get_tags
+from ..api import get_tags, get_checks, get_items_by_tag
 from ..api.models import Item
 from ..config import get_countdowns
 from . import clock
 from .ansi import ANSI
 from .format import format_decay, format_due
+
+def get_habit_trend(item_id: str) -> str:
+    """Determine if a habit is trending up, down, or stable based on check counts."""
+    check_dates_str = get_checks(item_id)
+    check_dates = [date.fromisoformat(d) for d in check_dates_str]
+
+    today = clock.today()
+    
+    # Define two 7-day periods
+    # Period 1: Last 7 days (today to 6 days ago)
+    period1_start = today - timedelta(days=6)
+    # Period 2: 7 days before Period 1 (13 days ago to 7 days ago)
+    period2_start = today - timedelta(days=13)
+    period2_end = period1_start - timedelta(days=1)
+
+    check_count_p1 = sum(1 for d in check_dates if period1_start <= d <= today)
+    check_count_p2 = sum(1 for d in check_dates if period2_start <= d <= period2_end)
+
+    if check_count_p1 > check_count_p2:
+        return "↗"
+    elif check_count_p1 < check_count_p2:
+        return "↘"
+    else:
+        return "→"
 
 
 def render_today_completed(today_items: list[Item]):
@@ -147,12 +171,15 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             last_checked = item.completed
             decay = format_decay(last_checked) if last_checked else ""
             decay_str = f" {decay}" if decay else ""
+            tags = get_tags(item.id)
+            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+            trend_indicator = get_habit_trend(item.id)
             if item.id in today_habit_ids:
                 if content not in displayed_completed_content:
-                    lines.append(f"  {ANSI.GREY}✓ {content.lower()}{decay_str}{ANSI.RESET}")
+                    lines.append(f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{decay_str}{ANSI.RESET}")
                     displayed_completed_content.add(content)
             else:
-                lines.append(f"  □ {content.lower()}{decay_str}")
+                lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}{decay_str}")
 
     all_chores = [t for t in chores if t.completed is not None and t.completed.date() >= today]
     if all_chores or chores:
@@ -173,10 +200,12 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             last_checked = item.completed
             decay = format_decay(last_checked) if last_checked else ""
             decay_str = f" {decay}" if decay else ""
+            tags = get_tags(item.id)
+            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
             if item.id in today_chore_ids:
-                lines.append(f"  {ANSI.GREY}✓ {content.lower()}{decay_str}{ANSI.RESET}")
+                lines.append(f"  {ANSI.GREY}✓ {content.lower()}{tags_str}{decay_str}{ANSI.RESET}")
             else:
-                lines.append(f"  □ {content.lower()}{decay_str}")
+                lines.append(f"  □ {content.lower()}{tags_str}{decay_str}")
 
     if not regular_items:
         lines.append("\nNo pending items. You're either productive or fucked.")
@@ -270,5 +299,44 @@ def render_focus_items(items: list[Item]):
         tags = get_tags(item_id)
         tags_str = " " + " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags) if tags else ""
         lines.append(f"  • {due_part}{content.lower()}{tags_str}")
+
+    return "\n".join(lines)
+
+def render_habit_matrix() -> str:
+    """Render a matrix of habits and their check-off status for the last 7 days."""
+    lines = []
+    lines.append("HABIT TRACKER (last 7 days)\n")
+
+    all_habits = get_items_by_tag("habit")
+    if not all_habits:
+        return "No habits found."
+
+    today = clock.today()
+    day_names = [(today - timedelta(days=i)).strftime("%a").lower() for i in range(6, -1, -1)] # Mon, Tue, ... Sun
+    dates = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
+
+    header = "habit           " + " ".join(day_names)
+    lines.append(header)
+    lines.append("-" * len(header))
+
+    # Sort habits alphabetically for consistent display
+    sorted_habits = sorted(all_habits, key=lambda x: x.content.lower())
+
+    for habit in sorted_habits:
+        habit_name = habit.content.lower()
+        # Pad habit name to a fixed width for alignment
+        padded_habit_name = f"{habit_name:<15}"
+
+        check_dates_str = get_checks(habit.id)
+        check_dates = {date.fromisoformat(d) for d in check_dates_str}
+
+        status_indicators = []
+        for d in dates:
+            if d in check_dates:
+                status_indicators.append("✓")
+            else:
+                status_indicators.append("□")
+        
+        lines.append(f"{padded_habit_name} {'   '.join(status_indicators)}")
 
     return "\n".join(lines)

@@ -11,7 +11,7 @@ from ..ops.personas import maybe_spawn_persona
 # Imports for command modules
 from .backup import cmd as backup_cmd
 from .chat import cmd as chat_cmd
-from .check import cmd as check_cmd  # Added this line
+from .check import cmd as check_cmd
 from .chore import cmd as chore_cmd
 from .context import cmd as context_cmd
 from .countdown import cmd as countdown_cmd
@@ -19,6 +19,7 @@ from .done import done as done_command
 from .due import cmd as due_cmd
 from .focus import cmd as focus_cmd
 from .habit import cmd as habit_cmd
+from .habits import cmd as habits_cmd
 from .personas import cmd as personas_cmd
 from .profile import cmd as profile_cmd
 from .rename import cmd as rename_cmd
@@ -54,7 +55,8 @@ def register_commands(app: typer.Typer):
     app.add_typer(tag_cmd, name="tag", help="Add, remove, or view items by tag (fuzzy match)")
     app.add_typer(
         check_cmd, name="check", help="Mark a habit or chore as checked for today"
-    )  # Added this line
+    )
+    app.add_typer(habits_cmd, name="habits", help="Show all habits and their checked off list for the last 7 days.")
     app.add_typer(profile_cmd, name="profile", help="View or set personal profile")
     app.add_typer(context_cmd, name="context", help="View or set current context")
     app.add_typer(
