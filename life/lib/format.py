@@ -49,5 +49,5 @@ def format_decay(completed_str):
         if hours > 0:
             return f"- {hours}h ago"
         return f"- {mins}m ago"
-    except Exception:
+    except ValueError:
         return ""

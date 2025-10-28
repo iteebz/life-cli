@@ -48,8 +48,8 @@ def test_weekly_momentum_single_habit_today(setup_db_with_data, monkeypatch):
     fixed_today = date(2025, 10, 28)  # Tuesday
     _set_clock(monkeypatch, fixed_today)
 
-    add_item("test habit", tags=["habit"])
-    item_id = add_item("test habit 2", tags=["habit"])
+    add_item("test habit", item_type="habit", tags=["habit"])
+    item_id = add_item("test habit 2", item_type="habit", tags=["habit"])
     add_check(item_id, check_date=fixed_today.isoformat())
 
     momentum = weekly_momentum()
@@ -66,7 +66,7 @@ def test_weekly_momentum_single_habit_yesterday(setup_db_with_data, monkeypatch)
 
     yesterday = fixed_today - timedelta(days=1)  # Monday
 
-    item_id = add_item("test habit yesterday", tags=["habit"])
+    item_id = add_item("test habit yesterday", item_type="habit", tags=["habit"])
     add_check(item_id, check_date=yesterday.isoformat())
 
     momentum = weekly_momentum()
@@ -86,7 +86,7 @@ def test_weekly_momentum_habit_last_week(setup_db_with_data, monkeypatch):
 
     with monkeypatch.context() as ctx:
         _set_clock(ctx, last_week_day)
-        item_id = add_item("test habit last week", tags=["habit"])
+        item_id = add_item("test habit last week", item_type="habit", tags=["habit"])
     add_check(item_id, check_date=last_week_day.isoformat())
 
     momentum = weekly_momentum()

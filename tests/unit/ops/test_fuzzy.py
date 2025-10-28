@@ -1,5 +1,5 @@
 from life.api import add_item, get_pending_items
-from life.lib.match import _find_by_partial, find_item
+from life.ops.fuzzy import _find_by_partial, find_item
 
 
 def test_find_by_uuid_prefix(tmp_life_dir):

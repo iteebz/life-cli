@@ -3,7 +3,7 @@ from datetime import datetime
 from life.api import add_item, get_focus_items
 from life.api.models import Item, Weekly
 from life.lib.render import render_dashboard, render_focus_items, render_today_completed
-from life.ops.items import complete
+from life.ops.toggle import toggle_done
 
 
 def test_render_today_completed_empty(tmp_life_dir):
@@ -14,7 +14,7 @@ def test_render_today_completed_empty(tmp_life_dir):
 
 def test_render_today_completed_shows_tasks(tmp_life_dir):
     item_id = add_item("completed task")
-    complete(str(item_id))
+    toggle_done(str(item_id))
 
     # Manually construct an Item object for the test
     today_items = [

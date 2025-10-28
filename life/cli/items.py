@@ -1,63 +1,109 @@
 import typer
 
-from ..ops import items as ops_items
+from ..api.items import delete_item, get_all_items, update_item
+from ..api.tags import add_tag, remove_tag
 from ..lib.ansi import ANSI
 from ..lib.dates import _parse_due_date
-from ..api import get_item # Needed for some ops
+from ..lib.render import render_item_list
+from ..ops.fuzzy import find_item
+from ..ops.toggle import toggle_focus
 
 cmd = typer.Typer(help="Manage items (tasks and habits).")
+
 
 @cmd.command(name="ls")
 def ls_items():
     """List all items."""
-    typer.echo("Listing items...") # Placeholder
+    items = get_all_items()
+    typer.echo(render_item_list(items))
+
 
 @cmd.command(name="rm")
 def rm_item(partial: str):
     """Remove an item."""
-    typer.echo(f"Removing item: {partial}...") # Placeholder
+    item = find_item(partial)
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
+        raise typer.Exit(code=1)
+    delete_item(item.id)
+    typer.echo(f"{ANSI.GREEN}Item:{ANSI.RESET} '{item.content}' removed.")
 
-@cmd.command(name="complete")
-def complete_item(partial: str):
-    """Complete an item."""
-    typer.echo(f"Completing item: {partial}...") # Placeholder
-
-@cmd.command(name="uncomplete")
-def uncomplete_item(partial: str):
-    """Uncomplete an item."""
-    typer.echo(f"Uncompleting item: {partial}...") # Placeholder
 
 @cmd.command(name="focus")
 def focus_item(partial: str):
     """Focus on an item."""
-    typer.echo(f"Focusing on item: {partial}...") # Placeholder
+    item = find_item(partial)
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
+        raise typer.Exit(code=1)
+    toggle_focus(item.id, True)
+    typer.echo(f"{ANSI.GREEN}Item:{ANSI.RESET} '{item.content}' focused.")
+
 
 @cmd.command(name="unfocus")
 def unfocus_item(partial: str):
     """Unfocus an item."""
-    typer.echo(f"Unfocusing item: {partial}...") # Placeholder
+    item = find_item(partial)
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
+        raise typer.Exit(code=1)
+    toggle_focus(item.id, False)
+    typer.echo(f"{ANSI.GREEN}Item:{ANSI.RESET} '{item.content}' unfocused.")
+
 
 @cmd.command(name="due")
-def due_item(partial: str, due_date: str):
+def due_item(partial: str, due: str):
     """Set due date for an item."""
-    typer.echo(f"Setting due date for item: {partial} to {due_date}...") # Placeholder
+    item = find_item(partial)
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
+        raise typer.Exit(code=1)
+    parsed_date = _parse_due_date(due)
+    update_item(item.id, due=parsed_date)
+    typer.echo(
+        f"{ANSI.GREEN}Item:{ANSI.RESET} '{item.content}' due set to {parsed_date.isoformat() if parsed_date else 'None'}."
+    )
+
 
 @cmd.command(name="undue")
 def undue_item(partial: str):
     """Remove due date from an item."""
-    typer.echo(f"Removing due date from item: {partial}...") # Placeholder
+    item = find_item(partial)
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
+        raise typer.Exit(code=1)
+    update_item(item.id, due=None)
+    typer.echo(f"{ANSI.GREEN}Item:{ANSI.RESET} '{item.content}' due removed.")
+
 
 @cmd.command(name="tag")
 def tag_item(partial: str, tag_name: str):
     """Add a tag to an item."""
-    typer.echo(f"Tagging item: {partial} with {tag_name}...") # Placeholder
+    item = find_item(partial)
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
+        raise typer.Exit(code=1)
+    add_tag(item.id, tag_name)
+    typer.echo(f"{ANSI.GREEN}Item:{ANSI.RESET} '{item.content}' tagged with '{tag_name}'.")
+
 
 @cmd.command(name="untag")
 def untag_item(partial: str, tag_name: str):
     """Remove a tag from an item."""
-    typer.echo(f"Untagging item: {partial} from {tag_name}...") # Placeholder
+    item = find_item(partial)
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
+        raise typer.Exit(code=1)
+    remove_tag(item.id, tag_name)
+    typer.echo(f"{ANSI.GREEN}Item:{ANSI.RESET} '{item.content}' untagged from '{tag_name}'.")
+
 
 @cmd.command(name="edit")
 def edit_item(partial: str, new_content: str):
     """Edit an item's content."""
-    typer.echo(f"Editing item: {partial} to {new_content}...") # Placeholder
+    item = find_item(partial)
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
+        raise typer.Exit(code=1)
+    update_item(item.id, content=new_content)
+    typer.echo(f"{ANSI.GREEN}Item:{ANSI.RESET} '{item.content}' updated to '{new_content}'.")

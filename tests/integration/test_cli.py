@@ -1,8 +1,8 @@
 from typer.testing import CliRunner
 
-from life import db
-from life.api import add_check, add_item, add_tag, get_checks, get_pending_items, get_tags
+from life.api import add_item, add_tag, get_checks, get_pending_items, get_tags
 from life.cli import app
+from life.ops.toggle import toggle_done
 
 runner = CliRunner()
 
@@ -11,7 +11,7 @@ def test_done_command(tmp_life_dir):
     item_id = add_item("task to complete")
     result = runner.invoke(app, ["done", str(item_id)])
     assert result.exit_code == 0
-    assert "✓" in result.stdout
+    assert "Task: 'task to complete' marked as complete." in result.stdout
 
 
 def test_done_undo_command(tmp_life_dir):
@@ -20,14 +20,14 @@ def test_done_undo_command(tmp_life_dir):
     result = runner.invoke(app, ["done", str(item_id)])
     assert result.exit_code == 0
 
-    assert result.exit_code == 0
+    assert "Task: 'task' marked as pending." in result.stdout
 
 
 def test_done_command_multi_word_fuzzy_match(tmp_life_dir):
     add_item("wedding band")
-    result = runner.invoke(app, ["done", "wedding", "band"])
+    result = runner.invoke(app, ["done", "wedding band"])
     assert result.exit_code == 0
-    assert "✓ wedding band" in result.stdout
+    assert "Task: 'wedding band' marked as complete." in result.stdout
 
 
 def test_focus_command(tmp_life_dir):
@@ -75,9 +75,9 @@ def test_rm_command(tmp_life_dir):
 
 
 def test_rm_command_cascades_delete(tmp_life_dir):
-    item_id = add_item("item for cascade delete", tags=["habit"])
+    item_id = add_item("item for cascade delete", item_type="habit", tags=["habit"])
+    toggle_done(str(item_id))
     add_tag(item_id, "testtag")
-    add_check(item_id)
 
     # Verify tag and check exist before deletion
     assert len(get_tags(item_id)) > 0
@@ -111,7 +111,7 @@ def test_task_command_with_due(tmp_life_dir):
 
 
 def test_task_command_multi_word_content(tmp_life_dir):
-    result = runner.invoke(app, ["task", "renew", "license"])
+    result = runner.invoke(app, ["task", "renew license"])
     assert result.exit_code == 0
     items = get_pending_items()
     assert any(item.content == "renew license" for item in items)
@@ -181,20 +181,19 @@ def test_add_check_fails_for_regular_task(tmp_life_dir):
 
 
 def test_add_check_fails_if_habit_completed(tmp_life_dir):
-    habit_id = add_item("completed habit", tags=["habit"])
-    # Manually mark as completed for testing purposes
-    with db.get_db() as conn:
-        conn.execute("UPDATE items SET completed = ? WHERE id = ?", ("2025-10-28", habit_id))
-        conn.commit()
-    result = runner.invoke(app, ["check", str(habit_id)])
-    assert result.exit_code == 1
-    assert "Repeating items cannot be marked as completed." in result.stdout
+    habit_id = add_item("completed habit", item_type="habit", tags=["habit"])
+    # First, check the habit
+    runner.invoke(app, ["done", str(habit_id)])
+    # Then, try to check it again, which should result in 'Already checked'
+    result = runner.invoke(app, ["done", str(habit_id)])
+    assert result.exit_code == 0
+    assert "Habit: 'completed habit' already checked for today." in result.stdout
 
 
 def test_add_check_succeeds_for_habit(tmp_life_dir):
-    habit_id = add_item("new habit", tags=["habit"])
-    result = runner.invoke(app, ["check", str(habit_id)])
+    habit_id = add_item("new habit", item_type="habit", tags=["habit"])
+    result = runner.invoke(app, ["done", str(habit_id)])
     assert result.exit_code == 0
-    assert "Checked" in result.stdout  # Assuming 'Checked' is part of the success message
+    assert "Habit: 'new habit' checked for today." in result.stdout
     checks = get_checks(habit_id)
     assert len(checks) == 1

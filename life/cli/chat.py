@@ -16,5 +16,6 @@ def chat(
     if not message:
         typer.echo("Error: message required")
         raise typer.Exit(1)
-    selected_persona = persona or get_default_persona_name() or "roast"
+    default_persona = "roast"
+    selected_persona = persona or get_default_persona_name() or default_persona
     invoke_claude(message, selected_persona)

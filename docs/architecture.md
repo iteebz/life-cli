@@ -14,13 +14,13 @@ This is the [CLI Context Injection Pattern](https://github.com/teebz/canon/blob/
 life/
 ├── api/                      # Domain contracts + persistence
 │   ├── __init__.py          # Explicit __all__ exports
-│   ├── item.py              # Item CRUD (tasks, habits, chores)
-│   ├── repeat.py            # Repeat logic (habits, chores auto-reset)
+│   ├── item.py              # Item CRUD (tasks, habits)
+│   ├── repeat.py            # Repeat logic (habits auto-reset)
 │   └── tag.py               # Tag management
 ├── ops/                      # Orchestration (user workflows)
 │   ├── __init__.py          # Explicit __all__ exports
 │   ├── items.py             # Item mutations (complete, uncomplete, toggle, rename, tag)
-│   ├── tasks.py             # Task creation (add_task, add_habit, add_chore, done_item)
+│   ├── tasks.py             # Task creation (add_task, add_habit, done_item)
 │   ├── backup.py            # Database backup/restore
 │   └── personas/            # Ephemeral agent behavioral constitutions
 │       ├── __init__.py
@@ -33,7 +33,6 @@ life/
 │   ├── __init__.py          # app definition + register_commands + main
 │   ├── backup.py            # `life backup`
 │   ├── chat.py              # `life chat` (direct Claude invocation)
-│   ├── chore.py             # `life chore`
 │   ├── context.py           # `life context`
 │   ├── countdown.py         # `life countdown`
 │   ├── done.py              # `life done`
@@ -110,7 +109,7 @@ life/
 ### Item Lifecycle
 - **Create**: `ops.add_task()` → `api.add_item()` → `lib/store.py` (INSERT)
 - **Complete**: `cli.done` → `ops.done_item()` → `ops.complete()` → `api.complete_item()` → `lib/store.py` (UPDATE)
-- **Repeat**: Habits/chores auto-reset on completion via `api.check_repeat()` → `lib/store.py`
+- **Repeat**: Habits auto-reset on completion via `api.add_check()` → `lib/store.py`
 - **Matching**: Fuzzy matching via `lib/match.find_item()` for user input
 
 ### Persona System (Agent Behavior Constitution)

@@ -1,7 +1,7 @@
 import typer
 
+from ..api import get_item
 from ..api.checks import add_check
-from ..api.items import get_item_by_id  # Changed from get_item
 
 cmd = typer.Typer()
 
@@ -13,7 +13,7 @@ def check(
     """Mark a habit or chore as checked for today."""
     try:
         add_check(item_id)
-        item = get_item_by_id(item_id)  # Changed from get_item
+        item = get_item(item_id)  # Changed from get_item
         if item:
             typer.echo(f"Checked: {item.content}")
         else:

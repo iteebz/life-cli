@@ -1,9 +1,10 @@
 from difflib import get_close_matches
 
+from ..api.items import get_all_items
 from ..api.models import Item
 
 MIN_UUID_PREFIX = 8
-FUZZY_MATCH_THRESHOLD = 0.8
+FUZZY_MATCH_CUTOFF = 0.8  # Minimum similarity score for fuzzy matching
 
 
 def _match_uuid_prefix(partial: str, pool: list[Item]) -> Item | None:
@@ -30,7 +31,7 @@ def _match_fuzzy(partial: str, pool: list[Item]) -> Item | None:
     partial_lower = partial.lower()
     contents = [item.content for item in pool]
     matches = get_close_matches(
-        partial_lower, [c.lower() for c in contents], n=1, cutoff=FUZZY_MATCH_THRESHOLD
+        partial_lower, [c.lower() for c in contents], n=1, cutoff=FUZZY_MATCH_CUTOFF
     )
     if matches:
         match_content = matches[0]
@@ -53,6 +54,4 @@ def _find_by_partial(partial: str, pool: list[Item]) -> Item | None:
 
 def find_item(partial: str) -> Item | None:
     """Find item by fuzzy matching partial string or UUID prefix."""
-    from ..api.dashboard import get_pending_items
-
-    return _find_by_partial(partial, get_pending_items())
+    return _find_by_partial(partial, get_all_items())

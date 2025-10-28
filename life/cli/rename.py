@@ -1,6 +1,6 @@
 import typer
 
-from ..lib.match import find_item
+from ..ops.fuzzy import find_item
 from ..ops.items import update
 
 cmd = typer.Typer()

@@ -1,42 +1,40 @@
-from datetime import date
-
 import typer
 
-from ..ops.items import toggle_complete
+from ..lib.ansi import ANSI
+from ..ops.fuzzy import find_item
+from ..ops.toggle import toggle_done
 
-cmd = typer.Typer()
+cmd = typer.Typer(help="Mark item complete or undo completion (fuzzy match).")
 
 
 @cmd.callback(invoke_without_command=True)
-def done(
-    item_id_or_fuzzy_match: list[str] | None = typer.Argument(  # noqa: B008
-        None, help="Item ID or content for fuzzy matching"
-    ),
-    date_str: str | None = typer.Option(
-        None, "-d", "--date", help="Date of completion (YYYY-MM-DD)"
-    ),
-    undo: bool = typer.Option(False, "-u", "--undo", help="Undo completion"),
-):
-    """Toggle item completion status (fuzzy match)"""
-    fuzzy_match_str = " ".join(item_id_or_fuzzy_match) if item_id_or_fuzzy_match else None
+def done(partial: str = typer.Argument(..., help="Partial match for the item to mark done/undone")):
+    """Mark an item as complete/checked or uncomplete/unchecked."""
+    item = find_item(partial)
 
-    if fuzzy_match_str is None:
-        typer.echo("Error: Item ID or content is required.")
+    if not item:
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
         raise typer.Exit(code=1)
 
-    completion_date = None
-    if date_str:
-        try:
-            completion_date = date.fromisoformat(date_str).isoformat()
-        except ValueError:
-            typer.echo(f"Invalid date format: {date_str}. Please use YYYY-MM-DD.")
-            raise typer.Exit(code=1) from None
+    # Determine if we are trying to undo based on the item's current state
+    # For tasks, item.completed is a date string if completed, None otherwise.
+    # For habits, item.completed is always None, but we check its checks table.
+    # The toggle_done function will handle the habit-specific logic.
+    is_undo_action = item.completed is not None
 
-    result = toggle_complete(fuzzy_match_str, date=completion_date, undo=undo)
+    status, content = toggle_done(partial, undo=is_undo_action)
 
-    if result:
-        status, content = result
-        symbol = "✓" if status in ("Done", "Checked") else "□"
-        typer.echo(f"{symbol} {content}")
+    if status == "Checked":
+        typer.echo(f"{ANSI.GREEN}Habit:{ANSI.RESET} '{content}' checked for today.")
+    elif status == "Already checked":
+        typer.echo(f"{ANSI.YELLOW}Habit:{ANSI.RESET} '{content}' already checked for today.")
+    elif status == "Pending":
+        if item.is_repeat:
+            typer.echo(f"{ANSI.YELLOW}Habit:{ANSI.RESET} '{content}' unchecked for today.")
+        else:
+            typer.echo(f"{ANSI.YELLOW}Task:{ANSI.RESET} '{content}' marked as pending.")
+    elif status == "Done":
+        typer.echo(f"{ANSI.GREEN}Task:{ANSI.RESET} '{content}' marked as complete.")
     else:
-        typer.echo(f"No match for: {fuzzy_match_str}")
+        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} Unexpected status: {status} for item '{content}'")
+        raise typer.Exit(code=1)

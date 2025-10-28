@@ -1,15 +1,13 @@
 from life.api import (
     add_item,
-    complete_item,
     delete_item,
     get_pending_items,
     get_today_completed,
-    toggle_focus,
-    uncomplete_item,
     update_item,
 )
-from life.api.items import toggle_focus as toggle_item_focus
-from life.ops.items import complete, remove, uncomplete, update
+from life.ops.items import remove, update
+from life.ops.toggle import toggle_done
+from life.ops.toggle import toggle_focus as toggle_item_focus
 
 
 def test_add_item_creates_item(tmp_life_dir):
@@ -51,15 +49,15 @@ def test_get_pending_items(tmp_life_dir):
 
 def test_complete_item(tmp_life_dir):
     item_id = add_item("task to complete")
-    complete_item(item_id)
+    toggle_done(str(item_id))
     pending = get_pending_items()
     assert not any(item.id == item_id for item in pending)
 
 
 def test_uncomplete_item(tmp_life_dir):
     item_id = add_item("task to complete")
-    complete_item(item_id)
-    uncomplete_item(item_id)
+    toggle_done(str(item_id))
+    toggle_done(str(item_id), undo=True)
     pending = get_pending_items()
     assert any(item.id == item_id for item in pending)
 
@@ -97,35 +95,44 @@ def test_delete_item(tmp_life_dir):
 
 def test_get_today_completed(tmp_life_dir):
     item_id = add_item("task")
-    complete_item(item_id)
+    toggle_done(str(item_id))
     completed = get_today_completed()
     assert any(item.id == item_id for item in completed)
 
 
 def test_complete_command(tmp_life_dir):
     item_id = add_item("task to complete")
-    result = complete(str(item_id))
-    assert result is not None
+    status, content = toggle_done(str(item_id))
+    assert status == "Done"
+    assert content == "task to complete"
 
 
 def test_uncomplete_command(tmp_life_dir):
     item_id = add_item("task")
-    complete(str(item_id))
-    result = uncomplete(str(item_id))
-    assert result is not None
+    toggle_done(str(item_id))
+    status, content = toggle_done(str(item_id), undo=True)
+    assert status == "Pending"
+    assert content == "task"
 
 
 def test_toggle_focus_partial(tmp_life_dir):
-    add_item("task", focus=False)
-    result = toggle_focus("task")
-    assert result is not None
-    assert result[0] in ("Focused", "Unfocused")
+    item_id = add_item("task", focus=False)
+    status_text, content = toggle_item_focus(item_id, False)
+    assert status_text is not None
+    assert status_text in ("Focused", "Unfocused")
 
 
 def test_toggle_focus_fails_on_habit(tmp_life_dir):
-    habit_id = add_item("habit", tags=["habit"])
-    result = toggle_focus(str(habit_id))
-    assert result is None
+    habit_id = add_item("habit", is_habit=True, tags=["habit"])
+    # toggle_item_focus expects item_id and current_focus, not partial string
+    # This test case needs to be re-evaluated based on how habits handle focus
+    # For now, we'll assert that directly calling toggle_item_focus on a habit doesn't change its focus status
+    item = next((i for i in get_pending_items() if i.id == habit_id), None)
+    assert item is not None
+    original_focus = item.focus
+    toggle_item_focus(habit_id, original_focus)
+    item_after_toggle = next((i for i in get_pending_items() if i.id == habit_id), None)
+    assert item_after_toggle.focus == original_focus
 
 
 def test_update_command(tmp_life_dir):
@@ -163,7 +170,7 @@ def test_due_on_add(tmp_life_dir):
 
 def test_complete(tmp_life_dir):
     item_id = add_item("task")
-    complete_item(item_id)
+    toggle_done(str(item_id))
     assert len(get_pending_items()) == 0
 
 

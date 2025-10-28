@@ -1,16 +1,9 @@
 """Persona management and definitions."""
 
-import sys
-
-from ...api import (
-    get_pending_items,
-    get_today_breakdown,
-    get_today_completed,
-    weekly_momentum,
-)
+from ...api import weekly_momentum
 from ...config import get_context, get_default_persona, get_profile, set_default_persona
-from ...lib.claude import invoke as invoke_claude
 from ...lib.render import render_dashboard
+from ..dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .kim import kim
 from .pepper import pepper
 from .roast import roast

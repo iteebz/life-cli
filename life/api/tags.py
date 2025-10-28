@@ -1,23 +1,8 @@
 import contextlib
 import sqlite3
-from datetime import date, datetime
 
 from .. import db
-from .models import Item
-
-
-def _row_to_item_tag(row) -> Item:
-    return Item(
-        id=row[0],
-        content=row[1],
-        focus=bool(row[2]),
-        due=date.fromisoformat(row[3]) if isinstance(row[3], str) else None,
-        created=datetime.fromtimestamp(row[4])
-        if isinstance(row[4], (int, float))
-        else datetime.min,
-        completed=datetime.fromtimestamp(row[5]) if isinstance(row[5], (int, float)) else None,
-        is_repeat=bool(row[6]) if len(row) > 6 else False,
-    )
+from ..lib.converters import _row_to_item
 
 
 def add_tag(item_id, tag):
@@ -45,7 +30,7 @@ def get_items_by_tag(tag):
             """,
             (tag.lower(),),
         )
-        return [_row_to_item_tag(row) for row in cursor.fetchall()]
+        return [_row_to_item(row) for row in cursor.fetchall()]
 
 
 def remove_tag(item_id, tag):

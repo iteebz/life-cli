@@ -1,5 +1,8 @@
 import typer
 
+from ..api.items import add_item
+from ..lib.ansi import ANSI
+
 cmd = typer.Typer()
 
 
@@ -10,7 +13,5 @@ def habit(
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to habit"),  # noqa: B008
 ):
     """Add daily habit (auto-resets on completion)"""
-    item_id = add_habit(
-        content, focus=focus, tags=tags
-    )
+    item_id = add_item(content, item_type="habit", is_repeat=True, focus=focus, due=None, tags=tags)
     typer.echo(f"Added habit: {content} {ANSI.GREY}{item_id}{ANSI.RESET}")

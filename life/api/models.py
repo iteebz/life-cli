@@ -10,7 +10,7 @@ class Item:
     due: date | None
     created: datetime
     completed: datetime | None
-    is_repeat: bool = False
+    is_habit: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
