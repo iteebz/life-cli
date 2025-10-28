@@ -15,6 +15,9 @@ ci: format fix test build
 test:
     @poetry run python -m pytest tests -q
 
+run:
+    @poetry run life
+
 format:
     @poetry run ruff format .
 

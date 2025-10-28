@@ -7,6 +7,7 @@ name = "life-cli"
 version = "0.1.0"
 description = "Life accountability CLI"
 authors = ["tyson <tyson.chan@proton.me>"]
+license = "MIT"
 readme = "README.md"
 packages = [{include = "life"}]
 

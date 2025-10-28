@@ -192,16 +192,22 @@ def edit_item(new_content, partial) -> str:
     return f"No match for: {partial}"
 
 
-def manage_tag(tag_name, item_partial=None, remove=False):
+def manage_tag(tag_name, item_partial=None, remove=False, include_completed=False):
     """Add, remove, or view items by tag (fuzzy match)"""
     if item_partial:
-        item = find_item(item_partial)
+        item = None
+        if include_completed:
+            all_items = get_pending_items() + get_today_completed()
+            item = _find_by_partial(item_partial, all_items)
+        else:
+            item = find_item(item_partial)
+
         if item:
             if remove:
                 remove_tag(item.id, tag_name)
                 return f"Untagged: {item.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}"
             add_tag(item.id, tag_name)
-            return f"Tagged: {item.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}"
+            return f"Tagged: {item.content} {ANSI.GREY}#{tag_name} {ANSI.RESET}"
         return f"No match for: {item_partial}"
     items = get_items_by_tag(tag_name)
     if items:
