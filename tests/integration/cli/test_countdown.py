@@ -5,21 +5,21 @@ from life.cli import app
 runner = CliRunner()
 
 
-def test_countdown_list_empty(tmp_life_dir):
+def test_list_empty(tmp_life_dir):
     result = runner.invoke(app, ["countdown"])
 
     assert result.exit_code == 0
     assert "No countdowns" in result.stdout
 
 
-def test_countdown_add(tmp_life_dir):
+def test_add(tmp_life_dir):
     result = runner.invoke(app, ["countdown", "add", "vacation", "2025-12-25"])
 
     assert result.exit_code == 0
     assert "Added countdown" in result.stdout
 
 
-def test_countdown_list_shows_added(tmp_life_dir):
+def test_list_shows_added(tmp_life_dir):
     runner.invoke(app, ["countdown", "add", "launch", "2025-06-01"])
 
     result = runner.invoke(app, ["countdown"])
@@ -29,7 +29,7 @@ def test_countdown_list_shows_added(tmp_life_dir):
     assert "2025-06-01" in result.stdout
 
 
-def test_countdown_remove(tmp_life_dir):
+def test_remove(tmp_life_dir):
     runner.invoke(app, ["countdown", "add", "test", "2025-03-15"])
 
     result = runner.invoke(app, ["countdown", "remove", "test"])
@@ -38,13 +38,13 @@ def test_countdown_remove(tmp_life_dir):
     assert "Removed" in result.stdout
 
 
-def test_countdown_add_missing_args_fails(tmp_life_dir):
+def test_add_missing_args_fails(tmp_life_dir):
     result = runner.invoke(app, ["countdown", "add", "name_only"])
 
     assert result.exit_code != 0
 
 
-def test_countdown_invalid_action_fails(tmp_life_dir):
+def test_invalid_action_fails(tmp_life_dir):
     result = runner.invoke(app, ["countdown", "invalid", "arg"])
 
     assert result.exit_code != 0

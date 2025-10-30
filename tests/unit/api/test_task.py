@@ -36,14 +36,7 @@ def test_add_task_with_tags(tmp_life_dir):
     assert "work" in task.tags
 
 
-def test_get_pending_tasks(tmp_life_dir):
-    add_task("task 1")
-    add_task("task 2")
-    tasks = get_tasks()
-    assert len(tasks) == 2
-
-
-def test_get_all_tasks(tmp_life_dir):
+def test_pending_tasks_sort_order(tmp_life_dir):
     add_task("task 1")
     add_task("task 2")
     tasks = get_tasks()
@@ -93,21 +86,21 @@ def test_delete_task(tmp_life_dir):
     assert task is None
 
 
-def test_sort_pending_by_focus(tmp_life_dir):
+def test_sort_by_focus(tmp_life_dir):
     add_task("unfocused", focus=False)
     add_task("focused", focus=True)
     tasks = get_tasks()
     assert tasks[0].focus is True
 
 
-def test_sort_pending_by_due(tmp_life_dir):
+def test_sort_by_due(tmp_life_dir):
     add_task("later", due="2025-12-31")
     add_task("sooner", due="2025-01-01")
     tasks = get_tasks()
     assert str(tasks[0].due_date) == "2025-01-01"
 
 
-def test_sort_focus_trumps_due(tmp_life_dir):
+def test_focus_priority_over_due(tmp_life_dir):
     add_task("unfocused soon", focus=False, due="2025-01-01")
     add_task("focused later", focus=True, due="2025-12-31")
     tasks = get_tasks()

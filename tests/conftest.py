@@ -1,5 +1,8 @@
+from datetime import date, datetime, time
+
 import pytest
 
+import life.lib.clock as clock
 from life import db
 
 
@@ -15,3 +18,11 @@ def tmp_life_dir(monkeypatch, tmp_path):
 
     db.init(db_path=db_path)
     yield tmp_path
+
+
+@pytest.fixture
+def fixed_today(monkeypatch):
+    fixed_date = date(2025, 10, 30)
+    monkeypatch.setattr(clock, "today", lambda: fixed_date)
+    monkeypatch.setattr(clock, "now", lambda: datetime.combine(fixed_date, time.min))
+    return fixed_date

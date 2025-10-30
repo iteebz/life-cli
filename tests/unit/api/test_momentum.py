@@ -1,19 +1,11 @@
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time, timedelta
 
-import life.lib.clock as clock
 from life import db
 from life.api.momentum import weekly_momentum
 
 
-def test_weekly_momentum_rolling_window_habits(tmp_life_dir, monkeypatch):
-    """
-    Test that weekly_momentum correctly calculates habits_completed and habits_total
-    for rolling 7-day windows (this week, last week, prior week).
-    """
-    fixed_today = date(2025, 10, 28)  # Tuesday
-    monkeypatch.setattr(clock, "today", lambda: fixed_today)
-    monkeypatch.setattr(clock, "now", lambda: datetime.combine(fixed_today, time.min))
-
+def test_rolling_7day_window(tmp_life_dir, fixed_today):
+    """Calculate habits_completed and habits_total for rolling 7-day windows."""
     with db.get_db() as conn:
         conn.execute(
             "INSERT INTO habits (id, content, created) VALUES (?, ?, ?)",
@@ -67,13 +59,8 @@ def test_weekly_momentum_rolling_window_habits(tmp_life_dir, monkeypatch):
     assert prior_week.habits_total == 7
 
 
-def test_weekly_momentum_habit_target_ignored(tmp_life_dir, monkeypatch):
-    """
-    Test that weekly_momentum counts habits as 1 check per day for total possible calculations.
-    """
-    fixed_today = date(2025, 10, 28)  # Tuesday
-    monkeypatch.setattr(clock, "today", lambda: fixed_today)
-    monkeypatch.setattr(clock, "now", lambda: datetime.combine(fixed_today, time.min))
+def test_count_one_per_day(tmp_life_dir, fixed_today):
+    """Count habits as 1 check per day for total possible calculations."""
 
     with db.get_db() as conn:
         conn.execute(
