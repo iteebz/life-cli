@@ -1,11 +1,10 @@
 from life.api.tasks import (
     add_task,
-    complete_task,
     delete_task,
-    get_all_tasks,
-    get_focus_tasks,
-    get_pending_tasks,
+    get_focus,
     get_task,
+    get_tasks,
+    toggle_completed,
     update_task,
 )
 
@@ -40,28 +39,28 @@ def test_add_task_with_tags(tmp_life_dir):
 def test_get_pending_tasks(tmp_life_dir):
     add_task("task 1")
     add_task("task 2")
-    tasks = get_pending_tasks()
+    tasks = get_tasks()
     assert len(tasks) == 2
 
 
 def test_get_all_tasks(tmp_life_dir):
     add_task("task 1")
     add_task("task 2")
-    tasks = get_all_tasks()
+    tasks = get_tasks()
     assert len(tasks) == 2
 
 
 def test_complete_task(tmp_life_dir):
     task_id = add_task("task to complete")
-    complete_task(task_id)
-    pending = get_pending_tasks()
-    assert not any(t.id == task_id for t in pending)
+    toggle_completed(task_id)
+    pending = get_tasks()
+    assert not any(t.id == task_id for t in pending if t.completed is None)
 
 
 def test_get_focus_tasks(tmp_life_dir):
     task_id = add_task("focused", focus=True)
     add_task("unfocused", focus=False)
-    focus_tasks = get_focus_tasks()
+    focus_tasks = get_focus()
     assert len(focus_tasks) == 1
     assert focus_tasks[0].id == task_id
 
@@ -97,19 +96,19 @@ def test_delete_task(tmp_life_dir):
 def test_sort_pending_by_focus(tmp_life_dir):
     add_task("unfocused", focus=False)
     add_task("focused", focus=True)
-    tasks = get_pending_tasks()
+    tasks = get_tasks()
     assert tasks[0].focus is True
 
 
 def test_sort_pending_by_due(tmp_life_dir):
     add_task("later", due="2025-12-31")
     add_task("sooner", due="2025-01-01")
-    tasks = get_pending_tasks()
+    tasks = get_tasks()
     assert str(tasks[0].due_date) == "2025-01-01"
 
 
 def test_sort_focus_trumps_due(tmp_life_dir):
     add_task("unfocused soon", focus=False, due="2025-01-01")
     add_task("focused later", focus=True, due="2025-12-31")
-    tasks = get_pending_tasks()
+    tasks = get_tasks()
     assert tasks[0].focus is True

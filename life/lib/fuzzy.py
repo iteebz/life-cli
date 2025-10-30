@@ -1,8 +1,8 @@
 from difflib import get_close_matches
 
-from ..api.habits import get_all_habits
+from ..api.habits import get_habits
 from ..api.models import Habit, Task
-from ..api.tasks import get_all_tasks
+from ..api.tasks import get_tasks
 
 MIN_UUID_PREFIX = 8
 FUZZY_MATCH_CUTOFF = 0.8  # Minimum similarity score for fuzzy matching
@@ -55,16 +55,16 @@ def _find_by_partial(partial: str, pool: list[Task | Habit]) -> Task | Habit | N
 
 def find_task(partial: str) -> Task | None:
     """Find task by fuzzy matching partial string or UUID prefix."""
-    return _find_by_partial(partial, get_all_tasks())
+    return _find_by_partial(partial, get_tasks())
 
 
 def find_habit(partial: str) -> Habit | None:
     """Find habit by fuzzy matching partial string or UUID prefix."""
-    return _find_by_partial(partial, get_all_habits())
+    return _find_by_partial(partial, get_habits())
 
 
-def find_item(partial: str) -> Task | Habit | None:
-    """Find any task or habit by fuzzy matching partial string or UUID prefix."""
-    tasks = get_all_tasks()
-    habits = get_all_habits()
-    return _find_by_partial(partial, tasks + habits)
+def find_item(partial: str) -> tuple[Task | None, Habit | None]:
+    """Find task or habit, return both results (one will be None). Useful for commands that work on both."""
+    task = find_task(partial)
+    habit = find_habit(partial) if not task else None
+    return task, habit

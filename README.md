@@ -53,11 +53,8 @@ life task "thing" --due 2025-12-01
 # Add habit (daily wellness/maintenance, checkable)
 life habit "hydrate"
 
-# Mark done (fuzzy match)
+# Mark done (fuzzy match, works for tasks and habits)
 life done "partial match"
-
-# Check habit (fuzzy match)
-life check "partial match"
 
 # Toggle focus (max 3 active)
 life focus "partial"
@@ -76,19 +73,17 @@ life sql "SELECT * FROM tasks WHERE focus = 1"
 life list
 ```
 
-### Spawn Personas
+### Chat with Personas
 
-When you pass a natural language message (not a known command), `life` spawns an ephemeral Claude agent with full task context and CLI access.
+Use `life chat` to spawn an ephemeral Claude agent with full task context and behavioral rules based on your set persona.
 
 ```bash
-# Default: Roast identity (harsh accountability)
-life "been coding for 8 hours straight"
+# Chat with default persona
+life chat "been coding for 8 hours straight"
 
-# Pepper identity (optimistic enablement)
-life pepper "just finished the presentation"
-
-# Kim identity (methodical analysis)
-life kim "should I refactor the auth module?"
+# Set a specific persona first
+life personas roast -s
+life chat "what should I do next?"
 ```
 
 Each persona has distinct behavioral constitution. See [Personas](#personas) below.
@@ -107,4 +102,26 @@ Ephemeral Claude agents with different behavioral constitutions. See [docs/perso
 
 - **Task:** Project work with due dates. Mark done when complete.
 - **Habit:** Daily wellness (hydrate, exercise, sleep). Checkable daily. Never "complete."
+
+## CLI Commands
+
+| Command | Usage | Description |
+|---------|-------|-------------|
+| `life` | `life` | Show dashboard |
+| `task` | `life task "content" [--focus] [--due DATE] [--tag TAG]` | Add task |
+| `habit` | `life habit "content" [--tag TAG]` | Add daily habit |
+| `done` | `life done "partial"` | Toggle task/habit completion |
+| `rm` | `life rm "partial"` | Delete task/habit |
+| `focus` | `life focus "partial"` | Toggle focus status |
+| `due` | `life due [DATE] "partial" [--remove]` | Set/remove due date |
+| `rename` | `life rename "from" "to"` | Rename task/habit |
+| `tag` | `life tag TAG ["partial"] [--remove] [--completed]` | Add/remove/view tags |
+| `habits` | `life habits` | Show 7-day habit matrix |
+| `profile` | `life profile ["text"]` | View/set personal profile |
+| `context` | `life context ["text"]` | View/set operational context |
+| `countdown` | `life countdown [add NAME DATE \| remove NAME \| list]` | Manage countdowns |
+| `backup` | `life backup` | Create database backup |
+| `personas` | `life personas [NAME] [--set] [--prompt]` | Manage personas |
+| `chat` | `life chat "message"` | Chat with set persona |
+| `items` | `life items` | List all items |
 

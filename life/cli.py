@@ -1,22 +1,20 @@
 import typer
 
 from . import db
-from .api import backup as backup_db
 from .api import weekly_momentum
 from .api.dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .api.habits import (
     add_habit,
     delete_habit,
-    get_all_habits,
     get_checks,
-    get_habit,
+    get_habits,
     toggle_check,
     update_habit,
 )
 from .api.models import Task
 from .api.personas import get_default_persona_name, manage_personas
-from .api.tags import add_tag, get_habits_by_tag, get_tasks_by_tag, remove_tag
-from .api.tasks import add_task, complete_task, delete_task, get_all_tasks, update_task
+from .api.tags import add_tag, remove_tag
+from .api.tasks import add_task, delete_task, get_tasks, toggle_completed, toggle_focus, update_task
 from .config import (
     add_countdown,
     get_context,
@@ -26,9 +24,11 @@ from .config import (
     set_profile,
 )
 from .lib.ansi import ANSI
+from .lib.backup import backup as backup_life
 from .lib.claude import invoke
 from .lib.clock import today
-from .lib.fuzzy import find_habit, find_task
+from .lib.dates import parse_due_date
+from .lib.fuzzy import find_item, find_task
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list
 
 app = typer.Typer(
@@ -84,16 +84,14 @@ def habit(
 def done(
     partial: str = typer.Argument(..., help="Partial match for the item to mark done/undone"),
 ):
-    """Mark an item as complete/checked or uncomplete/unchecked."""
-    task = find_task(partial)
-    habit = find_habit(partial) if not task else None
+    """Mark task/habit as done or undone."""
+    task, habit = find_item(partial)
 
     if not task and not habit:
         typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
         raise typer.Exit(code=1)
 
-    is_habit = habit is not None
-    if is_habit:
+    if habit:
         today_date = today()
         checks = get_checks(habit.id)
         is_undo_action = today_date in checks
@@ -103,11 +101,10 @@ def done(
         else:
             typer.echo(f"{ANSI.GREEN}Habit:{ANSI.RESET} '{habit.content}' checked for today.")
     else:
+        toggle_completed(task.id)
         if task.completed is not None:
-            update_task(task.id, completed=None)
             typer.echo(f"Task: '{task.content}' marked as pending.")
         else:
-            complete_task(task.id)
             typer.echo(f"Task: '{task.content}' marked as complete.")
 
 
@@ -120,67 +117,35 @@ def rm(
         typer.echo("Usage: life rm <item>")
         raise typer.Exit(1)
     partial = " ".join(args)
-    task = find_task(partial)
+    task, habit = find_item(partial)
     if task:
         delete_task(task.id)
         typer.echo(f"Removed: {task.content}")
+    elif habit:
+        delete_habit(habit.id)
+        typer.echo(f"Removed: {habit.content}")
     else:
-        habit = find_habit(partial)
-        if habit:
-            delete_habit(habit.id)
-            typer.echo(f"Removed: {habit.content}")
-        else:
-            typer.echo(f"No match for: {partial}")
-
-
-def _parse_due_date(date_str: str) -> str | None:
-    """Parse due date string into YYYY-MM-DD format."""
-    from datetime import datetime, timedelta
-
-    date_str_lower = date_str.lower()
-
-    if date_str_lower == "today":
-        return today().isoformat()
-    if date_str_lower == "tomorrow":
-        return (today() + timedelta(days=1)).isoformat()
-
-    days_of_week = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
-    if date_str_lower in days_of_week:
-        target_day = days_of_week[date_str_lower]
-        current_day = today().weekday()
-        days_ahead = target_day - current_day
-        if days_ahead <= 0:
-            days_ahead += 7
-        return (today() + timedelta(days=days_ahead)).isoformat()
-
-    try:
-        datetime.fromisoformat(date_str)
-        return date_str
-    except ValueError:
-        return None
+        typer.echo(f"No match for: {partial}")
 
 
 @app.command()
 def focus(
-    args: list[str] = typer.Argument(  # noqa: B008
-        None, help="Item content for fuzzy matching or 'list' to show focus items"
-    ),
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
-    """Toggle focus status on item (fuzzy match) or list focus items"""
+    """Toggle focus status on task (fuzzy match)"""
     if not args:
-        typer.echo(
-            "No arguments provided. Use 'list' to show focus items or provide an item to toggle focus."
-        )
-        return
+        typer.echo("Usage: life focus <item>")
+        raise typer.Exit(1)
 
-    first_arg = args[0].lower()
-    valid_personas = {"roast", "pepper", "kim"}
+    partial = " ".join(args)
+    task = find_task(partial)
+    if not task:
+        typer.echo(f"No task found matching '{partial}'")
+        raise typer.Exit(1)
 
-    if first_arg in valid_personas and len(args) > 1:
-        pass
-        # focus_items = get_focus_items()
-        # focus_list = render_focus_items(focus_items)
-        # message = f"{' '.join(args[1:])} Here are my focus items:\n{focus_list}"
+    toggle_focus(task.id)
+    new_status = "focused" if not task.focus else "unfocused"
+    typer.echo(f"Task: '{task.content}' is now {new_status}.")
 
 
 @app.command()
@@ -197,7 +162,7 @@ def due(
     item_args = args
 
     if not remove and len(args) > 0:
-        parsed = _parse_due_date(args[0])
+        parsed = parse_due_date(args[0])
         if parsed:
             date_str = parsed
             item_args = args[1:]
@@ -238,8 +203,8 @@ def rename(
         raise typer.Exit(code=1)
 
     partial_from = " ".join(from_args)
-    task = find_task(partial_from)
-    item_to_rename = task if task else find_habit(partial_from)
+    task, habit = find_item(partial_from)
+    item_to_rename = task or habit
 
     if not item_to_rename:
         typer.echo(f"No fuzzy match found for: '{partial_from}'")
@@ -259,62 +224,31 @@ def rename(
 @app.command()
 def tag(
     tag_name: str = typer.Argument(..., help="Tag name"),  # noqa: B008
-    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
     remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),  # noqa: B008
-    completed: bool = typer.Option(
-        False, "--completed", "-c", help="Include completed items in search"
-    ),  # noqa: B008
 ):
-    """Add, remove, or view items by tag (fuzzy match)"""
-    item_partial = " ".join(args) if args else None
+    """Add or remove tag on item (fuzzy match)"""
+    item_partial = " ".join(args)
+    task, habit = find_item(item_partial)
 
-    if item_partial:
-        task = find_task(item_partial)
-        habit = find_habit(item_partial) if not task else None
+    if not task and not habit:
+        typer.echo(f"No match for: {item_partial}")
+        raise typer.Exit(1)
 
-        if task:
-            if remove:
-                remove_tag(task.id, None, tag_name)
-                typer.echo(f"Untagged: {task.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
-            else:
-                add_tag(task.id, None, tag_name)
-                typer.echo(f"Tagged: {task.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
-        elif habit:
-            if remove:
-                remove_tag(None, habit.id, tag_name)
-                typer.echo(f"Untagged: {habit.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
-            else:
-                add_tag(None, habit.id, tag_name)
-                typer.echo(f"Tagged: {habit.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+    if task:
+        if remove:
+            remove_tag(task.id, None, tag_name)
+            typer.echo(f"Untagged: {task.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
         else:
-            typer.echo(f"No match for: {item_partial}")
+            add_tag(task.id, None, tag_name)
+            typer.echo(f"Tagged: {task.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
     else:
-        tasks = get_tasks_by_tag(tag_name)
-        habits = get_habits_by_tag(tag_name)
-        items = tasks + habits
-        if items:
-            typer.echo(f"\n{tag_name.upper()} ({len(items)}):")
-            typer.echo(render_item_list(items))
+        if remove:
+            remove_tag(None, habit.id, tag_name)
+            typer.echo(f"Untagged: {habit.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
         else:
-            typer.echo(f"No items tagged with #{tag_name}")
-
-
-@app.command()
-def check(
-    item_id: str = typer.Argument(..., help="The ID of the habit to check"),  # noqa: B008
-):
-    """Mark a habit as checked for today."""
-    try:
-        toggle_check(item_id)
-        habit = get_habit(item_id)
-        if habit:
-            typer.echo(f"Checked: {habit.content}")
-        else:
-            typer.echo(f"Error: Habit with ID {item_id} not found after checking.")
-            raise typer.Exit(code=1)
-    except ValueError as e:
-        typer.echo(f"Error: {e}")
-        raise typer.Exit(code=1) from e
+            add_tag(None, habit.id, tag_name)
+            typer.echo(f"Tagged: {habit.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
 
 
 @app.command()
@@ -325,27 +259,20 @@ def habits():
 
 @app.command()
 def profile(
-    profile_text: str = typer.Argument(None, help="Profile to set"),  # noqa: B008
+    profile_text: str = typer.Argument(..., help="Profile to set"),  # noqa: B008
 ):
-    """View or set personal profile"""
-    if profile_text:
-        set_profile(profile_text)
-        typer.echo(f"Profile set to: {profile_text}")
-    else:
-        current = get_profile()
-        typer.echo(current if current else "No profile set")
+    """Set personal profile"""
+    set_profile(profile_text)
+    typer.echo(f"Profile set to: {profile_text}")
 
 
 @app.command()
 def context(
-    context_text: str = typer.Argument(None, help="Context text to set"),  # noqa: B008
+    context_text: str = typer.Argument(..., help="Context text to set"),  # noqa: B008
 ):
-    """View or set current context"""
-    if context_text:
-        set_context(context_text)
-        typer.echo(f"Context set to: {context_text}")
-    else:
-        typer.echo(get_context())
+    """Set current context"""
+    set_context(context_text)
+    typer.echo(f"Context set to: {context_text}")
 
 
 @app.command()
@@ -390,7 +317,7 @@ def countdown(
 @app.command()
 def backup():
     """Create database backup"""
-    typer.echo(backup_db())
+    typer.echo(backup_life())
 
 
 @app.command()
@@ -408,33 +335,8 @@ def personas(
 
 
 @app.command()
-def roast(
-    message: str = typer.Argument(..., help="The message to send to the Roast persona."),
-):
-    """Invoke the Roast persona."""
-    invoke(message, "roast")
-
-
-@app.command()
-def pepper(
-    message: str = typer.Argument(..., help="The message to send to the Pepper persona."),
-):
-    """Invoke the Pepper persona."""
-    invoke(message, "pepper")
-
-
-@app.command()
-def kim(
-    message: str = typer.Argument(..., help="The message to send to the Kim persona."),
-):
-    """Invoke the Kim persona."""
-    invoke(message, "kim")
-
-
-@app.command()
 def chat(
     args: list[str] = typer.Argument(None, help="Message to send to agent"),  # noqa: B008
-    persona: str = typer.Option(None, help="Persona to use (roast, pepper, kim)"),  # noqa: B008
 ):
     """Chat with ephemeral agent."""
     message = " ".join(args) if args else ""
@@ -442,7 +344,7 @@ def chat(
         typer.echo("Error: message required")
         raise typer.Exit(1)
     default_persona = "roast"
-    selected_persona = persona or get_default_persona_name() or default_persona
+    selected_persona = get_default_persona_name() or default_persona
     invoke(message, selected_persona)
 
 
@@ -450,16 +352,10 @@ def chat(
 def list_items():
     """List all items."""
 
-    tasks = get_all_tasks()
-    habits = get_all_habits()
+    tasks = get_tasks()
+    habits = get_habits()
     items = tasks + habits
     typer.echo(render_item_list(items))
-
-
-@app.command(name="dashboard")
-def show_dashboard():
-    """Show dashboard summary."""
-    typer.echo(render_dashboard())
 
 
 def main():

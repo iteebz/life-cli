@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from . import clock
 
 
-def _parse_due_date(due_str: str) -> str | None:
+def parse_due_date(due_str: str) -> str | None:
     """Parses a due date string (e.g., 'today', 'tomorrow', 'mon', 'YYYY-MM-DD')."""
     due_str_lower = due_str.lower()
     today = clock.today()

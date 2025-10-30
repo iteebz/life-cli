@@ -1,12 +1,24 @@
 from datetime import date, timedelta
 
-from ..api.habits import get_all_habits, get_checks
+from ..api.habits import get_checks, get_habits
 from ..api.models import Habit, Task
 from ..api.tags import get_tags_for_habit, get_tags_for_task
+from ..api.tasks import _task_sort_key
 from ..config import get_countdowns
 from . import clock
 from .ansi import ANSI
 from .format import format_decay, format_due
+
+
+def _get_trend(current: int, previous: int) -> str:
+    """Determine trend indicator based on current vs previous value."""
+    if previous == 0:
+        return "↗" if current > 0 else "→"
+    if current > previous:
+        return "↗"
+    if current < previous:
+        return "↘"
+    return "→"
 
 
 def get_habit_trend(habit_id: str) -> str:
@@ -100,17 +112,8 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
         lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TRENDS (vs. Last Week):{ANSI.RESET}")
 
-        def get_trend(current, previous):
-            if previous == 0:
-                return "↗" if current > 0 else "→"
-            if current > previous:
-                return "↗"
-            if current < previous:
-                return "↘"
-            return "→"
-
-        tasks_trend = get_trend(this_week.tasks_completed, last_week.tasks_completed)
-        habits_trend = get_trend(this_week.habits_completed, last_week.habits_completed)
+        tasks_trend = _get_trend(this_week.tasks_completed, last_week.tasks_completed)
+        habits_trend = _get_trend(this_week.habits_completed, last_week.habits_completed)
 
         lines.append(f"  Tasks: {tasks_trend}")
         lines.append(f"  Habits: {habits_trend}")
@@ -171,15 +174,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
                 untagged.append(task)
 
         def sort_items(task_list: list[Task]):
-            return sorted(
-                task_list,
-                key=lambda x: (
-                    not x.focus,
-                    x.due_date is None,
-                    x.due_date or date.min,
-                    x.content.lower(),
-                ),
-            )
+            return sorted(task_list, key=_task_sort_key)
 
         for idx, tag in enumerate(sorted(tagged_regular.keys())):
             items_by_tag = sort_items(tagged_regular[tag])
@@ -252,7 +247,7 @@ def render_habit_matrix() -> str:
     lines = []
     lines.append("HABIT TRACKER (last 7 days)\n")
 
-    habit_matrix = get_all_habits()
+    habit_matrix = get_habits()
 
     if not habit_matrix:
         return "No habits found."

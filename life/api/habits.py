@@ -79,47 +79,6 @@ def get_habit(habit_id: str) -> Habit | None:
         return _row_to_habit(row, checks, tags)
 
 
-def get_all_habits() -> list[Habit]:
-    """SELECT all habits with checks and tags."""
-    with db.get_db() as conn:
-        cursor = conn.execute("SELECT id, content, created FROM habits ORDER BY created DESC")
-        habits = []
-        for row in cursor.fetchall():
-            habit_id = row[0]
-            checks = _get_habit_checks(conn, habit_id)
-            tags = _get_habit_tags(conn, habit_id)
-            habits.append(_row_to_habit(row, checks, tags))
-        return habits
-
-
-def get_pending_habits() -> list[Habit]:
-    """SELECT all uncompleted habits, ordered by created."""
-    return get_all_habits()
-
-
-def get_checked_habits_today() -> list[Habit]:
-    """SELECT habits with checks WHERE check_date = today."""
-    today_str = clock.today().isoformat()
-    with db.get_db() as conn:
-        cursor = conn.execute(
-            """
-            SELECT DISTINCT h.id, h.content, h.created
-            FROM habits h
-            INNER JOIN checks c ON h.id = c.habit_id
-            WHERE DATE(c.check_date) = DATE(?)
-            ORDER BY h.created DESC
-            """,
-            (today_str,),
-        )
-        habits = []
-        for row in cursor.fetchall():
-            habit_id = row[0]
-            checks = _get_habit_checks(conn, habit_id)
-            tags = _get_habit_tags(conn, habit_id)
-            habits.append(_row_to_habit(row, checks, tags))
-        return habits
-
-
 def update_habit(habit_id: str, content: str | None = None) -> Habit:
     """UPDATE content only (habits have no other mutable fields), return updated Habit."""
     if content is None:
@@ -143,9 +102,25 @@ def delete_habit(habit_id: str) -> None:
         conn.execute("DELETE FROM habits WHERE id = ?", (habit_id,))
 
 
-def get_habits() -> list[Habit]:
-    """Alias for get_all_habits for backward compatibility."""
-    return get_all_habits()
+def get_habits(habit_ids: list[str] | None = None) -> list[Habit]:
+    """Get habits by IDs, or all habits if IDs is None."""
+    if habit_ids is None:
+        with db.get_db() as conn:
+            cursor = conn.execute("SELECT id, content, created FROM habits ORDER BY created DESC")
+            habits = []
+            for row in cursor.fetchall():
+                habit_id = row[0]
+                checks = _get_habit_checks(conn, habit_id)
+                tags = _get_habit_tags(conn, habit_id)
+                habits.append(_row_to_habit(row, checks, tags))
+            return habits
+
+    result = []
+    for habit_id in habit_ids:
+        habit = get_habit(habit_id)
+        if habit:
+            result.append(habit)
+    return result
 
 
 def get_checks(habit_id: str) -> list[date]:

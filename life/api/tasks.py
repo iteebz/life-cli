@@ -7,6 +7,16 @@ from .models import Task
 from .tags import add_tag
 
 
+def _task_sort_key(task: Task) -> tuple:
+    """Canonical sort order: focus first, then by due date, then by creation."""
+    return (
+        not task.focus,
+        task.due_date is None,
+        task.due_date,
+        task.created,
+    )
+
+
 def add_task(
     content: str, focus: bool = False, due: str | None = None, tags: list[str] | None = None
 ) -> str:
@@ -42,23 +52,8 @@ def get_task(task_id: str) -> Task | None:
         return _hydrate_tags(task, task_tags)
 
 
-def get_all_tasks() -> list[Task]:
-    """SELECT all tasks with tags."""
-    with db.get_db() as conn:
-        cursor = conn.execute("SELECT id, content, focus, due_date, created, completed FROM tasks")
-        tasks = [_row_to_task(row) for row in cursor.fetchall()]
-
-        result = []
-        for task in tasks:
-            cursor = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task.id,))
-            task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-            result.append(_hydrate_tags(task, task_tags))
-
-        return result
-
-
-def get_pending_tasks() -> list[Task]:
-    """SELECT completed IS NULL, sorted by (focus DESC, due_date ASC, created ASC)."""
+def get_tasks() -> list[Task]:
+    """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT id, content, focus, due_date, created, completed FROM tasks WHERE completed IS NULL"
@@ -71,18 +66,10 @@ def get_pending_tasks() -> list[Task]:
             task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
             result.append(_hydrate_tags(task, task_tags))
 
-    return sorted(
-        result,
-        key=lambda task: (
-            not task.focus,
-            task.due_date is None,
-            task.due_date,
-            task.created,
-        ),
-    )
+    return sorted(result, key=_task_sort_key)
 
 
-def get_focus_tasks() -> list[Task]:
+def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
@@ -97,16 +84,6 @@ def get_focus_tasks() -> list[Task]:
             result.append(_hydrate_tags(task, task_tags))
 
         return result
-
-
-def complete_task(task_id: str) -> Task:
-    """UPDATE completed = now(), return updated Task."""
-    with db.get_db() as conn:
-        conn.execute(
-            "UPDATE tasks SET completed = ? WHERE id = ?",
-            (clock.today().isoformat(), task_id),
-        )
-    return get_task(task_id)
 
 
 def update_task(
@@ -137,26 +114,7 @@ def delete_task(task_id: str) -> None:
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
 
 
-def get_today_completed_tasks() -> list[Task]:
-    """SELECT completed tasks from today."""
-    today_str = clock.today().isoformat()
-    with db.get_db() as conn:
-        cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed FROM tasks WHERE date(completed) = ? AND completed IS NOT NULL",
-            (today_str,),
-        )
-        tasks = [_row_to_task(row) for row in cursor.fetchall()]
-
-        result = []
-        for task in tasks:
-            cursor = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task.id,))
-            task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-            result.append(_hydrate_tags(task, task_tags))
-
-        return result
-
-
-def toggle_complete(task_id: str) -> Task | None:
+def toggle_completed(task_id: str) -> Task | None:
     """Toggle task completion. If completed, mark as pending. If pending, mark as complete."""
     task = get_task(task_id)
     if not task:
@@ -166,7 +124,11 @@ def toggle_complete(task_id: str) -> Task | None:
         with db.get_db() as conn:
             conn.execute("UPDATE tasks SET completed = NULL WHERE id = ?", (task_id,))
     else:
-        complete_task(task_id)
+        with db.get_db() as conn:
+            conn.execute(
+                "UPDATE tasks SET completed = ? WHERE id = ?",
+                (clock.today().isoformat(), task_id),
+            )
 
     return get_task(task_id)
 

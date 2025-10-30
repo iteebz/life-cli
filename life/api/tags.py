@@ -87,7 +87,7 @@ def remove_tag(task_id: str | None, habit_id: str | None, tag: str) -> None:
 
     with db.get_db() as conn:
         conn.execute(
-            "DELETE FROM tags WHERE task_id = ? AND habit_id = ? AND tag = ?",
+            "DELETE FROM tags WHERE (task_id = ? OR habit_id = ?) AND tag = ?",
             (task_id, habit_id, tag.lower()),
         )
 
