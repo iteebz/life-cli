@@ -13,11 +13,11 @@ install:
 ci:
     @poetry run ruff format .
     @poetry run ruff check . --fix --unsafe-fixes
-    @poetry run pytest tests -q
+    @python -m pytest tests -q
     @poetry build
 
 test:
-    @poetry run pytest tests
+    @python -m pytest tests
 
 run:
     @poetry run life

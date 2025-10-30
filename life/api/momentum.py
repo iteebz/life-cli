@@ -8,13 +8,13 @@ from .models import Weekly
 
 def _calculate_total_possible(active_items_data, week_start_date, week_end_date):
     total_possible = 0
-    for _item_id, created_iso_str, _is_habit in active_items_data:
+    for _item_id, created_iso_str in active_items_data:
         if isinstance(created_iso_str, (int, float)):
             created_date = datetime.datetime.fromtimestamp(created_iso_str).date()
         elif isinstance(created_iso_str, str) and created_iso_str.replace(".", "").isdigit():
             created_date = datetime.datetime.fromtimestamp(float(created_iso_str)).date()
         else:
-            created_date = datetime.date.fromisoformat(created_iso_str)
+            created_date = datetime.date.fromisoformat(created_iso_str.split("T")[0])
 
         if created_date > week_end_date:
             continue
@@ -58,11 +58,10 @@ def weekly_momentum():
             cursor = conn.execute(
                 """
                 SELECT COUNT(*)
-                FROM items
+                FROM tasks
                 WHERE completed >= ?
                 AND completed <= ?
-                AND completed IS NOT NULL
-                AND is_habit = 0""",
+                AND completed IS NOT NULL""",
                 (start_str, end_str),
             )
             tasks = cursor.fetchone()[0]
@@ -71,9 +70,7 @@ def weekly_momentum():
                 """
                 SELECT COUNT(*)
                 FROM checks c
-                INNER JOIN items i ON c.item_id = i.id
-                WHERE i.is_habit = 1
-                AND c.check_date >= ?
+                WHERE c.check_date >= ?
                 AND c.check_date <= ?""",
                 (start_str, end_str),
             )
@@ -82,12 +79,11 @@ def weekly_momentum():
             cursor = conn.execute(
                 """
                 SELECT COUNT(*)
-                FROM items
+                FROM tasks
                 WHERE (
                     created <= ?
                     OR (completed >= ? AND completed <= ?)
-                )
-                AND is_habit = 0""",
+                )""",
                 (end_str, start_str, end_str),
             )
             tasks_total = cursor.fetchone()[0]
@@ -95,11 +91,9 @@ def weekly_momentum():
             cursor = conn.execute(
                 """
                 SELECT DISTINCT
-                    i.id,
-                    i.created,
-                    i.is_habit
-                FROM items i
-                WHERE i.is_habit = 1"""
+                    h.id,
+                    h.created
+                FROM habits h"""
             )
             active_habits_data = cursor.fetchall()
 

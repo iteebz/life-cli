@@ -6,11 +6,18 @@ from ..lib.converters import _hydrate_tags, _row_to_habit, _row_to_task
 from .models import Habit, Task
 
 
-def add_tag(task_id: str | None, habit_id: str | None, tag: str) -> None:
+def add_tag(task_id: str | None, habit_id: str | None, tag: str, conn=None) -> None:
     if (task_id is None and habit_id is None) or (task_id is not None and habit_id is not None):
         raise ValueError("Exactly one of (task_id, habit_id) must be not None")
 
-    with db.get_db() as conn:
+    if conn is None:
+        with db.get_db() as conn:
+            with contextlib.suppress(sqlite3.IntegrityError):
+                conn.execute(
+                    "INSERT INTO tags (task_id, habit_id, tag) VALUES (?, ?, ?)",
+                    (task_id, habit_id, tag.lower()),
+                )
+    else:
         with contextlib.suppress(sqlite3.IntegrityError):
             conn.execute(
                 "INSERT INTO tags (task_id, habit_id, tag) VALUES (?, ?, ?)",

@@ -16,7 +16,7 @@ def invoke(message: str, persona: str = "roast") -> None:
     Temporarily swaps ~/.claude/CLAUDE.md with persona constitution,
     executes one Claude invocation, then restores original.
     """
-    from ..ops import get_persona
+    from ..api.personas import get_persona
 
     persona_instructions = get_persona(persona)
     profile = get_profile()

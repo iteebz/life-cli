@@ -51,7 +51,7 @@ def add_habit(content: str, tags: list[str] | None = None) -> str:
                 (habit_id, content),
             )
         except sqlite3.IntegrityError as e:
-            raise ValueError(f"Failed to add habit: {e}")
+            raise ValueError(f"Failed to add habit: {e}") from e
 
         if tags:
             for tag in tags:
@@ -97,27 +97,6 @@ def get_pending_habits() -> list[Habit]:
     return get_all_habits()
 
 
-def check_habit(habit_id: str, check_date: str | None = None) -> None:
-    """INSERT into checks (idempotent via UNIQUE constraint)."""
-    check_date_str = check_date or clock.today().isoformat()
-    with db.get_db() as conn:
-        with contextlib.suppress(sqlite3.IntegrityError):
-            conn.execute(
-                "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
-                (habit_id, check_date_str),
-            )
-
-
-def uncheck_habit(habit_id: str, check_date: str | None = None) -> None:
-    """DELETE from checks."""
-    check_date_str = check_date or clock.today().isoformat()
-    with db.get_db() as conn:
-        conn.execute(
-            "DELETE FROM checks WHERE habit_id = ? AND check_date = ?",
-            (habit_id, check_date_str),
-        )
-
-
 def get_checked_habits_today() -> list[Habit]:
     """SELECT habits with checks WHERE check_date = today."""
     today_str = clock.today().isoformat()
@@ -141,12 +120,6 @@ def get_checked_habits_today() -> list[Habit]:
         return habits
 
 
-def get_checks(habit_id: str) -> list[date]:
-    """SELECT check_dates for a habit, return as date objects."""
-    with db.get_db() as conn:
-        return _get_habit_checks(conn, habit_id)
-
-
 def update_habit(habit_id: str, content: str | None = None) -> Habit:
     """UPDATE content only (habits have no other mutable fields), return updated Habit."""
     if content is None:
@@ -159,7 +132,7 @@ def update_habit(habit_id: str, content: str | None = None) -> Habit:
                 (content, habit_id),
             )
         except sqlite3.IntegrityError as e:
-            raise ValueError(f"Failed to update habit: {e}")
+            raise ValueError(f"Failed to update habit: {e}") from e
 
     return get_habit(habit_id)
 
@@ -175,6 +148,62 @@ def get_habits() -> list[Habit]:
     return get_all_habits()
 
 
-def is_habit(item_id: str) -> bool:
-    """Check if an item exists and is a habit."""
-    return get_habit(item_id) is not None
+def get_checks(habit_id: str) -> list[date]:
+    """SELECT check_dates for habit, return as date objects (sorted DESC)."""
+    if not habit_id:
+        raise ValueError("habit_id cannot be empty")
+
+    with db.get_db() as conn:
+        cursor = conn.execute(
+            "SELECT check_date FROM checks WHERE habit_id = ? ORDER BY check_date DESC",
+            (habit_id,),
+        )
+        return [datetime.fromisoformat(row[0]).date() for row in cursor.fetchall()]
+
+
+def get_streak(habit_id: str) -> int:
+    """Count consecutive days checked (most recent backwards)."""
+    if not habit_id:
+        raise ValueError("habit_id cannot be empty")
+
+    checks = get_checks(habit_id)
+
+    if not checks:
+        return 0
+
+    streak = 1
+    today = clock.today()
+
+    for i in range(len(checks) - 1):
+        current = checks[i]
+        next_date = checks[i + 1]
+        if (current - next_date).days == 1:
+            streak += 1
+        else:
+            break
+
+    if checks[0] != today:
+        return 0
+
+    return streak
+
+
+def toggle_check(habit_id: str) -> None:
+    """Toggle check for today."""
+    today_str = clock.today().isoformat()
+    with db.get_db() as conn:
+        cursor = conn.execute(
+            "SELECT 1 FROM checks WHERE habit_id = ? AND check_date = ?",
+            (habit_id, today_str),
+        )
+        if cursor.fetchone():
+            conn.execute(
+                "DELETE FROM checks WHERE habit_id = ? AND check_date = ?",
+                (habit_id, today_str),
+            )
+        else:
+            with contextlib.suppress(sqlite3.IntegrityError):
+                conn.execute(
+                    "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
+                    (habit_id, today_str),
+                )

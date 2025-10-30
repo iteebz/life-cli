@@ -12,7 +12,8 @@ def test_init_creates_schema(tmp_life_dir):
         cursor = conn.cursor()
         tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         table_names = {t[0] for t in tables}
-        assert "items" in table_names
+        assert "tasks" in table_names
+        assert "habits" in table_names
         assert "checks" in table_names
         assert "tags" in table_names
 
@@ -24,9 +25,8 @@ def test_init_creates_indexes(tmp_life_dir):
         cursor = conn.cursor()
         indexes = cursor.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
         index_names = {i[0] for i in indexes}
-        assert "idx_tags_item" in index_names
-        assert "idx_tags_tag" in index_names
-        assert "idx_checks_item" in index_names
+        assert "idx_tags_task" in index_names or "idx_tags_habit" in index_names
+        assert "idx_checks_date" in index_names
 
 
 def test_get_db_context_manager(tmp_life_dir):
@@ -43,12 +43,12 @@ def test_get_db_auto_commit(tmp_life_dir):
     """Verify that get_db() automatically commits successful transactions."""
     with db.get_db() as conn:
         conn.execute(
-            "INSERT INTO items (id, content) VALUES (?, ?)",
+            "INSERT INTO tasks (id, content, created) VALUES (?, ?, datetime('now'))",
             ("test_id", "test content"),
         )
 
     with db.get_db() as conn:
-        result = conn.execute("SELECT content FROM items WHERE id = ?", ("test_id",)).fetchone()
+        result = conn.execute("SELECT content FROM tasks WHERE id = ?", ("test_id",)).fetchone()
         assert result[0] == "test content"
 
 
@@ -56,11 +56,10 @@ def test_get_db_auto_rollback(tmp_life_dir):
     """Verify that get_db() automatically rolls back failed transactions."""
     with pytest.raises(sqlite3.IntegrityError):
         with db.get_db() as conn:
-            # This will fail because of a NOT NULL constraint
-            conn.execute("INSERT INTO items (id) VALUES (?)", ("test_id",))
+            conn.execute("INSERT INTO tasks (id, content) VALUES (?, ?)", ("test_id", None))
 
     with db.get_db() as conn:
-        result = conn.execute("SELECT * FROM items WHERE id = ?", ("test_id",)).fetchone()
+        result = conn.execute("SELECT * FROM tasks WHERE id = ?", ("test_id",)).fetchone()
         assert result is None
 
 

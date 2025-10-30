@@ -3,10 +3,20 @@ import typer
 from . import db
 from .api import backup as backup_db
 from .api import weekly_momentum
-from .api.checks import add_check, get_checks
-from .api.habits import add_habit, get_habit, update_habit
+from .api.dashboard import get_pending_items, get_today_breakdown, get_today_completed
+from .api.habits import (
+    add_habit,
+    delete_habit,
+    get_all_habits,
+    get_checks,
+    get_habit,
+    toggle_check,
+    update_habit,
+)
 from .api.models import Task
-from .api.tasks import add_task, get_all_tasks, update_task
+from .api.personas import get_default_persona_name, manage_personas
+from .api.tags import add_tag, get_habits_by_tag, get_tasks_by_tag, remove_tag
+from .api.tasks import add_task, complete_task, delete_task, get_all_tasks, update_task
 from .config import (
     add_countdown,
     get_context,
@@ -16,15 +26,10 @@ from .config import (
     set_profile,
 )
 from .lib.ansi import ANSI
-from .lib.claude import invoke as invoke_claude
+from .lib.claude import invoke
 from .lib.clock import today
+from .lib.fuzzy import find_habit, find_task
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list
-from .ops.dashboard import get_pending_items, get_today_breakdown, get_today_completed
-from .ops.fuzzy import find_habit, find_task
-from .ops.items import manage_tag, set_due
-from .ops.items import remove as remove_item
-from .ops.personas import get_default_persona_name, manage_personas
-from .ops.toggle import toggle_done
 
 app = typer.Typer(
     name="life",
@@ -92,23 +97,18 @@ def done(
         today_date = today()
         checks = get_checks(habit.id)
         is_undo_action = today_date in checks
-    else:
-        is_undo_action = task.completed is not None
-
-    result = toggle_done(partial, undo=is_undo_action)
-
-    if result:
-        content, status = result
-        if is_habit:
-            if status == "done":
-                typer.echo(f"{ANSI.GREEN}Habit:{ANSI.RESET} '{content}' checked for today.")
-            else:
-                typer.echo(f"{ANSI.YELLOW}Habit:{ANSI.RESET} '{content}' unchecked.")
+        toggle_check(habit.id)
+        if is_undo_action:
+            typer.echo(f"{ANSI.YELLOW}Habit:{ANSI.RESET} '{habit.content}' unchecked.")
         else:
-            if status == "done":
-                typer.echo(f"Task: '{content}' marked as complete.")
-            else:
-                typer.echo(f"Task: '{content}' marked as pending.")
+            typer.echo(f"{ANSI.GREEN}Habit:{ANSI.RESET} '{habit.content}' checked for today.")
+    else:
+        if task.completed is not None:
+            update_task(task.id, completed=None)
+            typer.echo(f"Task: '{task.content}' marked as pending.")
+        else:
+            complete_task(task.id)
+            typer.echo(f"Task: '{task.content}' marked as complete.")
 
 
 @app.command()
@@ -120,8 +120,44 @@ def rm(
         typer.echo("Usage: life rm <item>")
         raise typer.Exit(1)
     partial = " ".join(args)
-    result = remove_item(partial)
-    typer.echo(f"Removed: {result}" if result else f"No match for: {partial}")
+    task = find_task(partial)
+    if task:
+        delete_task(task.id)
+        typer.echo(f"Removed: {task.content}")
+    else:
+        habit = find_habit(partial)
+        if habit:
+            delete_habit(habit.id)
+            typer.echo(f"Removed: {habit.content}")
+        else:
+            typer.echo(f"No match for: {partial}")
+
+
+def _parse_due_date(date_str: str) -> str | None:
+    """Parse due date string into YYYY-MM-DD format."""
+    from datetime import datetime, timedelta
+
+    date_str_lower = date_str.lower()
+
+    if date_str_lower == "today":
+        return today().isoformat()
+    if date_str_lower == "tomorrow":
+        return (today() + timedelta(days=1)).isoformat()
+
+    days_of_week = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+    if date_str_lower in days_of_week:
+        target_day = days_of_week[date_str_lower]
+        current_day = today().weekday()
+        days_ahead = target_day - current_day
+        if days_ahead <= 0:
+            days_ahead += 7
+        return (today() + timedelta(days=days_ahead)).isoformat()
+
+    try:
+        datetime.fromisoformat(date_str)
+        return date_str
+    except ValueError:
+        return None
 
 
 @app.command()
@@ -153,7 +189,40 @@ def due(
     remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),  # noqa: B008
 ):
     """Set or remove due date on item (fuzzy match)"""
-    typer.echo(set_due(list(args) if args else [], remove=remove))
+    if not args:
+        typer.echo("Due date and item required")
+        raise typer.Exit(1)
+
+    date_str = None
+    item_args = args
+
+    if not remove and len(args) > 0:
+        parsed = _parse_due_date(args[0])
+        if parsed:
+            date_str = parsed
+            item_args = args[1:]
+
+    if not item_args:
+        typer.echo("Item name required")
+        raise typer.Exit(1)
+
+    partial = " ".join(item_args)
+    task = find_task(partial)
+    if not task:
+        typer.echo(f"No match for: {partial}")
+        raise typer.Exit(1)
+
+    if remove:
+        update_task(task.id, due=None)
+        typer.echo(f"Due date removed: {task.content}")
+    elif date_str:
+        update_task(task.id, due=date_str)
+        typer.echo(f"Due: {task.content} on {date_str}")
+    else:
+        typer.echo(
+            "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
+        )
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -197,11 +266,37 @@ def tag(
     ),  # noqa: B008
 ):
     """Add, remove, or view items by tag (fuzzy match)"""
-    typer.echo(
-        manage_tag(
-            tag_name, " ".join(args) if args else None, remove=remove, include_completed=completed
-        )
-    )
+    item_partial = " ".join(args) if args else None
+
+    if item_partial:
+        task = find_task(item_partial)
+        habit = find_habit(item_partial) if not task else None
+
+        if task:
+            if remove:
+                remove_tag(task.id, None, tag_name)
+                typer.echo(f"Untagged: {task.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+            else:
+                add_tag(task.id, None, tag_name)
+                typer.echo(f"Tagged: {task.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+        elif habit:
+            if remove:
+                remove_tag(None, habit.id, tag_name)
+                typer.echo(f"Untagged: {habit.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+            else:
+                add_tag(None, habit.id, tag_name)
+                typer.echo(f"Tagged: {habit.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+        else:
+            typer.echo(f"No match for: {item_partial}")
+    else:
+        tasks = get_tasks_by_tag(tag_name)
+        habits = get_habits_by_tag(tag_name)
+        items = tasks + habits
+        if items:
+            typer.echo(f"\n{tag_name.upper()} ({len(items)}):")
+            typer.echo(render_item_list(items))
+        else:
+            typer.echo(f"No items tagged with #{tag_name}")
 
 
 @app.command()
@@ -210,7 +305,7 @@ def check(
 ):
     """Mark a habit as checked for today."""
     try:
-        add_check(item_id)
+        toggle_check(item_id)
         habit = get_habit(item_id)
         if habit:
             typer.echo(f"Checked: {habit.content}")
@@ -317,7 +412,7 @@ def roast(
     message: str = typer.Argument(..., help="The message to send to the Roast persona."),
 ):
     """Invoke the Roast persona."""
-    invoke_claude(message, "roast")
+    invoke(message, "roast")
 
 
 @app.command()
@@ -325,7 +420,7 @@ def pepper(
     message: str = typer.Argument(..., help="The message to send to the Pepper persona."),
 ):
     """Invoke the Pepper persona."""
-    invoke_claude(message, "pepper")
+    invoke(message, "pepper")
 
 
 @app.command()
@@ -333,7 +428,7 @@ def kim(
     message: str = typer.Argument(..., help="The message to send to the Kim persona."),
 ):
     """Invoke the Kim persona."""
-    invoke_claude(message, "kim")
+    invoke(message, "kim")
 
 
 @app.command()
@@ -348,13 +443,12 @@ def chat(
         raise typer.Exit(1)
     default_persona = "roast"
     selected_persona = persona or get_default_persona_name() or default_persona
-    invoke_claude(message, selected_persona)
+    invoke(message, selected_persona)
 
 
 @app.command(name="items")
 def list_items():
     """List all items."""
-    from .api.habits import get_all_habits
 
     tasks = get_all_tasks()
     habits = get_all_habits()

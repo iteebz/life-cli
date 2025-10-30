@@ -1,25 +1,30 @@
 """Persona management and definitions."""
 
-from ...api import weekly_momentum
-from ...config import get_context, get_default_persona, get_profile, set_default_persona
-from ...lib.render import render_dashboard
-from ..dashboard import get_pending_items, get_today_breakdown, get_today_completed
-from .kim import kim
-from .pepper import pepper
-from .roast import roast
+from ..api import weekly_momentum
+from ..config import get_context, get_default_persona, get_profile, set_default_persona
+from ..lib.render import render_dashboard
+from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 
-PERSONAS = {
-    "roast": roast,
-    "pepper": pepper,
-    "kim": kim,
-}
+
+def _get_personas():
+    """Lazy load personas to avoid circular imports."""
+    from ..personas.kim import kim
+    from ..personas.pepper import pepper
+    from ..personas.roast import roast
+
+    return {
+        "roast": roast,
+        "pepper": pepper,
+        "kim": kim,
+    }
 
 
 def get_persona(name: str = "roast") -> str:
     """Get persona instructions by name. Defaults to roast."""
-    if name not in PERSONAS:
-        raise ValueError(f"Unknown persona: {name}. Available: {list(PERSONAS.keys())}")
-    return PERSONAS[name]()
+    personas = _get_personas()
+    if name not in personas:
+        raise ValueError(f"Unknown persona: {name}. Available: {list(personas.keys())}")
+    return personas[name]()
 
 
 def get_default_persona_name() -> str | None:
@@ -98,4 +103,5 @@ def manage_personas(name=None, set_default=False, show_prompt=False):
 __all__ = [
     "get_persona",
     "manage_personas",
+    "get_default_persona_name",
 ]

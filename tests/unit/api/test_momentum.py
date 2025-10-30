@@ -16,24 +16,19 @@ def test_weekly_momentum_rolling_window_habits(tmp_life_dir, monkeypatch):
 
     with db.get_db() as conn:
         conn.execute(
-            "INSERT INTO items (id, content, created, is_habit) VALUES (?, ?, ?, ?)",
+            "INSERT INTO habits (id, content, created) VALUES (?, ?, ?)",
             (
                 "habit_all_weeks",
                 "Habit All Weeks",
-                datetime.combine(fixed_today - timedelta(days=30), time.min).timestamp(),
-                1,
+                datetime.combine(fixed_today - timedelta(days=30), time.min).isoformat(),
             ),
-        )
-        conn.execute(
-            "INSERT INTO tags (item_id, tag) VALUES (?, ?)",
-            ("habit_all_weeks", "habit"),
         )
 
         # Data for 'this week' (0-7 days ago)
         for i in range(7):
             check_date = fixed_today - timedelta(days=i)
             conn.execute(
-                "INSERT INTO checks (item_id, check_date) VALUES (?, ?)",
+                "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
                 ("habit_all_weeks", check_date.isoformat()),
             )
 
@@ -41,7 +36,7 @@ def test_weekly_momentum_rolling_window_habits(tmp_life_dir, monkeypatch):
         for i in range(7, 14):
             check_date = fixed_today - timedelta(days=i)
             conn.execute(
-                "INSERT INTO checks (item_id, check_date) VALUES (?, ?)",
+                "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
                 ("habit_all_weeks", check_date.isoformat()),
             )
 
@@ -49,7 +44,7 @@ def test_weekly_momentum_rolling_window_habits(tmp_life_dir, monkeypatch):
         for i in range(14, 21):
             check_date = fixed_today - timedelta(days=i)
             conn.execute(
-                "INSERT INTO checks (item_id, check_date) VALUES (?, ?)",
+                "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
                 ("habit_all_weeks", check_date.isoformat()),
             )
         conn.commit()
@@ -74,31 +69,24 @@ def test_weekly_momentum_rolling_window_habits(tmp_life_dir, monkeypatch):
 
 def test_weekly_momentum_habit_target_ignored(tmp_life_dir, monkeypatch):
     """
-    Test that weekly_momentum ignores is_repeat for habits,    treating them as 1 check per day for total possible calculations.
+    Test that weekly_momentum counts habits as 1 check per day for total possible calculations.
     """
     fixed_today = date(2025, 10, 28)  # Tuesday
     monkeypatch.setattr(clock, "today", lambda: fixed_today)
     monkeypatch.setattr(clock, "now", lambda: datetime.combine(fixed_today, time.min))
 
     with db.get_db() as conn:
-        # Habit with is_habit = True
         conn.execute(
-            "INSERT INTO items (id, content, created, is_habit) VALUES (?, ?, ?, ?)",
+            "INSERT INTO habits (id, content, created) VALUES (?, ?, ?)",
             (
                 "habit_multi_target",
                 "Habit Multi Target",
-                datetime.combine(fixed_today - timedelta(days=6), time.min).timestamp(),
-                1,
+                datetime.combine(fixed_today - timedelta(days=6), time.min).isoformat(),
             ),
-        )
-        conn.execute(
-            "INSERT INTO tags (item_id, tag) VALUES (?, ?)",
-            ("habit_multi_target", "habit"),
         )
         conn.commit()
 
     momentum_data = weekly_momentum()
 
     this_week = momentum_data["this_week"]
-    # habits_total should be 7 (7 days * 1 check/day), not 14 (7 days * 2 checks/day)
     assert this_week.habits_total == 7

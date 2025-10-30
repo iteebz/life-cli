@@ -1,7 +1,6 @@
 from datetime import date, timedelta
 
-from ..api.checks import get_checks
-from ..api.habits import get_all_habits
+from ..api.habits import get_all_habits, get_checks
 from ..api.models import Habit, Task
 from ..api.tags import get_tags_for_habit, get_tags_for_task
 from ..config import get_countdowns

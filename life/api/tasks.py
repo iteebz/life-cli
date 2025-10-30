@@ -19,7 +19,7 @@ def add_task(
         )
         if tags:
             for tag in tags:
-                add_tag(task_id, None, tag)
+                add_tag(task_id, None, tag, conn=conn)
     return task_id
 
 
@@ -154,3 +154,28 @@ def get_today_completed_tasks() -> list[Task]:
             result.append(_hydrate_tags(task, task_tags))
 
         return result
+
+
+def toggle_complete(task_id: str) -> Task | None:
+    """Toggle task completion. If completed, mark as pending. If pending, mark as complete."""
+    task = get_task(task_id)
+    if not task:
+        return None
+
+    if task.completed:
+        with db.get_db() as conn:
+            conn.execute("UPDATE tasks SET completed = NULL WHERE id = ?", (task_id,))
+    else:
+        complete_task(task_id)
+
+    return get_task(task_id)
+
+
+def toggle_focus(task_id: str) -> Task | None:
+    """Toggle task focus status."""
+    task = get_task(task_id)
+    if not task:
+        return None
+
+    new_focus = not task.focus
+    return update_task(task_id, focus=new_focus)
