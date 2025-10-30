@@ -122,11 +122,6 @@ def test_habit_command(tmp_life_dir):
     assert result.exit_code == 0
 
 
-def test_chore_command(tmp_life_dir):
-    result = runner.invoke(app, ["chore", "clean dishes"])
-    assert result.exit_code == 0
-
-
 def test_profile_command(tmp_life_dir):
     result = runner.invoke(app, ["profile"])
     assert result.exit_code == 0

@@ -2,9 +2,11 @@ import typer
 
 from . import db
 from .api import backup as backup_db
-from .api import get_item, weekly_momentum
+from .api import weekly_momentum
 from .api.checks import add_check, get_checks
-from .api.items import add_item, get_all_items, update_item
+from .api.habits import add_habit, get_habit, update_habit
+from .api.models import Task
+from .api.tasks import add_task, get_all_tasks, update_task
 from .config import (
     add_countdown,
     get_context,
@@ -18,7 +20,7 @@ from .lib.claude import invoke as invoke_claude
 from .lib.clock import today
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list
 from .ops.dashboard import get_pending_items, get_today_breakdown, get_today_completed
-from .ops.fuzzy import find_item
+from .ops.fuzzy import find_habit, find_task
 from .ops.items import manage_tag, set_due
 from .ops.items import remove as remove_item
 from .ops.personas import get_default_persona_name, manage_personas
@@ -59,30 +61,18 @@ def task(
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),  # noqa: B008
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
-    item_id = add_item(content, item_type="task", is_repeat=False, focus=focus, due=due, tags=tags)
-    typer.echo(f"Added task: {content} {ANSI.GREY}{item_id}{ANSI.RESET}")
+    task_id = add_task(content, focus=focus, due=due, tags=tags)
+    typer.echo(f"Added task: {content} {ANSI.GREY}{task_id}{ANSI.RESET}")
 
 
 @app.command()
 def habit(
     content: str = typer.Argument(..., help="Habit content"),  # noqa: B008
-    focus: bool = typer.Option(False, "--focus", "-f", help="Set habit as focused"),  # noqa: B008
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to habit"),  # noqa: B008
 ):
     """Add daily habit (auto-resets on completion)"""
-    item_id = add_item(content, item_type="habit", is_repeat=True, focus=focus, due=None, tags=tags)
-    typer.echo(f"Added habit: {content} {ANSI.GREY}{item_id}{ANSI.RESET}")
-
-
-@app.command()
-def chore(
-    content: str = typer.Argument(..., help="Chore content"),  # noqa: B008
-    focus: bool = typer.Option(False, "--focus", "-f", help="Set chore as focused"),  # noqa: B008
-    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to chore"),  # noqa: B008
-):
-    """Add daily chore (auto-resets on completion)"""
-    item_id = add_item(content, item_type="chore", is_repeat=True, focus=focus, due=None, tags=tags)
-    typer.echo(f"Added chore: {content} {ANSI.GREY}{item_id}{ANSI.RESET}")
+    habit_id = add_habit(content, tags=tags)
+    typer.echo(f"Added habit: {content} {ANSI.GREY}{habit_id}{ANSI.RESET}")
 
 
 @app.command()
@@ -90,24 +80,26 @@ def done(
     partial: str = typer.Argument(..., help="Partial match for the item to mark done/undone"),
 ):
     """Mark an item as complete/checked or uncomplete/unchecked."""
-    item = find_item(partial)
+    task = find_task(partial)
+    habit = find_habit(partial) if not task else None
 
-    if not item:
+    if not task and not habit:
         typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
         raise typer.Exit(code=1)
 
-    if item.is_habit:
-        today_str = today().isoformat()
-        checks = get_checks(item.id)
-        is_undo_action = today_str in checks
+    is_habit = habit is not None
+    if is_habit:
+        today_date = today()
+        checks = get_checks(habit.id)
+        is_undo_action = today_date in checks
     else:
-        is_undo_action = item.completed is not None
+        is_undo_action = task.completed is not None
 
     result = toggle_done(partial, undo=is_undo_action)
 
     if result:
         content, status = result
-        if item.is_habit:
+        if is_habit:
             if status == "done":
                 typer.echo(f"{ANSI.GREEN}Habit:{ANSI.RESET} '{content}' checked for today.")
             else:
@@ -177,7 +169,8 @@ def rename(
         raise typer.Exit(code=1)
 
     partial_from = " ".join(from_args)
-    item_to_rename = find_item(partial_from)
+    task = find_task(partial_from)
+    item_to_rename = task if task else find_habit(partial_from)
 
     if not item_to_rename:
         typer.echo(f"No fuzzy match found for: '{partial_from}'")
@@ -187,7 +180,10 @@ def rename(
         typer.echo(f"Error: Cannot rename '{item_to_rename.content}' to itself.")
         raise typer.Exit(code=1)
 
-    update_item(item_to_rename.id, content=to_content)
+    if isinstance(item_to_rename, Task):
+        update_task(item_to_rename.id, content=to_content)
+    else:
+        update_habit(item_to_rename.id, content=to_content)
     typer.echo(f"Updated: '{item_to_rename.content}' → '{to_content}'")
 
 
@@ -210,16 +206,16 @@ def tag(
 
 @app.command()
 def check(
-    item_id: str = typer.Argument(..., help="The ID of the item to check"),  # noqa: B008
+    item_id: str = typer.Argument(..., help="The ID of the habit to check"),  # noqa: B008
 ):
-    """Mark a habit or chore as checked for today."""
+    """Mark a habit as checked for today."""
     try:
         add_check(item_id)
-        item = get_item(item_id)
-        if item:
-            typer.echo(f"Checked: {item.content}")
+        habit = get_habit(item_id)
+        if habit:
+            typer.echo(f"Checked: {habit.content}")
         else:
-            typer.echo(f"Error: Item with ID {item_id} not found after checking.")
+            typer.echo(f"Error: Habit with ID {item_id} not found after checking.")
             raise typer.Exit(code=1)
     except ValueError as e:
         typer.echo(f"Error: {e}")
@@ -358,7 +354,11 @@ def chat(
 @app.command(name="items")
 def list_items():
     """List all items."""
-    items = get_all_items()
+    from .api.habits import get_all_habits
+
+    tasks = get_all_tasks()
+    habits = get_all_habits()
+    items = tasks + habits
     typer.echo(render_item_list(items))
 
 

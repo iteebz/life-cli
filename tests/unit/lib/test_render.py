@@ -59,13 +59,11 @@ def test_render_dashboard_returns_string(tmp_life_dir):
             tasks_total=5,
             habits_completed=10,
             habits_total=10,
-            chores_completed=3,
-            chores_total=3,
         ),
         "last_week": Weekly(),
         "prior_week": Weekly(),
     }
-    result = render_dashboard([], (1, 2, 0), momentum, "", [])
+    result = render_dashboard([], (1, 2), momentum, "", [])
 
     assert isinstance(result, str)
     assert len(result) > 0

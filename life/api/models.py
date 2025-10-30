@@ -3,26 +3,30 @@ from datetime import date, datetime
 
 
 @dataclasses.dataclass(frozen=True)
-class Item:
+class Task:
     id: str
     content: str
     focus: bool
     due_date: date | None
     created: datetime
     completed: datetime | None
-    is_habit: bool = False
+    tags: list[str] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass(frozen=True)
-class Check:
-    item_id: str
-    check_date: date
+class Habit:
+    id: str
+    content: str
+    created: datetime
+    checks: list[date] = dataclasses.field(default_factory=list)
+    tags: list[str] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass(frozen=True)
 class Tag:
-    item_id: str
     tag: str
+    task_id: str | None = None
+    habit_id: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -31,5 +35,3 @@ class Weekly:
     tasks_total: int = 0
     habits_completed: int = 0
     habits_total: int = 0
-    chores_completed: int = 0
-    chores_total: int = 0

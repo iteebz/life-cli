@@ -53,13 +53,10 @@ life task "thing" --due 2025-12-01
 # Add habit (daily wellness/maintenance, checkable)
 life habit "hydrate"
 
-# Add chore (recurring maintenance, checkable)
-life chore "dishes"
-
 # Mark done (fuzzy match)
 life done "partial match"
 
-# Check habit or chore (fuzzy match)
+# Check habit (fuzzy match)
 life check "partial match"
 
 # Toggle focus (max 3 active)
@@ -110,5 +107,4 @@ Ephemeral Claude agents with different behavioral constitutions. See [docs/perso
 
 - **Task:** Project work with due dates. Mark done when complete.
 - **Habit:** Daily wellness (hydrate, exercise, sleep). Checkable daily. Never "complete."
-- **Chore:** Recurring maintenance (dishes, laundry). Checkable daily. Never "complete."
 

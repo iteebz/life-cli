@@ -33,15 +33,11 @@ def test_weekly_momentum_no_data(setup_db_with_data):
     assert momentum["this_week"].tasks_total == 0
     assert momentum["this_week"].habits_completed == 0
     assert momentum["this_week"].habits_total == 0
-    assert momentum["this_week"].chores_completed == 0
-    assert momentum["this_week"].chores_total == 0
 
     assert momentum["last_week"].tasks_completed == 0
     assert momentum["last_week"].tasks_total == 0
     assert momentum["last_week"].habits_completed == 0
     assert momentum["last_week"].habits_total == 0
-    assert momentum["last_week"].chores_completed == 0
-    assert momentum["last_week"].chores_total == 0
 
 
 def test_weekly_momentum_single_habit_today(setup_db_with_data, monkeypatch):

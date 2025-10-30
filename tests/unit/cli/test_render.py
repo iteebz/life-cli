@@ -12,28 +12,22 @@ def test_render_dashboard_empty():
             tasks_total=0,
             habits_completed=0,
             habits_total=0,
-            chores_completed=0,
-            chores_total=0,
         ),
         "last_week": Weekly(
             tasks_completed=0,
             tasks_total=0,
             habits_completed=0,
             habits_total=0,
-            chores_completed=0,
-            chores_total=0,
         ),
         "prior_week": Weekly(
             tasks_completed=0,
             tasks_total=0,
             habits_completed=0,
             habits_total=0,
-            chores_completed=0,
-            chores_total=0,
         ),
     }
     with patch("life.lib.render.get_tags", return_value=[]):
-        output = render_dashboard([], (0, 0, 0), momentum, "test context")
+        output = render_dashboard([], (0, 0), momentum, "test context")
         assert "No pending items" in output
 
 
@@ -55,7 +49,7 @@ def test_render_dashboard_with_focus_items():
         "prior_week": Weekly(),
     }
     with patch("life.lib.render.get_tags", return_value=[]):
-        output = render_dashboard(items, (0, 0, 0), momentum, "context")
+        output = render_dashboard(items, (0, 0), momentum, "context")
         assert "focus item" in output
         assert "🔥" in output
 
@@ -65,7 +59,7 @@ def test_render_dashboard_with_focus_items():
         "prior_week": Weekly(),
     }
     with patch("life.lib.render.get_tags", return_value=[]):
-        output = render_dashboard(items, (0, 0, 0), momentum, "context")
+        output = render_dashboard(items, (0, 0), momentum, "context")
         assert "focus item" in output
 
 
@@ -87,7 +81,7 @@ def test_render_dashboard_with_backlog():
         "prior_week": Weekly(),
     }
     with patch("life.lib.render.get_tags", return_value=[]):
-        output = render_dashboard(items, (0, 0, 0), momentum, "context")
+        output = render_dashboard(items, (0, 0), momentum, "context")
         assert "BACKLOG" in output
 
 
@@ -109,30 +103,8 @@ def test_render_dashboard_with_habits():
         "prior_week": Weekly(),
     }
     with patch("life.lib.render.get_tags", return_value=["habit"]):
-        output = render_dashboard(items, (0, 0, 0), momentum, "context")
+        output = render_dashboard(items, (0, 0), momentum, "context")
         assert "HABITS" in output
-
-
-def test_render_dashboard_with_chores():
-    items = [
-        Item(
-            id="1",
-            content="dishes",
-            focus=False,
-            due_date=None,
-            created=datetime.now(),
-            completed=None,
-            is_habit=True,
-        )
-    ]
-    momentum = {
-        "this_week": Weekly(),
-        "last_week": Weekly(),
-        "prior_week": Weekly(),
-    }
-    with patch("life.lib.render.get_tags", return_value=["chore"]):
-        output = render_dashboard(items, (0, 0, 0), momentum, "context")
-        assert "CHORES" in output
 
 
 def test_render_item_list_empty():

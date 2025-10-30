@@ -1,40 +1,35 @@
-from ..api import (
-    add_tag,
-    delete_item,
-    get_items_by_tag,
-    remove_tag,
-    update_item,
-)
+from ..api.tags import add_tag, get_habits_by_tag, get_tasks_by_tag, remove_tag
+from ..api.tasks import delete_task, update_task
 from ..lib.ansi import ANSI
 from ..lib.dates import _parse_due_date
 from ..lib.render import render_item_list
-from ..ops.fuzzy import _find_by_partial, find_item
+from ..ops.fuzzy import _find_by_partial, find_habit, find_task
 from .dashboard import get_pending_items, get_today_completed
 
 
 def update(partial: str, **kwargs) -> str | None:
-    """Update item (focus/due only on tasks, not repeating items)."""
-    item = find_item(partial)
-    if item:
-        if any(k in kwargs for k in ("focus", "due")) and item.is_habit:
+    """Update task (focus/due only on tasks, not habits)."""
+    task = find_task(partial)
+    if task:
+        if any(k in kwargs for k in ("focus", "due")):
             return None
-        update_item(item.id, **kwargs)
-        return kwargs.get("content", item.content)
+        update_task(task.id, **kwargs)
+        return kwargs.get("content", task.content)
     return None
 
 
 def remove(partial: str) -> str | None:
     """Remove item (LIFO - most recent match)."""
     pending = get_pending_items(asc=False)
-    item = _find_by_partial(partial, pending)
-    if item:
-        delete_item(item.id)
-        return item.content
+    task = _find_by_partial(partial, pending)
+    if task:
+        delete_task(task.id)
+        return task.content
 
     completed_today = get_today_completed()
     item = _find_by_partial(partial, completed_today)
     if item:
-        delete_item(item.id)
+        delete_task(item.id)
         return item.content
 
     return None
@@ -58,22 +53,19 @@ def set_due(args, remove=False) -> str:
         return "Item name required"
 
     partial = " ".join(item_args)
-    item = find_item(partial)
-    if not item:
+    task = find_task(partial)
+    if not task:
         return f"No match for: {partial}"
 
-    if item.is_habit:
-        return f"Cannot set due date on repeating items: {item.content}"
-
     if remove:
-        update_item(item.id, due=None)
-        return f"Due date removed: {item.content}"
+        update_task(task.id, due=None)
+        return f"Due date removed: {task.content}"
 
     if not date_str:
         return "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
 
-    update_item(item.id, due=date_str)
-    return f"Due: {item.content} on {date_str}"
+    update_task(task.id, due=date_str)
+    return f"Due: {task.content} on {date_str}"
 
 
 def edit_item(new_content, partial) -> str:
@@ -84,24 +76,33 @@ def edit_item(new_content, partial) -> str:
     return f"No match for: {partial}"
 
 
-def manage_tag(tag_name, item_partial=None, remove=False, include_completed=False):
+def manage_tag(tag_name, item_partial=None, remove_t=False, include_completed=False):
     """Add, remove, or view items by tag (fuzzy match)"""
     if item_partial:
-        item = None
-        if include_completed:
-            all_items = get_pending_items() + get_today_completed()
-            item = _find_by_partial(item_partial, all_items)
-        else:
-            item = find_item(item_partial)
+        task = find_task(item_partial)
+        habit = find_habit(item_partial) if not task else None
 
-        if item:
-            if remove:
-                remove_tag(item.id, tag_name)
-                return f"Untagged: {item.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}"
-            add_tag(item.id, tag_name)
-            return f"Tagged: {item.content} {ANSI.GREY}#{tag_name} {ANSI.RESET}"
+        if task:
+            if remove_t:
+                remove_tag(task.id, None, tag_name)
+                return f"Untagged: {task.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}"
+
+            add_tag(task.id, None, tag_name)
+            return f"Tagged: {task.content} {ANSI.GREY}#{tag_name} {ANSI.RESET}"
+
+        if habit:
+            if remove_t:
+                remove_tag(None, habit.id, tag_name)
+                return f"Untagged: {habit.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}"
+
+            add_tag(None, habit.id, tag_name)
+            return f"Tagged: {habit.content} {ANSI.GREY}#{tag_name} {ANSI.RESET}"
+
         return f"No match for: {item_partial}"
-    items = get_items_by_tag(tag_name)
+
+    tasks = get_tasks_by_tag(tag_name)
+    habits = get_habits_by_tag(tag_name)
+    items = tasks + habits
     if items:
         return f"\n{tag_name.upper()} ({len(items)}):\n{render_item_list(items)}"
     return f"No items tagged with #{tag_name}"

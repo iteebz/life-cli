@@ -1,49 +1,72 @@
+import dataclasses
 from datetime import date, datetime
 
-from ..api.models import Item
+from ..api.models import Habit, Task
 
 
-def _row_to_item(row: tuple) -> Item:
-    """
-    Converts a raw database row into a clean Item object.
-    This function is the single source of truth for handling the inconsistent
-    date/time formats currently in the database.
-    """
+def _parse_date(val) -> date | None:
+    """Parse a date value that may be str or numeric timestamp."""
+    if isinstance(val, str) and val:
+        return date.fromisoformat(val.split("T")[0])
+    if isinstance(val, (int, float)):
+        return datetime.fromtimestamp(val).date()
+    return None
 
-    # Handle 'due' date (can be str or numeric timestamp)
-    due_val = row[3]
-    due_date = None
-    if isinstance(due_val, str) and due_val:
-        due_date = date.fromisoformat(due_val.split("T")[0])
-    elif isinstance(due_val, (int, float)):
-        due_date = datetime.fromtimestamp(due_val).date()
 
-    # Handle 'created' datetime (can be str or numeric timestamp)
-    created_val = row[4]
-    created_dt = datetime.min  # A safe default
-    if isinstance(created_val, (int, float)):
-        created_dt = datetime.fromtimestamp(created_val)
-    elif isinstance(created_val, str) and created_val:
-        created_dt = datetime.fromisoformat(created_val)
-
-    # Handle 'completed' datetime (can be str or numeric timestamp)
-    completed_val = row[5]
-    completed_dt = None
-    if isinstance(completed_val, str) and completed_val:
+def _parse_datetime(val) -> datetime:
+    """Parse a datetime value that may be str or numeric timestamp."""
+    if isinstance(val, (int, float)):
+        return datetime.fromtimestamp(val)
+    if isinstance(val, str) and val:
         try:
-            completed_dt = datetime.fromisoformat(completed_val)
+            return datetime.fromisoformat(val)
         except ValueError:
-            # Handle cases where it might be just a date 'YYYY-MM-DD'
-            completed_dt = datetime.combine(date.fromisoformat(completed_val), datetime.min.time())
-    elif isinstance(completed_val, (int, float)):
-        completed_dt = datetime.fromtimestamp(completed_val)
+            return datetime.combine(date.fromisoformat(val), datetime.min.time())
+    return datetime.min
 
-    return Item(
+
+def _parse_datetime_optional(val) -> datetime | None:
+    """Parse an optional datetime value that may be str or numeric timestamp."""
+    if isinstance(val, str) and val:
+        try:
+            return datetime.fromisoformat(val)
+        except ValueError:
+            return datetime.combine(date.fromisoformat(val), datetime.min.time())
+    elif isinstance(val, (int, float)):
+        return datetime.fromtimestamp(val)
+    return None
+
+
+def _row_to_task(row: tuple) -> Task:
+    """
+    Converts a raw database row from tasks table into a Task object.
+    Expected row format: (id, content, focus, due_date, created, completed)
+    """
+    return Task(
         id=row[0],
         content=row[1],
         focus=bool(row[2]),
-        due_date=due_date,
-        created=created_dt,
-        completed=completed_dt,
-        is_habit=bool(row[6]) if len(row) > 6 else False,
+        due_date=_parse_date(row[3]),
+        created=_parse_datetime(row[4]),
+        completed=_parse_datetime_optional(row[5]),
     )
+
+
+def _row_to_habit(row: tuple) -> Habit:
+    """
+    Converts a raw database row from habits table into a Habit object.
+    Expected row format: (id, content, created)
+    """
+    return Habit(
+        id=row[0],
+        content=row[1],
+        created=_parse_datetime(row[2]),
+    )
+
+
+def _hydrate_tags(item: Task | Habit, tags: list[str]) -> Task | Habit:
+    """
+    Attaches tags list to a Task or Habit object.
+    Returns a new frozen dataclass instance with tags populated.
+    """
+    return dataclasses.replace(item, tags=tags)
