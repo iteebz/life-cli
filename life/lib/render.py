@@ -38,7 +38,7 @@ def render_today_completed(today_items: list[Item]):
     if not today_items:
         return ""
 
-    tasks_only = [item for item in today_items if not item.is_repeat]
+    tasks_only = [item for item in today_items if not item.is_habit]
 
     if not tasks_only:
         return ""
@@ -133,7 +133,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
     for item in items:
         tags = get_tags(item.id)
-        if item.is_repeat:
+        if item.is_habit:
             if "habit" in tags:
                 habits.append(item)
             elif "chore" in tags:
@@ -243,7 +243,12 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
         def sort_items(item_list: list[Item]):
             return sorted(
                 item_list,
-                key=lambda x: (not x.focus, x.due is None, x.due or date.min, x.content.lower()),
+                key=lambda x: (
+                    not x.focus,
+                    x.due_date is None,
+                    x.due_date or date.min,
+                    x.content.lower(),
+                ),
             )
 
         for idx, tag in enumerate(sorted(tagged_regular.keys())):
@@ -253,7 +258,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
                 f"\n{ANSI.BOLD}{tag_color}#{tag.upper()} ({len(items_by_tag)}):{ANSI.RESET}"
             )
             for item in items_by_tag:
-                item_id, content, _focus, due = item.id, item.content, item.focus, item.due
+                item_id, content, _focus, due = item.id, item.content, item.focus, item.due_date
                 due_str = format_due(due) if due else ""
                 other_tags = [
                     t for t in get_tags(item_id) if t != tag and t not in ("habit", "chore")
@@ -267,7 +272,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
         if untagged_sorted:
             lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
             for item in untagged_sorted:
-                item_id, content, _focus, due = item.id, item.content, item.focus, item.due
+                item_id, content, _focus, due = item.id, item.content, item.focus, item.due_date
                 due_str = format_due(due) if due else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if _focus else ""
                 due_part = f"{due_str} " if due_str else ""
@@ -283,7 +288,7 @@ def render_item_list(items: list[Item]):
 
     lines = []
     for item in items:
-        item_id, content, focus, due = item.id, item.content, item.focus, item.due
+        item_id, content, focus, due = item.id, item.content, item.focus, item.due_date
         focus_label = "🔥" if focus else ""
         due_str = format_due(due) if due else ""
         due_part = f"{due_str} " if due_str else ""
@@ -305,7 +310,7 @@ def render_focus_items(items: list[Item]):
             item.id,
             item.content,
             item.focus,
-            item.due,
+            item.due_date,
         )  # _ is for focus, which is not used here
         due_str = format_due(due) if due else ""
         due_part = f"{due_str} " if due_str else ""

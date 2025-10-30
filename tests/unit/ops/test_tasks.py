@@ -8,7 +8,7 @@ def test_done_item_completes(tmp_life_dir):
     task = items[0] if items else None
     if task:
         result = toggle_done(task.content)
-        assert result == "task to complete"
+        assert result == ("task to complete", "done")
 
 
 def test_done_item_undo(tmp_life_dir):
@@ -18,4 +18,4 @@ def test_done_item_undo(tmp_life_dir):
     if task:
         toggle_done(task.content)
         result = toggle_done(task.content, undo=True)
-        assert result == "task"
+        assert result == ("task", "undone")

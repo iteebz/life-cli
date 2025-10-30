@@ -28,5 +28,6 @@ def get_today_completed() -> list[Item]:
 def get_today_breakdown():
     habits_today = checks.count_today()
     tasks_today = items.count_completed_tasks_today()
+    chores_today = 0
 
-    return habits_today, tasks_today
+    return habits_today, tasks_today, chores_today

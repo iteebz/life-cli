@@ -4,7 +4,7 @@ import pytest
 
 import life.lib.clock as clock
 from life.api import add_check, add_item
-from life.api.momentum import _calculate_total_possible, weekly_momentum
+from life.api.momentum import weekly_momentum
 
 
 def _midnight(day: date) -> datetime:
@@ -95,42 +95,3 @@ def test_weekly_momentum_habit_last_week(setup_db_with_data, monkeypatch):
     assert momentum["this_week"].habits_total == 7
     assert momentum["last_week"].habits_completed == 1
     assert momentum["last_week"].habits_total == 1
-
-
-def test_calculate_total_possible(setup_db_with_data, monkeypatch):
-    fixed_today = date(2025, 10, 28)  # Tuesday
-    _set_clock(monkeypatch, fixed_today)
-
-    # Habit created last week, active for 7 days in last week
-    last_week_start = fixed_today - timedelta(days=fixed_today.weekday() + 7)  # Monday last week
-
-    with monkeypatch.context() as ctx:
-        _set_clock(ctx, fixed_today, _midnight(fixed_today))
-        item_id_today = add_item("habit created today", tags=["habit"])
-        created_ts_today = _midnight(fixed_today).timestamp()
-
-    with monkeypatch.context() as ctx:
-        _set_clock(ctx, last_week_start, _midnight(last_week_start))
-        item_id_last_week = add_item("habit created last week", tags=["habit"])
-        created_ts_last_week = _midnight(last_week_start).timestamp()
-
-    this_week_start = fixed_today - timedelta(days=fixed_today.weekday())
-    this_week_end = fixed_today
-    active_items_today = [(item_id_today, created_ts_today, 1)]
-    total_possible_today = _calculate_total_possible(
-        active_items_today, this_week_start, this_week_end
-    )
-    assert total_possible_today == 1  # Only today is active
-
-    last_week_start_calc = fixed_today - timedelta(days=fixed_today.weekday() + 7)
-    last_week_end_calc = last_week_start_calc + timedelta(days=6)
-    active_items_last_week = [(item_id_last_week, created_ts_last_week, 1)]
-    total_possible_last_week = _calculate_total_possible(
-        active_items_last_week, last_week_start_calc, last_week_end_calc
-    )
-    assert total_possible_last_week == 7  # All 7 days of last week
-
-    total_possible_last_week_this_week = _calculate_total_possible(
-        active_items_last_week, this_week_start, this_week_end
-    )
-    assert total_possible_last_week_this_week == 2

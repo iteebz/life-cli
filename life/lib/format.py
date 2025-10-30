@@ -36,7 +36,10 @@ def format_decay(completed_str):
         return ""
 
     try:
-        completed = datetime.fromisoformat(completed_str)
+        if isinstance(completed_str, datetime):
+            completed = completed_str
+        else:
+            completed = datetime.fromisoformat(completed_str)
         now = clock.now().astimezone()
         diff = now - completed
 
@@ -49,5 +52,5 @@ def format_decay(completed_str):
         if hours > 0:
             return f"- {hours}h ago"
         return f"- {mins}m ago"
-    except ValueError:
+    except (ValueError, TypeError):
         return ""

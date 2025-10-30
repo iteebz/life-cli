@@ -20,24 +20,35 @@ def get_item(item_id) -> Item | None:
 
 
 def add_item(
-    content: str, focus: bool, due: str | None, is_habit: bool, tags: list[str] | None
-) -> Item:
+    content: str,
+    focus: bool = False,
+    due: str | None = None,
+    is_habit: bool = False,
+    tags: list[str] | None = None,
+    item_type: str | None = None,
+    is_repeat: bool | None = None,
+) -> str:
+    if item_type:
+        is_habit = item_type in ("habit", "chore")
+    elif is_repeat is not None:
+        is_habit = is_repeat
+
     item_id = str(uuid.uuid4())
     with db.get_db() as conn:
         conn.execute(
-            "INSERT INTO items (id, content, focus, due, created, is_habit) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO items (id, content, focus, due_date, created, is_habit) VALUES (?, ?, ?, ?, ?, ?)",
             (item_id, content, focus, due, clock.today().isoformat(), is_habit),
         )
         if tags:
             for tag in tags:
-                add_tag(item_id, tag)
-        return get_item(item_id)
+                add_tag(item_id, tag, conn)
+        return item_id
 
 
 def get_all_items() -> list[Item]:
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due, created, completed, is_habit FROM items"
+            "SELECT id, content, focus, due_date, created, completed, is_habit FROM items"
         )
         return [_row_to_item(row) for row in cursor.fetchall()]
 
@@ -45,20 +56,30 @@ def get_all_items() -> list[Item]:
 def get_pending_items() -> list[Item]:
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due, created, completed, is_habit FROM items WHERE completed IS NULL"
+            "SELECT id, content, focus, due_date, created, completed, is_habit FROM items WHERE completed IS NULL"
         )
-        return [_row_to_item(row) for row in cursor.fetchall()]
+        items_list = [_row_to_item(row) for row in cursor.fetchall()]
+
+    return sorted(
+        items_list,
+        key=lambda item: (
+            not item.focus,
+            item.due_date is None,
+            item.due_date,
+            item.created,
+        ),
+    )
 
 
 def get_focus_items() -> list[Item]:
     with db.get_db() as conn:
         cursor = conn.execute("""
-            SELECT i.id, i.content, i.focus, i.due, i.created, MAX(c.check_date), COUNT(c.item_id), i.is_habit
+            SELECT i.id, i.content, i.focus, i.due_date, i.created, MAX(c.check_date), COUNT(c.item_id), i.is_habit
             FROM items i
             LEFT JOIN checks c ON i.id = c.item_id
             WHERE i.completed IS NULL AND i.focus = 1
             GROUP BY i.id
-            ORDER BY i.due IS NULL, i.due ASC, i.created ASC
+            ORDER BY i.due_date IS NULL, i.due_date ASC, i.created ASC
         """)
         return [_row_to_item(row) for row in cursor.fetchall()]
 
@@ -75,7 +96,7 @@ def update_item(
         "content": content,
         "completed": completed,
         "focus": focus,
-        "due": due,
+        "due_date": due,
         "is_habit": is_habit,
     }
     updates = {k: v for k, v in updates.items() if v is not None}
@@ -96,10 +117,14 @@ def get_today_completed() -> list[Item]:
     today_str = clock.today().isoformat()
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due, created, completed, is_habit FROM items WHERE date(completed) = ? AND is_habit = 0",
+            "SELECT id, content, focus, due_date, created, completed, is_habit FROM items WHERE date(completed) = ? AND is_habit = 0",
             (today_str,),
         )
         return [_row_to_item(row) for row in cursor.fetchall()]
+
+
+def get_completed_tasks_today() -> list[Item]:
+    return get_today_completed()
 
 
 def count_completed_tasks_today() -> int:

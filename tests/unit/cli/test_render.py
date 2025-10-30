@@ -43,10 +43,10 @@ def test_render_dashboard_with_focus_items():
             id="1",
             content="focus item",
             focus=True,
-            due=None,
+            due_date=None,
             created=datetime.now(),
             completed=None,
-            is_repeat=False,
+            is_habit=False,
         )
     ]
     momentum = {
@@ -75,10 +75,10 @@ def test_render_dashboard_with_backlog():
             id="1",
             content="backlog item",
             focus=False,
-            due=None,
+            due_date=None,
             created=datetime.now(),
             completed=None,
-            is_repeat=False,
+            is_habit=False,
         )
     ]
     momentum = {
@@ -97,10 +97,10 @@ def test_render_dashboard_with_habits():
             id="1",
             content="meditate",
             focus=False,
-            due=None,
+            due_date=None,
             created=datetime.now(),
             completed=None,
-            is_repeat=True,
+            is_habit=True,
         )
     ]
     momentum = {
@@ -119,10 +119,10 @@ def test_render_dashboard_with_chores():
             id="1",
             content="dishes",
             focus=False,
-            due=None,
+            due_date=None,
             created=datetime.now(),
             completed=None,
-            is_repeat=True,
+            is_habit=True,
         )
     ]
     momentum = {
@@ -146,19 +146,19 @@ def test_render_item_list_with_items():
             id="1",
             content="item 1",
             focus=False,
-            due=None,
+            due_date=None,
             created=datetime.now(),
             completed=None,
-            is_repeat=False,
+            is_habit=False,
         ),
         Item(
             id="2",
             content="item 2",
             focus=True,
-            due=None,
+            due_date=None,
             created=datetime.now(),
             completed=None,
-            is_repeat=False,
+            is_habit=False,
         ),
     ]
     with patch("life.lib.render.get_tags", return_value=[]):

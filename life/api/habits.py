@@ -13,13 +13,13 @@ def is_habit(item_id: str) -> bool:
     item = get_item(item_id)
     if not item:
         return False
-    return item.is_repeat and "habit" in get_tags(item.id)
+    return item.is_habit and "habit" in get_tags(item.id)
 
 
 def get_habits() -> list[Item]:
     all_items = get_all_items()
     habits = []
     for item in all_items:
-        if item.is_repeat and "habit" in get_tags(item.id):
+        if item.is_habit and "habit" in get_tags(item.id):
             habits.append(item)
     return habits

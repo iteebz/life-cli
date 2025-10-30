@@ -9,7 +9,12 @@ from .models import Weekly
 def _calculate_total_possible(active_items_data, week_start_date, week_end_date):
     total_possible = 0
     for _item_id, created_iso_str, _is_habit in active_items_data:
-        created_date = datetime.date.fromisoformat(created_iso_str)
+        if isinstance(created_iso_str, (int, float)):
+            created_date = datetime.datetime.fromtimestamp(created_iso_str).date()
+        elif isinstance(created_iso_str, str) and created_iso_str.replace(".", "").isdigit():
+            created_date = datetime.datetime.fromtimestamp(float(created_iso_str)).date()
+        else:
+            created_date = datetime.date.fromisoformat(created_iso_str)
 
         if created_date > week_end_date:
             continue

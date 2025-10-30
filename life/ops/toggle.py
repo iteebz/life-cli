@@ -21,12 +21,18 @@ def toggle_done(
     if not item:
         return None
 
-    if item.is_repeat:
+    if item.is_habit:
         if undo:
             delete_check(item.id, clock.today().isoformat())
         else:
             add_check(item.id, clock.today().isoformat())
     else:
-        update_item(item.id, completed=None if undo else clock.today().isoformat())
+        if undo:
+            from .. import db
+
+            with db.get_db() as conn:
+                conn.execute("UPDATE items SET completed = NULL WHERE id = ?", (item.id,))
+        else:
+            update_item(item.id, completed=clock.today().isoformat())
 
     return item.content, "undone" if undo else "done"

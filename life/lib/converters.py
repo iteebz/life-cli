@@ -42,7 +42,7 @@ def _row_to_item(row: tuple) -> Item:
         id=row[0],
         content=row[1],
         focus=bool(row[2]),
-        due=due_date,
+        due_date=due_date,
         created=created_dt,
         completed=completed_dt,
         is_habit=bool(row[6]) if len(row) > 6 else False,

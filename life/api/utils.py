@@ -6,7 +6,7 @@ def _get_item_by_content(content: str, tags: list[str] | None = None) -> Item | 
     from .. import db  # Import db here to avoid circular dependency
 
     with db.get_db() as conn:
-        query = "SELECT id, content, focus, due, created, completed, is_repeat FROM items WHERE content = ?"
+        query = "SELECT id, content, focus, due_date, created, completed, is_habit FROM items WHERE content = ?"
         params = [content]
 
         if tags:

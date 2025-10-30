@@ -15,7 +15,7 @@ def test_row_to_item_handles_empty_due_date():
         0,  # is_repeat
     )
     item = _row_to_item(row_with_empty_due)
-    assert item.due is None
+    assert item.due_date is None
 
 
 def test_row_to_item_handles_valid_due_date():
@@ -30,7 +30,7 @@ def test_row_to_item_handles_valid_due_date():
         0,  # is_repeat
     )
     item = _row_to_item(row_with_valid_due)
-    assert item.due == date(2025, 12, 31)
+    assert item.due_date == date(2025, 12, 31)
 
 
 def test_row_to_item_handles_none_due_date():
@@ -45,4 +45,4 @@ def test_row_to_item_handles_none_due_date():
         0,  # is_repeat
     )
     item = _row_to_item(row_with_none_due)
-    assert item.due is None
+    assert item.due_date is None

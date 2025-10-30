@@ -7,7 +7,7 @@ class Item:
     id: str
     content: str
     focus: bool
-    due: date | None
+    due_date: date | None
     created: datetime
     completed: datetime | None
     is_habit: bool = False

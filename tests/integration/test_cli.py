@@ -177,17 +177,17 @@ def test_add_check_fails_for_regular_task(tmp_life_dir):
     item_id = add_item("regular task")
     result = runner.invoke(app, ["check", str(item_id)])
     assert result.exit_code == 1
-    assert "Checks can only be added to repeating items." in result.stdout
+    assert "Checks can only be added to habits." in result.stdout
 
 
 def test_add_check_fails_if_habit_completed(tmp_life_dir):
     habit_id = add_item("completed habit", item_type="habit", tags=["habit"])
     # First, check the habit
     runner.invoke(app, ["done", str(habit_id)])
-    # Then, try to check it again, which should result in 'Already checked'
+    # Then, try to check it again - this will toggle it (unchecks it)
     result = runner.invoke(app, ["done", str(habit_id)])
     assert result.exit_code == 0
-    assert "Habit: 'completed habit' already checked for today." in result.stdout
+    assert "Habit: 'completed habit' unchecked." in result.stdout
 
 
 def test_add_check_succeeds_for_habit(tmp_life_dir):

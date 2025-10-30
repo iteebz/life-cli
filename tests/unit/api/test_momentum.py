@@ -16,7 +16,7 @@ def test_weekly_momentum_rolling_window_habits(tmp_life_dir, monkeypatch):
 
     with db.get_db() as conn:
         conn.execute(
-            "INSERT INTO items (id, content, created, is_repeat) VALUES (?, ?, ?, ?)",
+            "INSERT INTO items (id, content, created, is_habit) VALUES (?, ?, ?, ?)",
             (
                 "habit_all_weeks",
                 "Habit All Weeks",
@@ -81,14 +81,14 @@ def test_weekly_momentum_habit_target_ignored(tmp_life_dir, monkeypatch):
     monkeypatch.setattr(clock, "now", lambda: datetime.combine(fixed_today, time.min))
 
     with db.get_db() as conn:
-        # Habit with is_repeat = True
+        # Habit with is_habit = True
         conn.execute(
-            "INSERT INTO items (id, content, created, is_repeat) VALUES (?, ?, ?, ?)",
+            "INSERT INTO items (id, content, created, is_habit) VALUES (?, ?, ?, ?)",
             (
                 "habit_multi_target",
                 "Habit Multi Target",
                 datetime.combine(fixed_today - timedelta(days=6), time.min).timestamp(),
-                2,
+                1,
             ),
         )
         conn.execute(

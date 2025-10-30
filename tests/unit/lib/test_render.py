@@ -22,10 +22,10 @@ def test_render_today_completed_shows_tasks(tmp_life_dir):
             id=item_id,
             content="completed task",
             focus=False,
-            due=None,
+            due_date=None,
             created=datetime.now(),
             completed=datetime.now(),
-            is_repeat=False,
+            is_habit=False,
         )
     ]
     result = render_today_completed(today_items)

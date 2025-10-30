@@ -16,7 +16,7 @@ def update(partial: str, **kwargs) -> str | None:
     """Update item (focus/due only on tasks, not repeating items)."""
     item = find_item(partial)
     if item:
-        if any(k in kwargs for k in ("focus", "due_date")) and item.is_repeat:
+        if any(k in kwargs for k in ("focus", "due")) and item.is_habit:
             return None
         update_item(item.id, **kwargs)
         return kwargs.get("content", item.content)
@@ -62,17 +62,17 @@ def set_due(args, remove=False) -> str:
     if not item:
         return f"No match for: {partial}"
 
-    if item.is_repeat:
+    if item.is_habit:
         return f"Cannot set due date on repeating items: {item.content}"
 
     if remove:
-        update_item(item.id, due_date=None)
+        update_item(item.id, due=None)
         return f"Due date removed: {item.content}"
 
     if not date_str:
         return "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
 
-    update_item(item.id, due_date=date_str)
+    update_item(item.id, due=date_str)
     return f"Due: {item.content} on {date_str}"
 
 

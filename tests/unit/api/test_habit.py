@@ -47,7 +47,7 @@ def test_check_repeat_once_per_day(tmp_life_dir):
     items = get_pending_items()
     assert len(items) == 1
     assert items[0].id == iid
-    assert items[0].is_repeat
+    assert items[0].is_habit
 
 
 def test_check_repeat_to_completion(tmp_life_dir):

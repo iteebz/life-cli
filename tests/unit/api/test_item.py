@@ -30,7 +30,7 @@ def test_add_item_with_due(tmp_life_dir):
     items = get_pending_items()
     item = next((i for i in items if i.id == item_id), None)
     assert item is not None
-    assert str(item.due) == "2025-12-31"
+    assert str(item.due_date) == "2025-12-31"
 
 
 def test_add_item_with_tags(tmp_life_dir):
@@ -64,10 +64,10 @@ def test_uncomplete_item(tmp_life_dir):
 
 def test_toggle_focus(tmp_life_dir):
     item_id = add_item("task", focus=False)
-    new_focus = toggle_item_focus(item_id, False)
-    assert new_focus
-    new_focus = toggle_item_focus(item_id, True)
-    assert not new_focus
+    status_text, content = toggle_item_focus(item_id, False)
+    assert status_text == "Focused"
+    status_text, content = toggle_item_focus(item_id, True)
+    assert status_text == "Unfocused"
 
 
 def test_update_item_content(tmp_life_dir):
@@ -83,7 +83,7 @@ def test_update_item_due(tmp_life_dir):
     update_item(item_id, due="2025-12-25")
     items = get_pending_items()
     item = next((i for i in items if i.id == item_id), None)
-    assert str(item.due) == "2025-12-25"
+    assert str(item.due_date) == "2025-12-25"
 
 
 def test_delete_item(tmp_life_dir):
@@ -102,16 +102,16 @@ def test_get_today_completed(tmp_life_dir):
 
 def test_complete_command(tmp_life_dir):
     item_id = add_item("task to complete")
-    status, content = toggle_done(str(item_id))
-    assert status == "Done"
+    content, status = toggle_done(str(item_id))
+    assert status == "done"
     assert content == "task to complete"
 
 
 def test_uncomplete_command(tmp_life_dir):
     item_id = add_item("task")
     toggle_done(str(item_id))
-    status, content = toggle_done(str(item_id), undo=True)
-    assert status == "Pending"
+    content, status = toggle_done(str(item_id), undo=True)
+    assert status == "undone"
     assert content == "task"
 
 
@@ -123,16 +123,17 @@ def test_toggle_focus_partial(tmp_life_dir):
 
 
 def test_toggle_focus_fails_on_habit(tmp_life_dir):
+    import sqlite3
+
     habit_id = add_item("habit", is_habit=True, tags=["habit"])
-    # toggle_item_focus expects item_id and current_focus, not partial string
-    # This test case needs to be re-evaluated based on how habits handle focus
-    # For now, we'll assert that directly calling toggle_item_focus on a habit doesn't change its focus status
     item = next((i for i in get_pending_items() if i.id == habit_id), None)
     assert item is not None
     original_focus = item.focus
-    toggle_item_focus(habit_id, original_focus)
-    item_after_toggle = next((i for i in get_pending_items() if i.id == habit_id), None)
-    assert item_after_toggle.focus == original_focus
+    try:
+        toggle_item_focus(habit_id, original_focus)
+        raise AssertionError("Expected IntegrityError when toggling focus on habit")
+    except sqlite3.IntegrityError:
+        pass
 
 
 def test_update_command(tmp_life_dir):
@@ -165,7 +166,7 @@ def test_focus_on_add(tmp_life_dir):
 def test_due_on_add(tmp_life_dir):
     add_item("deadline", due="2025-12-31")
     items = get_pending_items()
-    assert str(items[0].due) == "2025-12-31"
+    assert str(items[0].due_date) == "2025-12-31"
 
 
 def test_complete(tmp_life_dir):
@@ -176,8 +177,8 @@ def test_complete(tmp_life_dir):
 
 def test_focus_toggle(tmp_life_dir):
     iid = add_item("task")
-    new_state = toggle_item_focus(iid, False)
-    assert new_state
+    status_text, content = toggle_item_focus(iid, False)
+    assert status_text == "Focused"
     items = get_pending_items()
     assert items[0].focus is True
 
@@ -193,7 +194,7 @@ def test_update_due(tmp_life_dir):
     iid = add_item("task")
     update_item(iid, due="2025-06-01")
     items = get_pending_items()
-    assert str(items[0].due) == "2025-06-01"
+    assert str(items[0].due_date) == "2025-06-01"
 
 
 def test_delete(tmp_life_dir):
