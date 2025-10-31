@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 from . import clock
-from .ansi import ANSI  # Need to import ANSI for coloring
+from .ansi import ANSI
 
 
 def format_due(due_date, colorize=True):
@@ -31,26 +31,60 @@ def format_due(due_date, colorize=True):
     return f"{diff}d:"
 
 
-def format_decay(completed_str):
-    if not completed_str:
-        return ""
+def format_task(task, tags: list[str] | None = None, show_id: bool = False) -> str:
+    """Format a task for display. Returns: [⦿] [due] content [#tags] [id]"""
+    parts = []
 
-    try:
-        if isinstance(completed_str, datetime):
-            completed = completed_str
-        else:
-            completed = datetime.fromisoformat(completed_str)
-        now = clock.now().astimezone()
-        diff = now - completed
+    if task.focus:
+        parts.append(f"{ANSI.BOLD}⦿{ANSI.RESET}")
 
-        days = diff.days
-        hours = diff.seconds // 3600
-        mins = (diff.seconds % 3600) // 60
+    if task.due_date:
+        parts.append(format_due(task.due_date, colorize=True))
 
-        if days > 0:
-            return f"- {days}d ago"
-        if hours > 0:
-            return f"- {hours}h ago"
-        return f"- {mins}m ago"
-    except (ValueError, TypeError):
-        return ""
+    parts.append(task.content.lower())
+
+    if tags:
+        tags_str = " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags)
+        parts.append(tags_str)
+
+    if show_id:
+        parts.append(f"{ANSI.GREY}[{task.id[:8]}]{ANSI.RESET}")
+
+    return " ".join(parts)
+
+
+def format_habit(habit, checked: bool = False, tags: list[str] | None = None, show_id: bool = False) -> str:
+    """Format a habit for display. Returns: [✓|□] content [#tags] [id]"""
+    parts = []
+
+    if checked:
+        parts.append(f"{ANSI.GREY}✓{ANSI.RESET}")
+    else:
+        parts.append("□")
+
+    parts.append(habit.content.lower())
+
+    if tags:
+        tags_str = " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags)
+        parts.append(tags_str)
+
+    if show_id:
+        parts.append(f"{ANSI.GREY}[{habit.id[:8]}]{ANSI.RESET}")
+
+    return " ".join(parts)
+
+
+def format_status(symbol: str, content: str, item_id: str | None = None) -> str:
+    """Format status message for action confirmations."""
+    if item_id:
+        return f"{symbol} {content} {ANSI.GREY}[{item_id[:8]}]{ANSI.RESET}"
+    return f"{symbol} {content}"
+
+
+def format_ambiguous(items: list) -> str:
+    """Format ambiguous match list for user disambiguation."""
+    lines = ["Multiple matches:"]
+    for item in items:
+        item_id = item.id[:8]
+        lines.append(f"  {item_id}: {item.content}")
+    return "\n".join(lines)

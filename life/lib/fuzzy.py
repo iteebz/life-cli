@@ -1,19 +1,17 @@
 from difflib import get_close_matches
 
 from ..api.habits import get_habits
-from ..api.models import Habit, Task
+from models import Habit, Task
 from ..api.tasks import get_tasks
 
-MIN_UUID_PREFIX = 8
-FUZZY_MATCH_CUTOFF = 0.8  # Minimum similarity score for fuzzy matching
+FUZZY_MATCH_CUTOFF = 0.8
 
 
 def _match_uuid_prefix(partial: str, pool: list[Task | Habit]) -> Task | Habit | None:
-    """Match item by UUID prefix."""
-    if len(partial) < MIN_UUID_PREFIX:
-        return None
+    """Match item by UUID prefix (first 8 chars)."""
+    partial_lower = partial.lower()
     for item in pool:
-        if item.id.startswith(partial):
+        if item.id[:8].startswith(partial_lower):
             return item
     return None
 

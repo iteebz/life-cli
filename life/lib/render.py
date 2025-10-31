@@ -1,13 +1,13 @@
 from datetime import date, timedelta
 
 from ..api.habits import get_checks, get_habits
-from ..api.models import Habit, Task
+from models import Habit, Task
 from ..api.tags import get_tags_for_habit, get_tags_for_task
 from ..api.tasks import _task_sort_key
 from ..config import get_countdowns
 from . import clock
 from .ansi import ANSI
-from .format import format_decay, format_due
+from .format import format_due, format_habit, format_task
 
 
 def _get_trend(current: int, previous: int) -> str:
@@ -58,10 +58,9 @@ def render_today_completed(today_items: list[Task | Habit]):
 
     for task in tasks_only:
         content = task.content
-        time_str = f" {format_decay(task.completed)}" if task.completed else ""
         tags = get_tags_for_task(task.id)
         tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-        lines.append(f"  ✓ {content.lower()}{tags_str}{time_str}")
+        lines.append(f"  ✓ {content.lower()}{tags_str}")
 
     return "\n".join(lines)
 
@@ -141,19 +140,17 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
         for habit in sorted_habits:
             content = habit.content
-            decay = format_decay(habit.created) if habit.created else ""
-            decay_str = f" {decay}" if decay else ""
             tags = get_tags_for_habit(habit.id)
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
             trend_indicator = get_habit_trend(habit.id)
             if habit.id in today_habit_ids:
                 if content not in displayed_completed_content:
                     lines.append(
-                        f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{decay_str}{ANSI.RESET}"
+                        f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{ANSI.RESET}"
                     )
                     displayed_completed_content.add(content)
             else:
-                lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}{decay_str}")
+                lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}")
 
     if not regular_items:
         lines.append("\nNo pending items. You're either productive or fucked.")
@@ -209,19 +206,12 @@ def render_item_list(items: list[Task | Habit]):
 
     lines = []
     for item in items:
-        focus_label = ""
-        due_part = ""
-
         if isinstance(item, Task):
-            focus_label = "🔥" if item.focus else ""
-            due_str = format_due(item.due_date) if item.due_date else ""
-            due_part = f"{due_str} " if due_str else ""
             tags = get_tags_for_task(item.id)
+            lines.append(format_task(item, tags=tags, show_id=True))
         else:
             tags = get_tags_for_habit(item.id)
-
-        tags_str = " " + " ".join(f"#{tag}" for tag in tags) if tags else ""
-        lines.append(f"{item.id}: {focus_label}{due_part}{item.content.lower()}{tags_str}")
+            lines.append(format_habit(item, tags=tags, show_id=True))
 
     return "\n".join(lines)
 

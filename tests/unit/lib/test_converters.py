@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from life.api.models import Habit, Task
+from models import Habit, Task
 from life.lib.converters import (
     _hydrate_tags,
     _parse_date,

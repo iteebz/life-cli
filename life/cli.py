@@ -2,6 +2,7 @@ import typer
 
 from . import db
 from .api import weekly_momentum
+from .api.countdown import handle_countdown
 from .api.dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .api.habits import (
     add_habit,
@@ -11,14 +12,11 @@ from .api.habits import (
     toggle_check,
     update_habit,
 )
-from .api.models import Task
 from .api.personas import get_default_persona_name, manage_personas
 from .api.tags import add_tag, remove_tag
 from .api.tasks import add_task, delete_task, get_tasks, toggle_completed, toggle_focus, update_task
 from .config import (
-    add_countdown,
     get_context,
-    get_countdowns,
     get_profile,
     set_context,
     set_profile,
@@ -27,6 +25,7 @@ from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
 from .lib.claude import invoke
 from .lib.clock import today
+from .lib.format import format_habit, format_status, format_task
 from .lib.fuzzy import find_item, find_task
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list
@@ -72,7 +71,8 @@ def task(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None
     task_id = add_task(content, focus=focus, due=due, tags=tags)
-    typer.echo(f"Added task: {content} {ANSI.GREY}{task_id}{ANSI.RESET}")
+    symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
+    typer.echo(format_status(symbol, content, task_id))
 
 
 @app.command()
@@ -87,7 +87,7 @@ def habit(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None
     habit_id = add_habit(content, tags=tags)
-    typer.echo(f"Added habit: {content} {ANSI.GREY}{habit_id}{ANSI.RESET}")
+    typer.echo(format_status("□", content, habit_id))
 
 
 @app.command()
@@ -106,16 +106,11 @@ def done(
         checks = get_checks(habit.id)
         is_undo_action = today_date in checks
         toggle_check(habit.id)
-        if is_undo_action:
-            typer.echo(f"{ANSI.YELLOW}Habit:{ANSI.RESET} '{habit.content}' unchecked.")
-        else:
-            typer.echo(f"{ANSI.GREEN}Habit:{ANSI.RESET} '{habit.content}' checked for today.")
+        checked = not is_undo_action
+        typer.echo(format_habit(habit, checked=checked))
     else:
         toggle_completed(task.id)
-        if task.completed is not None:
-            typer.echo(f"Task: '{task.content}' marked as pending.")
-        else:
-            typer.echo(f"Task: '{task.content}' marked as complete.")
+        typer.echo(format_task(task))
 
 
 @app.command()
@@ -130,10 +125,10 @@ def rm(
     task, habit = find_item(partial)
     if task:
         delete_task(task.id)
-        typer.echo(f"Removed: {task.content}")
+        typer.echo(f"{ANSI.DIM}{task.content}{ANSI.RESET}")
     elif habit:
         delete_habit(habit.id)
-        typer.echo(f"Removed: {habit.content}")
+        typer.echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}")
     else:
         typer.echo(f"No match for: {partial}")
 
@@ -154,8 +149,8 @@ def focus(
         raise typer.Exit(1)
 
     toggle_focus(task.id)
-    new_status = "focused" if not task.focus else "unfocused"
-    typer.echo(f"Task: '{task.content}' is now {new_status}.")
+    symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if not task.focus else "□"
+    typer.echo(format_status(symbol, task.content))
 
 
 @app.command()
@@ -177,10 +172,10 @@ def due(
 
     if remove:
         update_task(task.id, due=None)
-        typer.echo(f"Due date removed: {task.content}")
+        typer.echo(format_status("□", task.content))
     elif date_str:
         update_task(task.id, due=date_str)
-        typer.echo(f"Due: {task.content} on {date_str}")
+        typer.echo(format_status(f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content))
     else:
         typer.echo(
             "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
@@ -212,7 +207,7 @@ def rename(
         typer.echo(f"Error: Cannot rename '{item_to_rename.content}' to itself.")
         raise typer.Exit(code=1)
 
-    if isinstance(item_to_rename, Task):
+    if hasattr(item_to_rename, 'focus'):
         update_task(item_to_rename.id, content=to_content)
     else:
         update_habit(item_to_rename.id, content=to_content)
@@ -281,35 +276,7 @@ def countdown(
     emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for countdown"),  # noqa: B008
 ):
     """Add, remove, or list countdowns to target dates"""
-    if not action:
-        countdowns = get_countdowns()
-        if countdowns:
-            for cd in sorted(countdowns, key=lambda x: x["date"]):
-                typer.echo(f"{cd.get('emoji', '📌')} {cd['name']} - {cd['date']}")
-        else:
-            typer.echo("No countdowns set")
-        return
-
-    if action == "add":
-        if not name or not date_str:
-            typer.echo("Error: add requires name and date (YYYY-MM-DD)", err=True)
-            raise typer.Exit(1)
-        add_countdown(name, date_str, emoji)
-        typer.echo(f"Added countdown: {emoji} {name} on {date_str}")
-    elif action == "remove":
-        if not name:
-            typer.echo("Error: remove requires a countdown name", err=True)
-            raise typer.Exit(1)
-        from .config import remove_countdown
-
-        remove_countdown(name)
-        typer.echo(f"Removed countdown: {name}")
-    else:
-        typer.echo(
-            f"Error: unknown action '{action}'. Use 'add', 'remove', or no argument to list.",
-            err=True,
-        )
-        raise typer.Exit(1)
+    handle_countdown(action, name, date_str, emoji)
 
 
 @app.command()
@@ -346,7 +313,7 @@ def chat(
     invoke(message, selected_persona)
 
 
-@app.command(name="items")
+@app.command(name="list")
 def list_items():
     """List all items."""
 

@@ -1,7 +1,7 @@
 import dataclasses
 from datetime import date, datetime
 
-from ..api.models import Habit, Task
+from models import Habit, Task
 
 
 def _parse_date(val) -> date | None:
