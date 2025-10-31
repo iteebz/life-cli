@@ -1,10 +1,11 @@
+import sqlite3
 import uuid
 
 from .. import db
 from ..lib import clock
-from ..lib.converters import _hydrate_tags, _row_to_task
+from ..lib.converters import _row_to_task
 from .models import Task
-from .tags import add_tag
+from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
 
 def _task_sort_key(task: Task) -> tuple:
@@ -23,10 +24,13 @@ def add_task(
     """Adds a new task. Returns task_id."""
     task_id = str(uuid.uuid4())
     with db.get_db() as conn:
-        conn.execute(
-            "INSERT INTO tasks (id, content, focus, due_date, created) VALUES (?, ?, ?, ?, ?)",
-            (task_id, content, focus, due, clock.today().isoformat()),
-        )
+        try:
+            conn.execute(
+                "INSERT INTO tasks (id, content, focus, due_date, created) VALUES (?, ?, ?, ?, ?)",
+                (task_id, content, focus, due, clock.today().isoformat()),
+            )
+        except sqlite3.IntegrityError as e:
+            raise ValueError(f"Failed to add task: {e}") from e
         if tags:
             for tag in tags:
                 add_tag(task_id, None, tag, conn=conn)
@@ -45,11 +49,8 @@ def get_task(task_id: str) -> Task | None:
             return None
 
         task = _row_to_task(row)
-
-        cursor = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task_id,))
-        task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-
-        return _hydrate_tags(task, task_tags)
+        tags_map = load_tags_for_tasks([task_id], conn=conn)
+        return hydrate_tags([task], tags_map)[0]
 
 
 def get_tasks() -> list[Task]:
@@ -59,12 +60,9 @@ def get_tasks() -> list[Task]:
             "SELECT id, content, focus, due_date, created, completed FROM tasks WHERE completed IS NULL"
         )
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
-
-        result = []
-        for task in tasks:
-            cursor = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task.id,))
-            task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-            result.append(_hydrate_tags(task, task_tags))
+        task_ids = [t.id for t in tasks]
+        tags_map = load_tags_for_tasks(task_ids, conn=conn)
+        result = hydrate_tags(tasks, tags_map)
 
     return sorted(result, key=_task_sort_key)
 
@@ -76,14 +74,9 @@ def get_focus() -> list[Task]:
             "SELECT id, content, focus, due_date, created, completed FROM tasks WHERE focus = 1 AND completed IS NULL"
         )
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
-
-        result = []
-        for task in tasks:
-            cursor = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task.id,))
-            task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-            result.append(_hydrate_tags(task, task_tags))
-
-        return result
+        task_ids = [t.id for t in tasks]
+        tags_map = load_tags_for_tasks(task_ids, conn=conn)
+        return hydrate_tags(tasks, tags_map)
 
 
 def update_task(
@@ -103,7 +96,12 @@ def update_task(
         values.append(task_id)
 
         with db.get_db() as conn:
-            conn.execute(f"UPDATE tasks SET {', '.join(set_clauses)} WHERE id = ?", tuple(values))
+            try:
+                conn.execute(
+                    f"UPDATE tasks SET {', '.join(set_clauses)} WHERE id = ?", tuple(values)
+                )
+            except sqlite3.IntegrityError as e:
+                raise ValueError(f"Failed to update task: {e}") from e
 
     return get_task(task_id)
 

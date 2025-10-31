@@ -27,8 +27,8 @@ from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
 from .lib.claude import invoke
 from .lib.clock import today
-from .lib.dates import parse_due_date
 from .lib.fuzzy import find_item, find_task
+from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list
 
 app = typer.Typer(
@@ -66,6 +66,11 @@ def task(
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),  # noqa: B008
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
+    try:
+        validate_content(content)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from None
     task_id = add_task(content, focus=focus, due=due, tags=tags)
     typer.echo(f"Added task: {content} {ANSI.GREY}{task_id}{ANSI.RESET}")
 
@@ -76,6 +81,11 @@ def habit(
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to habit"),  # noqa: B008
 ):
     """Add daily habit (auto-resets on completion)"""
+    try:
+        validate_content(content)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from None
     habit_id = add_habit(content, tags=tags)
     typer.echo(f"Added habit: {content} {ANSI.GREY}{habit_id}{ANSI.RESET}")
 
@@ -113,10 +123,10 @@ def rm(
     args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
 ):
     """Delete item or completed task (fuzzy match)"""
-    if not args:
+    partial = " ".join(args) if args else ""
+    if not partial:
         typer.echo("Usage: life rm <item>")
         raise typer.Exit(1)
-    partial = " ".join(args)
     task, habit = find_item(partial)
     if task:
         delete_task(task.id)
@@ -133,11 +143,11 @@ def focus(
     args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
 ):
     """Toggle focus status on task (fuzzy match)"""
-    if not args:
+    partial = " ".join(args) if args else ""
+    if not partial:
         typer.echo("Usage: life focus <item>")
         raise typer.Exit(1)
 
-    partial = " ".join(args)
     task = find_task(partial)
     if not task:
         typer.echo(f"No task found matching '{partial}'")
@@ -154,27 +164,15 @@ def due(
     remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),  # noqa: B008
 ):
     """Set or remove due date on item (fuzzy match)"""
-    if not args:
-        typer.echo("Due date and item required")
-        raise typer.Exit(1)
+    try:
+        date_str, item_name = parse_due_and_item(args, remove=remove)
+    except ValueError as e:
+        typer.echo(str(e))
+        raise typer.Exit(1) from None
 
-    date_str = None
-    item_args = args
-
-    if not remove and len(args) > 0:
-        parsed = parse_due_date(args[0])
-        if parsed:
-            date_str = parsed
-            item_args = args[1:]
-
-    if not item_args:
-        typer.echo("Item name required")
-        raise typer.Exit(1)
-
-    partial = " ".join(item_args)
-    task = find_task(partial)
+    task = find_task(item_name)
     if not task:
-        typer.echo(f"No match for: {partial}")
+        typer.echo(f"No match for: {item_name}")
         raise typer.Exit(1)
 
     if remove:
@@ -202,7 +200,7 @@ def rename(
         typer.echo("Error: 'to' content cannot be empty.")
         raise typer.Exit(code=1)
 
-    partial_from = " ".join(from_args)
+    partial_from = " ".join(from_args) if from_args else ""
     task, habit = find_item(partial_from)
     item_to_rename = task or habit
 
@@ -228,7 +226,7 @@ def tag(
     remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),  # noqa: B008
 ):
     """Add or remove tag on item (fuzzy match)"""
-    item_partial = " ".join(args)
+    item_partial = " ".join(args) if args else ""
     task, habit = find_item(item_partial)
 
     if not task and not habit:

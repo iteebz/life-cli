@@ -1,8 +1,9 @@
 from .. import db
 from ..lib import clock
-from ..lib.converters import _hydrate_tags, _row_to_task
+from ..lib.converters import _row_to_task
 from .habits import get_checks, get_habit
 from .models import Habit, Task
+from .tags import hydrate_tags, load_tags_for_tasks
 from .tasks import _task_sort_key
 
 
@@ -13,12 +14,9 @@ def _get_pending_tasks() -> list[Task]:
             "SELECT id, content, focus, due_date, created, completed FROM tasks WHERE completed IS NULL"
         )
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
-
-        result = []
-        for task in tasks:
-            cursor = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task.id,))
-            task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-            result.append(_hydrate_tags(task, task_tags))
+        task_ids = [t.id for t in tasks]
+        tags_map = load_tags_for_tasks(task_ids, conn=conn)
+        result = hydrate_tags(tasks, tags_map)
 
     return sorted(result, key=_task_sort_key)
 
@@ -56,29 +54,15 @@ def _get_completed_today() -> list[Task]:
             (today_str,),
         )
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
-
-        result = []
-        for task in tasks:
-            cursor = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task.id,))
-            task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-            result.append(_hydrate_tags(task, task_tags))
-
-        return result
+        task_ids = [t.id for t in tasks]
+        tags_map = load_tags_for_tasks(task_ids, conn=conn)
+        return hydrate_tags(tasks, tags_map)
 
 
 def get_pending_items(asc=True) -> list[Task | Habit]:
     """Get pending tasks for display."""
     tasks = _get_pending_tasks()
-    return sorted(
-        tasks,
-        key=lambda task: (
-            not task.focus,
-            task.due_date is None,
-            task.due_date,
-            task.created,
-        ),
-        reverse=not asc,
-    )
+    return sorted(tasks, key=_task_sort_key, reverse=not asc)
 
 
 def get_today_completed() -> list[Task | Habit]:

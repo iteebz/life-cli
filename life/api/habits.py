@@ -6,6 +6,7 @@ from datetime import date, datetime
 from .. import db
 from ..lib import clock
 from .models import Habit
+from .tags import load_tags_for_habits
 
 
 def _row_to_habit(
@@ -107,11 +108,14 @@ def get_habits(habit_ids: list[str] | None = None) -> list[Habit]:
     if habit_ids is None:
         with db.get_db() as conn:
             cursor = conn.execute("SELECT id, content, created FROM habits ORDER BY created DESC")
+            rows = cursor.fetchall()
+            all_habit_ids = [row[0] for row in rows]
+            tags_map = load_tags_for_habits(all_habit_ids, conn=conn)
             habits = []
-            for row in cursor.fetchall():
+            for row in rows:
                 habit_id = row[0]
                 checks = _get_habit_checks(conn, habit_id)
-                tags = _get_habit_tags(conn, habit_id)
+                tags = tags_map.get(habit_id, [])
                 habits.append(_row_to_habit(row, checks, tags))
             return habits
 

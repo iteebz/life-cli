@@ -1,5 +1,6 @@
 import contextlib
 import sqlite3
+from collections import defaultdict
 
 from .. import db
 from ..lib.converters import _hydrate_tags, _row_to_habit, _row_to_task
@@ -49,14 +50,9 @@ def get_tasks_by_tag(tag: str) -> list[Task]:
             (tag.lower(),),
         )
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
-
-        result = []
-        for task in tasks:
-            cursor = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task.id,))
-            task_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-            result.append(_hydrate_tags(task, task_tags))
-
-        return result
+        task_ids = [t.id for t in tasks]
+        tags_map = load_tags_for_tasks(task_ids, conn=conn)
+        return hydrate_tags(tasks, tags_map)
 
 
 def get_habits_by_tag(tag: str) -> list[Habit]:
@@ -71,14 +67,9 @@ def get_habits_by_tag(tag: str) -> list[Habit]:
             (tag.lower(),),
         )
         habits = [_row_to_habit(row) for row in cursor.fetchall()]
-
-        result = []
-        for habit in habits:
-            cursor = conn.execute("SELECT tag FROM tags WHERE habit_id = ?", (habit.id,))
-            habit_tags = [tag_row[0] for tag_row in cursor.fetchall()]
-            result.append(_hydrate_tags(habit, habit_tags))
-
-        return result
+        habit_ids = [h.id for h in habits]
+        tags_map = load_tags_for_habits(habit_ids, conn=conn)
+        return hydrate_tags(habits, tags_map)
 
 
 def remove_tag(task_id: str | None, habit_id: str | None, tag: str) -> None:
@@ -96,3 +87,71 @@ def list_all_tags() -> list[str]:
     with db.get_db() as conn:
         cursor = conn.execute("SELECT DISTINCT tag FROM tags ORDER BY tag ASC")
         return [row[0] for row in cursor.fetchall()]
+
+
+def load_tags_for_tasks(task_ids: list[str], conn=None) -> dict[str, list[str]]:
+    """Batch load all tags for multiple tasks.
+
+    Returns dict mapping task_id -> list of tag strings.
+    """
+    if not task_ids:
+        return {}
+
+    use_context = conn is None
+    if use_context:
+        ctx = db.get_db()
+        conn = ctx.__enter__()
+
+    try:
+        placeholders = ",".join("?" * len(task_ids))
+        cursor = conn.execute(
+            f"SELECT task_id, tag FROM tags WHERE task_id IN ({placeholders}) ORDER BY tag",
+            task_ids,
+        )
+        tags_map = defaultdict(list)
+        for task_id, tag in cursor.fetchall():
+            tags_map[task_id].append(tag)
+        return dict(tags_map)
+    finally:
+        if use_context:
+            ctx.__exit__(None, None, None)
+
+
+def load_tags_for_habits(habit_ids: list[str], conn=None) -> dict[str, list[str]]:
+    """Batch load all tags for multiple habits.
+
+    Returns dict mapping habit_id -> list of tag strings.
+    """
+    if not habit_ids:
+        return {}
+
+    use_context = conn is None
+    if use_context:
+        ctx = db.get_db()
+        conn = ctx.__enter__()
+
+    try:
+        placeholders = ",".join("?" * len(habit_ids))
+        cursor = conn.execute(
+            f"SELECT habit_id, tag FROM tags WHERE habit_id IN ({placeholders}) ORDER BY tag",
+            habit_ids,
+        )
+        tags_map = defaultdict(list)
+        for habit_id, tag in cursor.fetchall():
+            tags_map[habit_id].append(tag)
+        return dict(tags_map)
+    finally:
+        if use_context:
+            ctx.__exit__(None, None, None)
+
+
+def hydrate_tags(items, tag_map: dict[str, list[str]]):
+    """Apply tags to a list of items using a pre-loaded tag map.
+
+    Args:
+        items: List of Task or Habit objects
+        tag_map: Dict mapping item.id -> list of tags
+
+    Returns list of items with tags hydrated.
+    """
+    return [_hydrate_tags(item, tag_map.get(item.id, [])) for item in items]

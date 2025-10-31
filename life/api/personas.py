@@ -71,12 +71,12 @@ def _build_persona_prompt(persona_name: str) -> str:
     today_items = get_today_completed()
     today_breakdown = get_today_breakdown()
     momentum = weekly_momentum()
-    life_output = render_dashboard(
-        items, today_breakdown, momentum, context, today_items
-    ).lstrip()
+    life_output = render_dashboard(items, today_breakdown, momentum, context, today_items).lstrip()
 
     profile_section = f"PROFILE:\n{profile if profile else '(no profile set)'}"
-    context_section = f"CONTEXT:\n{context if context and context != 'No context set' else '(no context set)'}"
+    context_section = (
+        f"CONTEXT:\n{context if context and context != 'No context set' else '(no context set)'}"
+    )
 
     sections = [
         persona_instructions,
@@ -102,10 +102,10 @@ def manage_personas(name=None, set_default=False, show_prompt=False):
     if set_default:
         set_default_persona_name(resolved_name)
         return f"Default persona set to: {resolved_name}"
-    
+
     if show_prompt:
         return _build_persona_prompt(resolved_name)
-    
+
     return get_persona(resolved_name)
 
 
