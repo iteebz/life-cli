@@ -10,7 +10,7 @@ class Task:
     due_date: date | None
     created: datetime
     completed: datetime | None
-    tags: list[str] = dataclasses.field(default_factory=list)
+    tags: list[str] = dataclasses.field(default_factory=list, hash=False)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -18,8 +18,8 @@ class Habit:
     id: str
     content: str
     created: datetime
-    checks: list[date] = dataclasses.field(default_factory=list)
-    tags: list[str] = dataclasses.field(default_factory=list)
+    checks: list[date] = dataclasses.field(default_factory=list, hash=False)
+    tags: list[str] = dataclasses.field(default_factory=list, hash=False)
 
 
 @dataclasses.dataclass(frozen=True)

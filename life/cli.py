@@ -2,7 +2,7 @@ import typer
 
 from . import db
 from .api import weekly_momentum
-from .api.countdown import handle_countdown
+from .api.dates import handle_dates
 from .api.dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .api.habits import (
     add_habit,
@@ -269,14 +269,14 @@ def context(
 
 
 @app.command()
-def countdown(
+def dates(
     action: str = typer.Argument(None, help="add, remove, or list"),  # noqa: B008
-    name: str = typer.Argument(None, help="Countdown name"),  # noqa: B008
+    name: str = typer.Argument(None, help="Date name"),  # noqa: B008
     date_str: str = typer.Argument(None, help="Target date (YYYY-MM-DD)"),  # noqa: B008
-    emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for countdown"),  # noqa: B008
+    emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for date"),  # noqa: B008
 ):
-    """Add, remove, or list countdowns to target dates"""
-    handle_countdown(action, name, date_str, emoji)
+    """Add, remove, or list dates to track"""
+    handle_dates(action, name, date_str, emoji)
 
 
 @app.command()

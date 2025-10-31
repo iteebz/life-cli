@@ -66,18 +66,18 @@ def set_default_persona(persona: str) -> None:
     _save_config(config)
 
 
-def get_countdowns() -> list[dict]:
-    """Get list of countdowns from config."""
+def get_dates() -> list[dict]:
+    """Get list of dates from config."""
     config = _load_config()
-    return config.get("countdowns", [])
+    return config.get("dates", [])
 
 
-def add_countdown(name: str, date: str, emoji: str = "📌") -> None:
-    """Add a countdown to config."""
+def add_date(name: str, date: str, emoji: str = "📌") -> None:
+    """Add a date to config."""
     config = _load_config()
-    if "countdowns" not in config:
-        config["countdowns"] = []
-    config["countdowns"].append(
+    if "dates" not in config:
+        config["dates"] = []
+    config["dates"].append(
         {
             "name": name,
             "date": date,
@@ -87,9 +87,9 @@ def add_countdown(name: str, date: str, emoji: str = "📌") -> None:
     _save_config(config)
 
 
-def remove_countdown(name: str) -> None:
-    """Remove a countdown from config."""
+def remove_date(name: str) -> None:
+    """Remove a date from config."""
     config = _load_config()
-    if "countdowns" in config:
-        config["countdowns"] = [c for c in config["countdowns"] if c.get("name") != name]
+    if "dates" in config:
+        config["dates"] = [d for d in config["dates"] if d.get("name") != name]
         _save_config(config)

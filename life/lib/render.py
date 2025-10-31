@@ -4,7 +4,7 @@ from ..api.habits import get_checks, get_habits
 from models import Habit, Task
 from ..api.tags import get_tags_for_habit, get_tags_for_task
 from ..api.tasks import _task_sort_key
-from ..config import get_countdowns
+from ..config import get_dates
 from . import clock
 from .ansi import ANSI
 from .format import format_due, format_habit, format_task
@@ -80,13 +80,13 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
         lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}CONTEXT:{ANSI.RESET}")
         lines.append(f"{context}")
     lines.append(f"\nToday: {today} {current_time}")
-    countdowns = get_countdowns()
-    if countdowns:
-        upcoming = sorted(countdowns, key=lambda x: x["date"])
-        next_cd = upcoming[0]
-        days = (date.fromisoformat(next_cd["date"]) - today).days
-        emoji = next_cd.get("emoji", "📌")
-        name = next_cd.get("name", "event")
+    dates_list = get_dates()
+    if dates_list:
+        upcoming = sorted(dates_list, key=lambda x: x["date"])
+        next_date = upcoming[0]
+        days = (date.fromisoformat(next_date["date"]) - today).days
+        emoji = next_date.get("emoji", "📌")
+        name = next_date.get("name", "event")
         lines.append(f"{emoji} {days} days until {name}!")
 
     lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}MOMENTUM:{ANSI.RESET}")
