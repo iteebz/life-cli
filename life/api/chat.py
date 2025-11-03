@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 from ..config import get_profile
-from .ansi import ANSI, PERSONA_COLORS, md_to_ansi
-from .spinner import Spinner
+from ..lib.ansi import ANSI, PERSONA_COLORS, md_to_ansi
+from ..lib.spinner import Spinner
 
 
 def _build_prompt(message: str, persona: str) -> str:

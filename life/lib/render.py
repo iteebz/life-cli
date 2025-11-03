@@ -137,21 +137,24 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
         sorted_habits = sorted(all_habits_for_display, key=lambda x: x.content.lower())
 
-        displayed_completed_content = set()
+        incomplete_habits = [h for h in sorted_habits if h.id not in today_habit_ids]
+        completed_habits = [h for h in sorted_habits if h.id in today_habit_ids]
 
-        for habit in sorted_habits:
+        for habit in incomplete_habits:
             content = habit.content
             tags = get_tags_for_habit(habit.id)
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
             trend_indicator = get_habit_trend(habit.id)
-            if habit.id in today_habit_ids:
-                if content not in displayed_completed_content:
-                    lines.append(
-                        f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{ANSI.RESET}"
-                    )
-                    displayed_completed_content.add(content)
-            else:
-                lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}")
+            lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}")
+
+        for habit in completed_habits:
+            content = habit.content
+            tags = get_tags_for_habit(habit.id)
+            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+            trend_indicator = get_habit_trend(habit.id)
+            lines.append(
+                f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{ANSI.RESET}"
+            )
 
     if not regular_items:
         lines.append("\nNo pending items. You're either productive or fucked.")

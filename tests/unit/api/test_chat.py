@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from life.lib.claude import _build_prompt, _ephemeral_claude_md, _format_output, invoke
+from life.api.chat import _build_prompt, _ephemeral_claude_md, _format_output, invoke
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def temp_home():
 
 def test_build_prompt_includes_persona_and_message(tmp_life_dir):
     """_build_prompt constructs prompt with persona instructions and user message."""
-    with patch("life.lib.claude.get_profile", return_value=""):
+    with patch("life.api.chat.get_profile", return_value=""):
         prompt = _build_prompt("test message", persona="roast")
         assert "[ROASTER IDENTITY]" in prompt
         assert "test message" in prompt
@@ -27,7 +27,7 @@ def test_build_prompt_includes_persona_and_message(tmp_life_dir):
 
 def test_build_prompt_includes_profile_when_set(tmp_life_dir):
     """_build_prompt includes profile section when profile is set."""
-    with patch("life.lib.claude.get_profile", return_value="ADHD, works late"):
+    with patch("life.api.chat.get_profile", return_value="ADHD, works late"):
         prompt = _build_prompt("test", persona="pepper")
         assert "PROFILE:" in prompt
         assert "ADHD, works late" in prompt
@@ -35,14 +35,14 @@ def test_build_prompt_includes_profile_when_set(tmp_life_dir):
 
 def test_build_prompt_skips_profile_when_empty(tmp_life_dir):
     """_build_prompt skips profile section when profile is empty."""
-    with patch("life.lib.claude.get_profile", return_value=""):
+    with patch("life.api.chat.get_profile", return_value=""):
         prompt = _build_prompt("test", persona="kim")
         assert "PROFILE:" not in prompt
 
 
 def test_ephemeral_claude_md_creates_file(temp_home, tmp_life_dir):
     """_ephemeral_claude_md context manager creates CLAUDE.md with persona."""
-    with patch("life.lib.claude.Path.home", return_value=temp_home):
+    with patch("life.api.chat.Path.home", return_value=temp_home):
         with _ephemeral_claude_md("roast"):
             claude_path = temp_home / ".claude" / "CLAUDE.md"
             assert claude_path.exists()
@@ -52,7 +52,7 @@ def test_ephemeral_claude_md_creates_file(temp_home, tmp_life_dir):
 
 def test_ephemeral_claude_md_restores_original(temp_home, tmp_life_dir):
     """_ephemeral_claude_md restores original CLAUDE.md on exit."""
-    with patch("life.lib.claude.Path.home", return_value=temp_home):
+    with patch("life.api.chat.Path.home", return_value=temp_home):
         claude_path = temp_home / ".claude" / "CLAUDE.md"
         original = "# Original"
         claude_path.parent.mkdir(parents=True, exist_ok=True)
@@ -66,7 +66,7 @@ def test_ephemeral_claude_md_restores_original(temp_home, tmp_life_dir):
 
 def test_ephemeral_claude_md_deletes_if_no_original(temp_home, tmp_life_dir):
     """_ephemeral_claude_md deletes CLAUDE.md if none existed before."""
-    with patch("life.lib.claude.Path.home", return_value=temp_home):
+    with patch("life.api.chat.Path.home", return_value=temp_home):
         claude_path = temp_home / ".claude" / "CLAUDE.md"
         assert not claude_path.exists()
 
@@ -78,7 +78,7 @@ def test_ephemeral_claude_md_deletes_if_no_original(temp_home, tmp_life_dir):
 
 def test_ephemeral_claude_md_restores_on_error(temp_home, tmp_life_dir):
     """_ephemeral_claude_md restores original even if context raises error."""
-    with patch("life.lib.claude.Path.home", return_value=temp_home):
+    with patch("life.api.chat.Path.home", return_value=temp_home):
         claude_path = temp_home / ".claude" / "CLAUDE.md"
         original = "# Original"
         claude_path.parent.mkdir(parents=True, exist_ok=True)
@@ -101,11 +101,11 @@ def test_format_output_includes_persona_header(tmp_life_dir):
 def test_invoke_calls_all_steps(temp_home, tmp_life_dir):
     """invoke orchestrates prompt → file setup → subprocess → output."""
     with (
-        patch("life.lib.claude.Path.home", return_value=temp_home),
-        patch("life.lib.claude.subprocess.run") as mock_run,
-        patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="formatted"),
-        patch("life.lib.claude.sys.stdout.write") as mock_write,
+        patch("life.api.chat.Path.home", return_value=temp_home),
+        patch("life.api.chat.subprocess.run") as mock_run,
+        patch("life.api.chat.Spinner"),
+        patch("life.api.chat.md_to_ansi", return_value="formatted"),
+        patch("life.api.chat.sys.stdout.write") as mock_write,
     ):
         mock_run.return_value = MagicMock(stdout="claude output")
 
@@ -119,11 +119,11 @@ def test_invoke_calls_all_steps(temp_home, tmp_life_dir):
 def test_invoke_default_persona_is_roast(temp_home, tmp_life_dir):
     """invoke defaults to roast persona."""
     with (
-        patch("life.lib.claude.Path.home", return_value=temp_home),
-        patch("life.lib.claude.subprocess.run") as mock_run,
-        patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="output"),
-        patch("life.lib.claude.sys.stdout.write"),
+        patch("life.api.chat.Path.home", return_value=temp_home),
+        patch("life.api.chat.subprocess.run") as mock_run,
+        patch("life.api.chat.Spinner"),
+        patch("life.api.chat.md_to_ansi", return_value="output"),
+        patch("life.api.chat.sys.stdout.write"),
     ):
         mock_run.return_value = MagicMock(stdout="test")
 

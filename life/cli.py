@@ -2,6 +2,7 @@ import typer
 
 from . import db
 from .api import weekly_momentum
+from .api.chat import invoke
 from .api.dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .api.dates import add_date, list_dates, remove_date
 from .api.habits import (
@@ -23,7 +24,6 @@ from .config import (
 )
 from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
-from .lib.claude import invoke
 from .lib.clock import today
 from .lib.format import format_habit, format_status, format_task
 from .lib.fuzzy import find_item, find_task
@@ -42,7 +42,7 @@ app = typer.Typer(
 def _dashboard(ctx: typer.Context):
     """Ephemeral life agent"""
     if ctx.invoked_subcommand is None:
-        items = get_pending_items()
+        items = get_pending_items() + get_habits()
         life_context = get_context()
         life_profile = get_profile()
         today_items = get_today_completed()
