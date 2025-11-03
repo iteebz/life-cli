@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from life.lib.claude import invoke
+from life.lib.claude import _build_prompt, _ephemeral_claude_md, _format_output, invoke
 
 
 @pytest.fixture
@@ -16,141 +16,114 @@ def temp_home():
         yield Path(tmpdir)
 
 
-def test_invoke_creates_ephemeral_claude_md(temp_home, tmp_life_dir):
-    """Invoke creates temporary CLAUDE.md with persona content during execution."""
-    with (
-        patch("life.lib.claude.Path.home", return_value=temp_home),
-        patch("life.lib.claude.subprocess.run") as mock_run,
-        patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="output"),
-    ):
+def test_build_prompt_includes_persona_and_message(tmp_life_dir):
+    """_build_prompt constructs prompt with persona instructions and user message."""
+    with patch("life.lib.claude.get_profile", return_value=""):
+        prompt = _build_prompt("test message", persona="roast")
+        assert "[ROASTER IDENTITY]" in prompt
+        assert "test message" in prompt
+        assert "USER MESSAGE:" in prompt
 
-        def check_claude_md_exists(*args, **kwargs):
+
+def test_build_prompt_includes_profile_when_set(tmp_life_dir):
+    """_build_prompt includes profile section when profile is set."""
+    with patch("life.lib.claude.get_profile", return_value="ADHD, works late"):
+        prompt = _build_prompt("test", persona="pepper")
+        assert "PROFILE:" in prompt
+        assert "ADHD, works late" in prompt
+
+
+def test_build_prompt_skips_profile_when_empty(tmp_life_dir):
+    """_build_prompt skips profile section when profile is empty."""
+    with patch("life.lib.claude.get_profile", return_value=""):
+        prompt = _build_prompt("test", persona="kim")
+        assert "PROFILE:" not in prompt
+
+
+def test_ephemeral_claude_md_creates_file(temp_home, tmp_life_dir):
+    """_ephemeral_claude_md context manager creates CLAUDE.md with persona."""
+    with patch("life.lib.claude.Path.home", return_value=temp_home):
+        with _ephemeral_claude_md("roast"):
             claude_path = temp_home / ".claude" / "CLAUDE.md"
-            assert claude_path.exists(), "CLAUDE.md should exist during subprocess call"
-            return MagicMock(stdout="test")
-
-        mock_run.side_effect = check_claude_md_exists
-
-        invoke("test message", persona="roast")
+            assert claude_path.exists()
+            content = claude_path.read_text()
+            assert "[ROASTER IDENTITY]" in content
 
 
-def test_invoke_restores_original_claude_md(temp_home, tmp_life_dir):
-    """Invoke restores original CLAUDE.md after execution."""
-    with (
-        patch("life.lib.claude.Path.home", return_value=temp_home),
-        patch("life.lib.claude.subprocess.run") as mock_run,
-        patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="output"),
-    ):
-        mock_run.return_value = MagicMock(stdout="test")
-
-        claude_path = temp_home / ".claude" / "CLAUDE.md"
-        original = "# Original Zealot"
-        claude_path.parent.mkdir(parents=True, exist_ok=True)
-        claude_path.write_text(original)
-
-        invoke("test message", persona="pepper")
-
-        assert claude_path.read_text() == original
-
-
-def test_invoke_restores_original_when_subprocess_fails(temp_home, tmp_life_dir):
-    """Invoke restores CLAUDE.md even if subprocess fails."""
-    with (
-        patch("life.lib.claude.Path.home", return_value=temp_home),
-        patch("life.lib.claude.subprocess.run") as mock_run,
-        patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="output"),
-    ):
-        mock_run.side_effect = RuntimeError("subprocess failed")
-
+def test_ephemeral_claude_md_restores_original(temp_home, tmp_life_dir):
+    """_ephemeral_claude_md restores original CLAUDE.md on exit."""
+    with patch("life.lib.claude.Path.home", return_value=temp_home):
         claude_path = temp_home / ".claude" / "CLAUDE.md"
         original = "# Original"
         claude_path.parent.mkdir(parents=True, exist_ok=True)
         claude_path.write_text(original)
 
-        with pytest.raises(RuntimeError):
-            invoke("test message", persona="kim")
+        with _ephemeral_claude_md("pepper"):
+            assert "[PEPPER IDENTITY]" in claude_path.read_text()
 
         assert claude_path.read_text() == original
 
 
-def test_invoke_deletes_ephemeral_if_no_original(temp_home, tmp_life_dir):
-    """Invoke removes CLAUDE.md if none existed before."""
-    with (
-        patch("life.lib.claude.Path.home", return_value=temp_home),
-        patch("life.lib.claude.subprocess.run") as mock_run,
-        patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="output"),
-    ):
-        mock_run.return_value = MagicMock(stdout="test")
-
+def test_ephemeral_claude_md_deletes_if_no_original(temp_home, tmp_life_dir):
+    """_ephemeral_claude_md deletes CLAUDE.md if none existed before."""
+    with patch("life.lib.claude.Path.home", return_value=temp_home):
         claude_path = temp_home / ".claude" / "CLAUDE.md"
         assert not claude_path.exists()
 
-        invoke("test message", persona="roast")
+        with _ephemeral_claude_md("kim"):
+            assert claude_path.exists()
 
         assert not claude_path.exists()
 
 
-def test_invoke_writes_persona_instructions(temp_home, tmp_life_dir):
-    """Invoke writes persona instructions to CLAUDE.md during execution."""
-    captured_content = None
-
-    def capture_claude_md(*args, **kwargs):
-        nonlocal captured_content
+def test_ephemeral_claude_md_restores_on_error(temp_home, tmp_life_dir):
+    """_ephemeral_claude_md restores original even if context raises error."""
+    with patch("life.lib.claude.Path.home", return_value=temp_home):
         claude_path = temp_home / ".claude" / "CLAUDE.md"
-        captured_content = claude_path.read_text()
-        return MagicMock(stdout="test")
+        original = "# Original"
+        claude_path.parent.mkdir(parents=True, exist_ok=True)
+        claude_path.write_text(original)
 
+        with pytest.raises(ValueError):
+            with _ephemeral_claude_md("roast"):
+                raise ValueError("test error")
+
+        assert claude_path.read_text() == original
+
+
+def test_format_output_includes_persona_header(tmp_life_dir):
+    """_format_output includes persona header in output."""
+    output = _format_output("response text", persona="roast")
+    assert "[roast]" in output
+    assert "response text" in output
+
+
+def test_invoke_calls_all_steps(temp_home, tmp_life_dir):
+    """invoke orchestrates prompt → file setup → subprocess → output."""
     with (
         patch("life.lib.claude.Path.home", return_value=temp_home),
         patch("life.lib.claude.subprocess.run") as mock_run,
         patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="output"),
+        patch("life.lib.claude.md_to_ansi", return_value="formatted"),
+        patch("life.lib.claude.sys.stdout.write") as mock_write,
     ):
-        mock_run.side_effect = capture_claude_md
-
-        invoke("test message", persona="pepper")
-
-        assert captured_content is not None
-        assert "[PEPPER IDENTITY]" in captured_content
-        assert "optimistic realist" in captured_content.lower()
-
-
-def test_invoke_passes_task_prompt_to_claude(temp_home, tmp_life_dir):
-    """Invoke passes task prompt (not CLAUDE.md) to Claude subprocess."""
-    with (
-        patch("life.lib.claude.Path.home", return_value=temp_home),
-        patch("life.lib.claude.subprocess.run") as mock_run,
-        patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="output"),
-    ):
-        mock_run.return_value = MagicMock(stdout="test")
+        mock_run.return_value = MagicMock(stdout="claude output")
 
         invoke("test message", persona="roast")
 
         mock_run.assert_called_once()
-        call_args = mock_run.call_args[0][0]
-
-        assert "claude" in call_args
-        assert "--model" in call_args
-        assert "claude-haiku-4-5" in call_args
-        assert "-p" in call_args
-
-        prompt_idx = call_args.index("-p") + 1
-        prompt = call_args[prompt_idx]
-        assert "[ROASTER IDENTITY]" in prompt
+        mock_write.assert_called_once()
+        assert "[roast]" in mock_write.call_args[0][0]
 
 
 def test_invoke_default_persona_is_roast(temp_home, tmp_life_dir):
-    """Invoke defaults to roast persona."""
+    """invoke defaults to roast persona."""
     with (
         patch("life.lib.claude.Path.home", return_value=temp_home),
         patch("life.lib.claude.subprocess.run") as mock_run,
         patch("life.lib.claude.Spinner"),
         patch("life.lib.claude.md_to_ansi", return_value="output"),
+        patch("life.lib.claude.sys.stdout.write"),
     ):
         mock_run.return_value = MagicMock(stdout="test")
 
@@ -160,21 +133,3 @@ def test_invoke_default_persona_is_roast(temp_home, tmp_life_dir):
         prompt_idx = call_args.index("-p") + 1
         prompt = call_args[prompt_idx]
         assert "[ROASTER IDENTITY]" in prompt
-
-
-def test_invoke_creates_parent_directories(temp_home, tmp_life_dir):
-    """Invoke creates .claude directory if needed."""
-    with (
-        patch("life.lib.claude.Path.home", return_value=temp_home),
-        patch("life.lib.claude.subprocess.run") as mock_run,
-        patch("life.lib.claude.Spinner"),
-        patch("life.lib.claude.md_to_ansi", return_value="output"),
-    ):
-        mock_run.return_value = MagicMock(stdout="test")
-
-        temp_home / ".claude" / "CLAUDE.md"
-        assert not (temp_home / ".claude").exists()
-
-        invoke("test message", persona="pepper")
-
-        assert (temp_home / ".claude").exists()

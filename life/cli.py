@@ -2,8 +2,8 @@ import typer
 
 from . import db
 from .api import weekly_momentum
-from .api.dates import handle_dates
 from .api.dashboard import get_pending_items, get_today_breakdown, get_today_completed
+from .api.dates import add_date, list_dates, remove_date
 from .api.habits import (
     add_habit,
     delete_habit,
@@ -175,7 +175,9 @@ def due(
         typer.echo(format_status("□", task.content))
     elif date_str:
         update_task(task.id, due=date_str)
-        typer.echo(format_status(f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content))
+        typer.echo(
+            format_status(f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content)
+        )
     else:
         typer.echo(
             "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
@@ -207,7 +209,7 @@ def rename(
         typer.echo(f"Error: Cannot rename '{item_to_rename.content}' to itself.")
         raise typer.Exit(code=1)
 
-    if hasattr(item_to_rename, 'focus'):
+    if hasattr(item_to_rename, "focus"):
         update_task(item_to_rename.id, content=to_content)
     else:
         update_habit(item_to_rename.id, content=to_content)
@@ -276,7 +278,33 @@ def dates(
     emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for date"),  # noqa: B008
 ):
     """Add, remove, or list dates to track"""
-    handle_dates(action, name, date_str, emoji)
+    if not action:
+        dates_list = list_dates()
+        if dates_list:
+            for d in dates_list:
+                typer.echo(f"{d.get('emoji', '📌')} {d['name']} - {d['date']}")
+        else:
+            typer.echo("No dates set")
+        return
+
+    if action == "add":
+        if not name or not date_str:
+            typer.echo("Error: add requires name and date (YYYY-MM-DD)", err=True)
+            raise typer.Exit(1)
+        add_date(name, date_str, emoji)
+        typer.echo(f"Added date: {emoji} {name} on {date_str}")
+    elif action == "remove":
+        if not name:
+            typer.echo("Error: remove requires a date name", err=True)
+            raise typer.Exit(1)
+        remove_date(name)
+        typer.echo(f"Removed date: {name}")
+    else:
+        typer.echo(
+            f"Error: unknown action '{action}'. Use 'add', 'remove', or no argument to list.",
+            err=True,
+        )
+        raise typer.Exit(1)
 
 
 @app.command()

@@ -1,6 +1,5 @@
 from datetime import date, datetime
 
-from models import Habit, Task
 from life.lib.converters import (
     _hydrate_tags,
     _parse_date,
@@ -9,6 +8,7 @@ from life.lib.converters import (
     _row_to_habit,
     _row_to_task,
 )
+from models import Habit, Task
 
 
 def test_parse_date_from_iso_string():

@@ -1,10 +1,11 @@
 import sqlite3
 import uuid
 
+from models import Task
+
 from .. import db
 from ..lib import clock
 from ..lib.converters import _row_to_task
-from models import Task
 from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
 

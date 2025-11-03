@@ -2,9 +2,10 @@ import contextlib
 import sqlite3
 from collections import defaultdict
 
+from models import Habit, Task
+
 from .. import db
 from ..lib.converters import _hydrate_tags, _row_to_habit, _row_to_task
-from models import Habit, Task
 
 
 def add_tag(task_id: str | None, habit_id: str | None, tag: str, conn=None) -> None:

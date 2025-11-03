@@ -12,97 +12,99 @@ This is the [CLI Context Injection Pattern](https://github.com/teebz/canon/blob/
 
 ```
 life/
-├── api/                      # Domain contracts + persistence
-│   ├── __init__.py          # Explicit __all__ exports
-│   ├── item.py              # Item CRUD (tasks, habits)
-│   ├── repeat.py            # Repeat logic (habits auto-reset)
-│   └── tag.py               # Tag management
-├── ops/                      # Orchestration (user workflows)
-│   ├── __init__.py          # Explicit __all__ exports
-│   ├── items.py             # Item mutations (complete, uncomplete, toggle, rename, tag)
-│   ├── tasks.py             # Task creation (add_task, add_habit, done_item)
-│   ├── backup.py            # Database backup/restore
-│   └── personas/            # Ephemeral agent behavioral constitutions
-│       ├── __init__.py
-│       ├── base.py          # Shared instruction structure
-│       ├── kim.py           # Methodical analyst persona
-│       ├── pepper.py        # Optimistic catalyst persona
-│       ├── roast.py         # Harsh accountability persona
-│       └── prompts.py       # System prompts for Claude API
-├── cli/                      # Typer commands (UI layer)
-│   ├── __init__.py          # app definition + register_commands + main
-│   ├── backup.py            # `life backup`
-│   ├── chat.py              # `life chat` (direct Claude invocation)
-│   ├── context.py           # `life context`
-│   ├── countdown.py         # `life countdown`
-│   ├── done.py              # `life done`
-│   ├── due.py               # `life due`
-│   ├── focus.py             # `life focus`
-│   ├── habit.py             # `life habit`
-│   ├── personas.py          # `life personas`
-│   ├── profile.py           # `life profile`
-│   ├── rename.py            # `life rename`
-│   ├── rm.py                # `life rm`
-│   ├── tag.py               # `life tag`
-│   └── task.py              # `life task`
-├── lib/                      # Utilities (db, formatting, parsing)
+├── api/                      # Domain logic + data access
 │   ├── __init__.py
-│   ├── ansi.py              # ANSI color/styling constants
+│   ├── dashboard.py         # Dashboard data aggregation
+│   ├── dates.py             # Date CRUD (pure, no I/O)
+│   ├── habits.py            # Habit CRUD + checks
+│   ├── momentum.py          # Weekly momentum calculations
+│   ├── personas.py          # Persona selection + prompt building
+│   ├── tags.py              # Tag operations
+│   ├── tasks.py             # Task CRUD
+│   └── utils.py             # Internal utilities
+├── cli.py                    # Typer commands (presentation layer)
+│   ├── callbacks            # Default dashboard view
+│   ├── task                 # `life task`
+│   ├── habit                # `life habit`
+│   ├── done                 # `life done`
+│   ├── rm                   # `life rm`
+│   ├── focus                # `life focus`
+│   ├── due                  # `life due`
+│   ├── rename               # `life rename`
+│   ├── tag                  # `life tag`
+│   ├── habits               # `life habits`
+│   ├── profile              # `life profile`
+│   ├── context              # `life context`
+│   ├── dates                # `life dates` (add, remove, list)
+│   ├── backup               # `life backup`
+│   ├── personas             # `life personas`
+│   ├── chat                 # `life chat`
+│   └── list                 # `life list`
+├── lib/                      # Utilities (db, format, parse, render)
+│   ├── __init__.py
+│   ├── ansi.py              # ANSI color/styling
+│   ├── backup.py            # Database backup/restore
 │   ├── claude.py            # Claude API client
-│   ├── format.py            # Date/time formatting
-│   ├── match.py             # Fuzzy item matching
+│   ├── clock.py             # Date/time utilities
+│   ├── converters.py        # Row-to-object conversions
+│   ├── dates.py             # Date parsing
+│   ├── errors.py            # Custom exceptions
+│   ├── format.py            # Task/habit formatting for CLI
+│   ├── fuzzy.py             # Fuzzy item matching
+│   ├── parsing.py           # Argument parsing
 │   ├── render.py            # Dashboard + list rendering
-│   ├── spinner.py           # Loading indicator
-│   ├── sqlite.py            # SQLite utilities
-│   └── store.py             # Database operations (lower-level SQL)
-├── config.py                # Profile + context retrieval
-├── db.py                    # Schema registration
+│   └── spinner.py           # Loading indicator
+├── personas/                 # Persona behavioral constitutions
+│   ├── __init__.py
+│   ├── base.py              # Shared instruction structure
+│   ├── kim.py               # Methodical analyst persona
+│   ├── pepper.py            # Optimistic catalyst persona
+│   └── roast.py             # Harsh accountability persona
+├── migrations/              # Database schema migrations
+│   └── 001_foundation.sql
+├── config.py                # Config singleton (profile, context, dates)
+├── db.py                    # Schema registration + connection pool
 └── __init__.py              # Empty
 ```
 
 ## Layers
 
-**api/** - Domain contracts + database access
-- Pure business logic
-- Owns all DB interactions via `lib/store.py`
-- Returns domain objects (tuples, dicts from queries)
+**api/** - Domain logic + data access
+- Pure business logic, no I/O or presentation concerns
+- Functions return data (dicts, lists, objects), not formatted strings
 - Raises ValueError on errors
-- Example: `add_item(content, focus=False, due=None, tags=None) → str (item_id)`
+- Owns all DB interactions
+- Examples:
+  - `add_task(content, focus=False, due=None, tags=None) → str (task_id)`
+  - `list_dates() → list[dict]`
+  - `get_persona_instructions(name: str) → str`
 
-**ops/** - Orchestration (what users do)
-- Calls api/ functions, never DB directly
-- Composes workflows (e.g., `done_item` → `find_item` → `complete_item`)
-- Fuzzy matching, user-intent validation
-- Handles formatting for CLI output
-- Example: `add_task(content, focus=False, due=None, done=False, tags=None) → str (message)`
-- Example: `done_item(partial_match, undo=False) → str (message)`
+**cli.py** - Typer command handlers (presentation layer)
+- One function per command (task, habit, done, etc.)
+- Calls api/ functions to get data
+- Handles all typer decorators, argument parsing, options
+- Responsible for formatting output and error messages
+- Catches api/ exceptions and translates to user-friendly output
+- Example: `dates()` command calls `list_dates()`, formats output, echoes
 
-**ops/personas/** - Ephemeral agent behavioral rules
-- Persona constitutions (roast, pepper, kim)
-- System prompts for Claude API integration
-- Base guidance for all personas
-- No logic leakage; pure instruction format
-
-**cli/** - Typer commands (presentation)
-- Thin wrappers calling ops/ (which call api/)
-- Handles typer decorators, args, options
-- CLI formatting and error output
-- Pattern: One file per command (15 commands = 15 files)
-- `ls cli/` reveals entire API surface
-- Example: `cli/task.py` with `@app.command("task")` → calls `ops.add_task()`
+**personas/** - Ephemeral agent behavioral constitutions
+- Pure instruction text for Claude API
+- Roast, pepper, kim behavioral rules (no logic)
+- Built by `api/personas.py` via `_build_persona_prompt()`
 
 **lib/** - Shared utilities
-- `store.py`: Low-level SQL operations (INSERT, SELECT, UPDATE, DELETE)
-- `render.py`: Dashboard, list, item rendering
-- `match.py`: Fuzzy item matching
-- `claude.py`: Claude API client for persona spawning
-- `ansi.py`, `format.py`, `spinner.py`, `sqlite.py`: Pure helpers
+- `render.py`: Dashboard, list rendering
+- `format.py`: Task/habit CLI formatting (symbols, dates, tags)
+- `fuzzy.py`: Fuzzy item matching
+- `claude.py`: Claude API client
+- `clock.py`, `ansi.py`, `converters.py`, `parsing.py`: Pure helpers
 - Zero domain logic
 
-**config.py** - Profile and context persistence
-- Read/write profile (ADHD traits, response patterns, constraints)
-- Read/write context (current deadlines, blockers, state)
-- Used by dashboard + persona system
+**config.py** - Config singleton
+- Single-instance Config class (load once, cache in memory)
+- Provides `.get(key)` and `.set(key, value)` methods
+- Module-level API for backwards compatibility
+- Used by dashboard, personas, and CLI for profile/context/dates
 
 ## Key Patterns
 

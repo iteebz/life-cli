@@ -3,9 +3,10 @@ import sqlite3
 import uuid
 from datetime import date, datetime
 
+from models import Habit
+
 from .. import db
 from ..lib import clock
-from models import Habit
 from .tags import load_tags_for_habits
 
 

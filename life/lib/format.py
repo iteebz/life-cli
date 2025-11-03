@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 
 from . import clock
 from .ansi import ANSI
@@ -53,7 +53,9 @@ def format_task(task, tags: list[str] | None = None, show_id: bool = False) -> s
     return " ".join(parts)
 
 
-def format_habit(habit, checked: bool = False, tags: list[str] | None = None, show_id: bool = False) -> str:
+def format_habit(
+    habit, checked: bool = False, tags: list[str] | None = None, show_id: bool = False
+) -> str:
     """Format a habit for display. Returns: [✓|□] content [#tags] [id]"""
     parts = []
 

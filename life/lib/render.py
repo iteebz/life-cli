@@ -1,7 +1,8 @@
 from datetime import date, timedelta
 
-from ..api.habits import get_checks, get_habits
 from models import Habit, Task
+
+from ..api.habits import get_checks, get_habits
 from ..api.tags import get_tags_for_habit, get_tags_for_task
 from ..api.tasks import _task_sort_key
 from ..config import get_dates

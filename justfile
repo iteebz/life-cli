@@ -34,8 +34,5 @@ fix:
 build:
     @poetry build
 
-repomix:
-    repomix
-
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"

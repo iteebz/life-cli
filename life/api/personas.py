@@ -92,25 +92,50 @@ def _build_persona_prompt(persona_name: str) -> str:
     return "\n\n".join(sections)
 
 
-def manage_personas(name=None, set_default=False, show_prompt=False):
-    """Show personas, view/set one, or show full prompt. Returns message string."""
-    if not name:
-        return _list_personas()
+def list_personas() -> str:
+    """Display all available personas with descriptions and default marker."""
+    return _list_personas()
 
+
+def get_persona_instructions(name: str) -> str:
+    """Get full persona instructions (the raw prompt)."""
     resolved_name = _resolve_persona_alias(name)
+    return get_persona(resolved_name)
+
+
+def set_persona_default(name: str) -> None:
+    """Set persona as default."""
+    resolved_name = _resolve_persona_alias(name)
+    set_default_persona_name(resolved_name)
+
+
+def get_full_persona_prompt(name: str) -> str:
+    """Get full persona prompt with current life context."""
+    resolved_name = _resolve_persona_alias(name)
+    return _build_persona_prompt(resolved_name)
+
+
+def manage_personas(name=None, set_default=False, show_prompt=False):
+    """Legacy dispatcher for backwards compatibility. Use specific functions instead."""
+    if not name:
+        return list_personas()
 
     if set_default:
-        set_default_persona_name(resolved_name)
-        return f"Default persona set to: {resolved_name}"
+        set_persona_default(name)
+        return f"Default persona set to: {_resolve_persona_alias(name)}"
 
     if show_prompt:
-        return _build_persona_prompt(resolved_name)
+        return get_full_persona_prompt(name)
 
-    return get_persona(resolved_name)
+    return get_persona_instructions(name)
 
 
 __all__ = [
     "get_persona",
+    "list_personas",
+    "get_persona_instructions",
+    "set_persona_default",
+    "get_full_persona_prompt",
     "manage_personas",
     "get_default_persona_name",
 ]
