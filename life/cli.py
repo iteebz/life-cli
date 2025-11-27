@@ -26,7 +26,7 @@ from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
 from .lib.clock import today
 from .lib.format import format_habit, format_status, format_task
-from .lib.fuzzy import find_item, find_task
+from .lib.fuzzy import find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list
 
@@ -226,9 +226,12 @@ def tag(
     item_partial = " ".join(args) if args else ""
     task, habit = find_item(item_partial)
 
+    # If no pending task/habit match, allow tagging completed tasks as well.
     if not task and not habit:
-        typer.echo(f"No match for: {item_partial}")
-        raise typer.Exit(1)
+        task = find_task_any(item_partial)
+        if not task:
+            typer.echo(f"No match for: {item_partial}")
+            raise typer.Exit(1)
 
     if task:
         if remove:

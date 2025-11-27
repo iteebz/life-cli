@@ -68,6 +68,20 @@ def get_tasks() -> list[Task]:
     return sorted(result, key=_task_sort_key)
 
 
+def get_all_tasks() -> list[Task]:
+    """SELECT all tasks (including completed), sorted by canonical key."""
+    with db.get_db() as conn:
+        cursor = conn.execute(
+            "SELECT id, content, focus, due_date, created, completed FROM tasks"
+        )
+        tasks = [_row_to_task(row) for row in cursor.fetchall()]
+        task_ids = [t.id for t in tasks]
+        tags_map = load_tags_for_tasks(task_ids, conn=conn)
+        result = hydrate_tags(tasks, tags_map)
+
+    return sorted(result, key=_task_sort_key)
+
+
 def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed IS NULL."""
     with db.get_db() as conn:

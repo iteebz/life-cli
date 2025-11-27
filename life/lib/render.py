@@ -74,21 +74,25 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
     current_time = now.strftime("%H:%M")
 
     lines = []
-    if profile:
-        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}PROFILE:{ANSI.RESET}")
-        lines.append(f"{profile}")
-    if context:
-        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}CONTEXT:{ANSI.RESET}")
-        lines.append(f"{context}")
     lines.append(f"\nToday: {today} {current_time}")
     dates_list = get_dates()
     if dates_list:
-        upcoming = sorted(dates_list, key=lambda x: x["date"])
-        next_date = upcoming[0]
-        days = (date.fromisoformat(next_date["date"]) - today).days
-        emoji = next_date.get("emoji", "📌")
-        name = next_date.get("name", "event")
-        lines.append(f"{emoji} {days} days until {name}!")
+        upcoming = sorted(
+            [d for d in dates_list if date.fromisoformat(d["date"]) >= today],
+            key=lambda x: x["date"],
+        )
+        if upcoming:
+            next_date = upcoming[0]
+            days = (date.fromisoformat(next_date["date"]) - today).days
+            emoji = next_date.get("emoji", "📌")
+            name = next_date.get("name", "event")
+            lines.append(f"{emoji} {days} days until {name}!")
+    if context:
+        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}CONTEXT:{ANSI.RESET}")
+        lines.append(f"{context}")
+    if profile:
+        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}PROFILE:{ANSI.RESET}")
+        lines.append(f"{profile}")
 
     lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}MOMENTUM:{ANSI.RESET}")
     for week_name in ["this_week", "last_week", "prior_week"]:
@@ -181,7 +185,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             items_by_tag = sort_items(tagged_regular[tag])
             tag_color = ANSI.POOL[idx % len(ANSI.POOL)]
             lines.append(
-                f"\n{ANSI.BOLD}{tag_color}#{tag.upper()} ({len(items_by_tag)}):{ANSI.RESET}"
+                f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(items_by_tag)}):{ANSI.RESET}"
             )
             for task in items_by_tag:
                 due_str = format_due(task.due_date) if task.due_date else ""
