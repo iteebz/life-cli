@@ -6,14 +6,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ..config import get_profile
-from ..lib.ansi import ANSI, PERSONA_COLORS, md_to_ansi
-from ..lib.spinner import Spinner
+from .config import get_profile
+from .lib.ansi import ANSI, PERSONA_COLORS, md_to_ansi
+from .lib.spinner import Spinner
 
 
 def _build_prompt(message: str, persona: str) -> str:
     """Construct task prompt with persona instructions and user message."""
-    from ..api.personas import get_persona
+    from .personas import get_persona
 
     persona_instructions = get_persona(persona)
     profile = get_profile()
@@ -37,7 +37,7 @@ def _ephemeral_claude_md(persona: str):
 
     Creates persona constitution file, restores or deletes on exit.
     """
-    from ..api.personas import get_persona
+    from .personas import get_persona
 
     claude_path = Path.home() / ".claude" / "CLAUDE.md"
     original_content = claude_path.read_text() if claude_path.exists() else ""

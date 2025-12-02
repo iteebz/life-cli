@@ -3,9 +3,9 @@ import uuid
 
 from models import Task
 
-from .. import db
-from ..lib import clock
-from ..lib.converters import _row_to_task
+from . import db
+from .lib import clock
+from .lib.converters import _row_to_task
 from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
 
@@ -71,9 +71,7 @@ def get_tasks() -> list[Task]:
 def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
-        cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed FROM tasks"
-        )
+        cursor = conn.execute("SELECT id, content, focus, due_date, created, completed FROM tasks")
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)

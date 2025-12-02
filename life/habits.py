@@ -5,8 +5,8 @@ from datetime import date, datetime
 
 from models import Habit
 
-from .. import db
-from ..lib import clock
+from . import db
+from .lib import clock
 from .tags import load_tags_for_habits
 
 

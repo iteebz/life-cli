@@ -1,6 +1,6 @@
 import pytest
 
-from life.api.personas import (
+from life.personas import (
     get_default_persona_name,
     get_persona,
     manage_personas,

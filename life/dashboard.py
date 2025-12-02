@@ -1,9 +1,9 @@
 from models import Habit, Task
 
-from .. import db
-from ..lib import clock
-from ..lib.converters import _row_to_task
+from . import db
 from .habits import get_checks, get_habit
+from .lib import clock
+from .lib.converters import _row_to_task
 from .tags import hydrate_tags, load_tags_for_tasks
 from .tasks import _task_sort_key
 

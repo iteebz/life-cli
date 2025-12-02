@@ -1,11 +1,15 @@
 import typer
 
 from . import db
-from .api import weekly_momentum
-from .api.chat import invoke
-from .api.dashboard import get_pending_items, get_today_breakdown, get_today_completed
-from .api.dates import add_date, list_dates, remove_date
-from .api.habits import (
+from .chat import invoke
+from .config import (
+    get_context,
+    get_profile,
+    set_context,
+    set_profile,
+)
+from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
+from .habits import (
     add_habit,
     delete_habit,
     get_checks,
@@ -13,22 +17,18 @@ from .api.habits import (
     toggle_check,
     update_habit,
 )
-from .api.personas import get_default_persona_name, manage_personas
-from .api.tags import add_tag, remove_tag
-from .api.tasks import add_task, delete_task, get_tasks, toggle_completed, toggle_focus, update_task
-from .config import (
-    get_context,
-    get_profile,
-    set_context,
-    set_profile,
-)
 from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
 from .lib.clock import today
+from .lib.dates import add_date, list_dates, remove_date
 from .lib.format import format_habit, format_status, format_task
 from .lib.fuzzy import find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list
+from .momentum import weekly_momentum
+from .personas import get_default_persona_name, manage_personas
+from .tags import add_tag, remove_tag
+from .tasks import add_task, delete_task, get_tasks, toggle_completed, toggle_focus, update_task
 
 app = typer.Typer(
     name="life",

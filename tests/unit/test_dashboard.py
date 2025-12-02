@@ -1,12 +1,13 @@
 from datetime import timedelta
 
 from life import db
-from life.api import add_habit, add_task, toggle_check, toggle_completed
-from life.api.dashboard import (
+from life.dashboard import (
     get_pending_items,
     get_today_breakdown,
     get_today_completed,
 )
+from life.habits import add_habit, toggle_check
+from life.tasks import add_task, toggle_completed
 
 
 def test_pending_empty(tmp_life_dir):

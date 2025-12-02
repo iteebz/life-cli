@@ -1,4 +1,4 @@
-from life.api.tasks import (
+from life.tasks import (
     add_task,
     delete_task,
     get_focus,

@@ -3,8 +3,8 @@ from datetime import timedelta
 
 from models import Weekly
 
-from .. import db
-from ..lib import clock
+from . import db
+from .lib import clock
 
 
 def _calculate_total_possible(active_items_data, week_start_date, week_end_date):

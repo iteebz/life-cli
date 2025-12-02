@@ -1,12 +1,14 @@
-from life.api import add_tag, list_all_tags, remove_tag
-from life.api.habits import add_habit
-from life.api.tags import (
+from life.habits import add_habit
+from life.tags import (
+    add_tag,
     get_habits_by_tag,
     get_tags_for_habit,
     get_tags_for_task,
     get_tasks_by_tag,
+    list_all_tags,
+    remove_tag,
 )
-from life.api.tasks import add_task
+from life.tasks import add_task
 
 
 def test_add_tag_to_task(tmp_life_dir):

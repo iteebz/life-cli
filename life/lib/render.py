@@ -2,10 +2,10 @@ from datetime import date, timedelta
 
 from models import Habit, Task
 
-from ..api.habits import get_checks, get_habits
-from ..api.tags import get_tags_for_habit, get_tags_for_task
-from ..api.tasks import _task_sort_key
 from ..config import get_dates
+from ..habits import get_checks, get_habits
+from ..tags import get_tags_for_habit, get_tags_for_task
+from ..tasks import _task_sort_key
 from . import clock
 from .ansi import ANSI
 from .format import format_due, format_habit, format_task
