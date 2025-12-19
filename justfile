@@ -1,38 +1,41 @@
 default:
     @just --list
 
-clean:
-    @echo "Cleaning life..."
-    @rm -rf dist build .pytest_cache .ruff_cache __pycache__ .venv
-    @find . -type d -name "__pycache__" -exec rm -rf {} +
-
 install:
-    @poetry lock
-    @poetry install
+    @uv sync
 
 ci:
-    @poetry run ruff format .
-    @poetry run ruff check . --fix --unsafe-fixes
-    @python -m pytest tests -q
-    @poetry build
+    #!/bin/bash
+    if just _ci > .ci.log 2>&1; then
+        echo "CI passed"
+    else
+        cat .ci.log
+        exit 1
+    fi
 
-test:
-    @python -m pytest tests
-
-run:
-    @poetry run life
-
-format:
-    @poetry run ruff format .
+_ci:
+    #!/bin/bash
+    set -e
+    uv run ruff format .
+    uv run ruff check . --fix --unsafe-fixes
+    uv run ruff check .
+    uv run pytest tests -x -qq
 
 lint:
-    @poetry run ruff check .
+    @uv run ruff check .
+
+fmt:
+    @uv run ruff format .
 
 fix:
-    @poetry run ruff check . --fix --unsafe-fixes
+    @uv run ruff check . --fix --unsafe-fixes
 
-build:
-    @poetry build
+test:
+    @uv run pytest tests
+
+clean:
+    @rm -rf build/ dist/ *.egg-info .pytest_cache .ruff_cache __pycache__ .venv
+    @find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"
