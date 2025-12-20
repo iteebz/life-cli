@@ -1,7 +1,7 @@
-from models import Habit, Task
+from .models import Habit, Task
 
 from . import db
-from .habits import get_checks, get_habit
+from .habits import get_habit
 from .lib import clock
 from .lib.converters import _row_to_task
 from .tags import hydrate_tags, load_tags_for_tasks
@@ -39,7 +39,6 @@ def _get_checked_today() -> list[Habit]:
         habits = []
         for row in cursor.fetchall():
             habit_id = row[0]
-            get_checks(habit_id)
             habit = get_habit(habit_id)
             if habit:
                 habits.append(habit)

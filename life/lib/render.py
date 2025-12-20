@@ -1,10 +1,9 @@
 from datetime import date, timedelta
 
-from models import Habit, Task
+from ..models import Habit, Task
 
 from ..config import get_dates
 from ..habits import get_checks, get_habits
-from ..tags import get_tags_for_habit, get_tags_for_task
 from ..tasks import _task_sort_key
 from . import clock
 from .ansi import ANSI
@@ -59,7 +58,7 @@ def render_today_completed(today_items: list[Task | Habit]):
 
     for task in tasks_only:
         content = task.content
-        tags = get_tags_for_task(task.id)
+        tags = task.tags
         tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
         lines.append(f"  ✓ {content.lower()}{tags_str}")
 
@@ -146,14 +145,14 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
         for habit in incomplete_habits:
             content = habit.content
-            tags = get_tags_for_habit(habit.id)
+            tags = habit.tags
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
             trend_indicator = get_habit_trend(habit.id)
             lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}")
 
         for habit in completed_habits:
             content = habit.content
-            tags = get_tags_for_habit(habit.id)
+            tags = habit.tags
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
             trend_indicator = get_habit_trend(habit.id)
             lines.append(
@@ -169,7 +168,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
         untagged = []
 
         for task in regular_items:
-            tags = get_tags_for_task(task.id)
+            tags = task.tags
             if tags:
                 for tag in tags:
                     if tag not in tagged_regular:
@@ -189,7 +188,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             )
             for task in items_by_tag:
                 due_str = format_due(task.due_date) if task.due_date else ""
-                other_tags = [t for t in get_tags_for_task(task.id) if t != tag]
+                other_tags = [t for t in task.tags if t != tag]
                 tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
                 due_part = f"{due_str} " if due_str else ""
@@ -197,7 +196,9 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
         untagged_sorted = sort_items(untagged)
         if untagged_sorted:
-            lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
+            lines.append(
+                f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}"
+            )
             for task in untagged_sorted:
                 due_str = format_due(task.due_date) if task.due_date else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
@@ -215,11 +216,9 @@ def render_item_list(items: list[Task | Habit]):
     lines = []
     for item in items:
         if isinstance(item, Task):
-            tags = get_tags_for_task(item.id)
-            lines.append(format_task(item, tags=tags, show_id=True))
+            lines.append(format_task(item, tags=item.tags, show_id=True))
         else:
-            tags = get_tags_for_habit(item.id)
-            lines.append(format_habit(item, tags=tags, show_id=True))
+            lines.append(format_habit(item, tags=item.tags, show_id=True))
 
     return "\n".join(lines)
 
@@ -233,7 +232,7 @@ def render_focus_items(items: list[Task]):
     for task in items:
         due_str = format_due(task.due_date) if task.due_date else ""
         due_part = f"{due_str} " if due_str else ""
-        tags = get_tags_for_task(task.id)
+        tags = task.tags
         tags_str = " " + " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags) if tags else ""
         lines.append(f"  • {due_part}{task.content.lower()}{tags_str}")
 
@@ -264,7 +263,7 @@ def render_habit_matrix() -> str:
         habit_name = habit.content.lower()
         padded_habit_name = f"{habit_name:<15}"
 
-        check_dates = set(get_checks(habit.id))
+        check_dates = set(habit.checks)
 
         status_indicators = []
         for d in dates:
