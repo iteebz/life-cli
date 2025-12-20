@@ -1,7 +1,7 @@
 import datetime
 from datetime import timedelta
 
-from models import Weekly
+from .models import Weekly
 
 from . import db
 from .lib import clock

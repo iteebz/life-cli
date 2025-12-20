@@ -1,7 +1,7 @@
 import sqlite3
 import uuid
 
-from models import Task
+from .models import Task
 
 from . import db
 from .lib import clock

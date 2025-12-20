@@ -8,7 +8,7 @@ from life.lib.converters import (
     _row_to_habit,
     _row_to_task,
 )
-from models import Habit, Task
+from life.models import Habit, Task
 
 
 def test_parse_date_from_iso_string():

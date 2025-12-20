@@ -1,6 +1,6 @@
 from difflib import get_close_matches
 
-from models import Habit, Task
+from ..models import Habit, Task
 
 from ..habits import get_habits
 from ..tasks import get_all_tasks, get_tasks
