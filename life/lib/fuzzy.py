@@ -1,8 +1,7 @@
 from difflib import get_close_matches
 
-from ..models import Habit, Task
-
 from ..habits import get_habits
+from ..models import Habit, Task
 from ..tasks import get_all_tasks, get_tasks
 
 FUZZY_MATCH_CUTOFF = 0.8

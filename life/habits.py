@@ -1,15 +1,13 @@
 import contextlib
+import dataclasses
 import sqlite3
 import uuid
 from datetime import date, datetime
 
-import dataclasses
-
-from .models import Habit
-
 from . import db
 from .lib import clock
 from .lib.converters import _row_to_habit
+from .models import Habit
 from .tags import load_tags_for_habits
 
 

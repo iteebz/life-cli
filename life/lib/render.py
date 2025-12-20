@@ -1,9 +1,7 @@
 from datetime import date, timedelta
 
-from ..models import Habit, Task
-
 from ..config import get_dates
-from ..habits import get_checks, get_habits
+from ..models import Habit, Task
 from ..tasks import _task_sort_key
 from . import clock
 from .ansi import ANSI
@@ -21,10 +19,8 @@ def _get_trend(current: int, previous: int) -> str:
     return "→"
 
 
-def get_habit_trend(habit_id: str) -> str:
+def get_habit_trend(checks: list[date]) -> str:
     """Determine if a habit is trending up, down, or stable based on check counts."""
-    check_dates = get_checks(habit_id)
-
     today = clock.today()
 
     # Define two 7-day periods
@@ -34,8 +30,8 @@ def get_habit_trend(habit_id: str) -> str:
     period2_start = today - timedelta(days=13)
     period2_end = period1_start - timedelta(days=1)
 
-    check_count_p1 = sum(1 for d in check_dates if period1_start <= d <= today)
-    check_count_p2 = sum(1 for d in check_dates if period2_start <= d <= period2_end)
+    check_count_p1 = sum(1 for d in checks if period1_start <= d <= today)
+    check_count_p2 = sum(1 for d in checks if period2_start <= d <= period2_end)
 
     if check_count_p1 > check_count_p2:
         return "↗"
@@ -147,14 +143,14 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             content = habit.content
             tags = habit.tags
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-            trend_indicator = get_habit_trend(habit.id)
+            trend_indicator = get_habit_trend(habit.checks)
             lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}")
 
         for habit in completed_habits:
             content = habit.content
             tags = habit.tags
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-            trend_indicator = get_habit_trend(habit.id)
+            trend_indicator = get_habit_trend(habit.checks)
             lines.append(
                 f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{ANSI.RESET}"
             )
@@ -196,9 +192,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
         untagged_sorted = sort_items(untagged)
         if untagged_sorted:
-            lines.append(
-                f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}"
-            )
+            lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
             for task in untagged_sorted:
                 due_str = format_due(task.due_date) if task.due_date else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
@@ -239,14 +233,12 @@ def render_focus_items(items: list[Task]):
     return "\n".join(lines)
 
 
-def render_habit_matrix() -> str:
+def render_habit_matrix(habits: list[Habit]) -> str:
     """Render a matrix of habits and their check-off status for the last 7 days."""
     lines = []
     lines.append("HABIT TRACKER (last 7 days)\n")
 
-    habit_matrix = get_habits()
-
-    if not habit_matrix:
+    if not habits:
         return "No habits found."
 
     today = clock.today()
@@ -257,7 +249,7 @@ def render_habit_matrix() -> str:
     lines.append(header)
     lines.append("-" * len(header))
 
-    sorted_habits = sorted(habit_matrix, key=lambda x: x.content.lower())
+    sorted_habits = sorted(habits, key=lambda x: x.content.lower())
 
     for habit in sorted_habits:
         habit_name = habit.content.lower()

@@ -252,7 +252,7 @@ def tag(
 @app.command()
 def habits():
     """Show all habits and their checked off list for the last 7 days."""
-    typer.echo(render_habit_matrix())
+    typer.echo(render_habit_matrix(get_habits()))
 
 
 @app.command()
