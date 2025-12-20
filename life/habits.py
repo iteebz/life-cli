@@ -3,26 +3,19 @@ import sqlite3
 import uuid
 from datetime import date, datetime
 
-from models import Habit
+import dataclasses
+
+from .models import Habit
 
 from . import db
 from .lib import clock
+from .lib.converters import _row_to_habit
 from .tags import load_tags_for_habits
 
 
-def _row_to_habit(
-    row: tuple, checks: list[date] | None = None, tags: list[str] | None = None
-) -> Habit:
-    """Convert a database row to a Habit instance."""
-    habit_id, content, created_str = row
-    created = datetime.fromisoformat(created_str)
-    return Habit(
-        id=habit_id,
-        content=content,
-        created=created,
-        checks=checks or [],
-        tags=tags or [],
-    )
+def _hydrate_habit(habit: Habit, checks: list[date], tags: list[str]) -> Habit:
+    """Attach checks and tags to a habit."""
+    return dataclasses.replace(habit, checks=checks, tags=tags)
 
 
 def _get_habit_checks(conn, habit_id: str) -> list[date]:
@@ -76,9 +69,10 @@ def get_habit(habit_id: str) -> Habit | None:
         if not row:
             return None
 
+        habit = _row_to_habit(row)
         checks = _get_habit_checks(conn, habit_id)
         tags = _get_habit_tags(conn, habit_id)
-        return _row_to_habit(row, checks, tags)
+        return _hydrate_habit(habit, checks, tags)
 
 
 def update_habit(habit_id: str, content: str | None = None) -> Habit:
@@ -117,7 +111,8 @@ def get_habits(habit_ids: list[str] | None = None) -> list[Habit]:
                 habit_id = row[0]
                 checks = _get_habit_checks(conn, habit_id)
                 tags = tags_map.get(habit_id, [])
-                habits.append(_row_to_habit(row, checks, tags))
+                habit = _row_to_habit(row)
+                habits.append(_hydrate_habit(habit, checks, tags))
             return habits
 
     result = []
