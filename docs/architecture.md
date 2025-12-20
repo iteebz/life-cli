@@ -12,111 +12,74 @@ This is the [CLI Context Injection Pattern](https://github.com/teebz/canon/blob/
 
 ```
 life/
-├── api/                      # Domain logic + data access
+├── cli.py                    # Typer commands + output formatting
+├── chat.py                   # Persona invocation (Claude subprocess)
+├── dashboard.py              # Dashboard aggregation for CLI output
+├── tasks.py                  # Task CRUD
+├── habits.py                 # Habit CRUD + checks
+├── tags.py                   # Tag operations
+├── momentum.py               # Weekly momentum calculations
+├── personas/                 # Persona constitutions
 │   ├── __init__.py
-│   ├── dashboard.py         # Dashboard data aggregation
-│   ├── dates.py             # Date CRUD (pure, no I/O)
-│   ├── habits.py            # Habit CRUD + checks
-│   ├── momentum.py          # Weekly momentum calculations
-│   ├── personas.py          # Persona selection + prompt building
-│   ├── tags.py              # Tag operations
-│   ├── tasks.py             # Task CRUD
-│   └── utils.py             # Internal utilities
-├── cli.py                    # Typer commands (presentation layer)
-│   ├── callbacks            # Default dashboard view
-│   ├── task                 # `life task`
-│   ├── habit                # `life habit`
-│   ├── done                 # `life done`
-│   ├── rm                   # `life rm`
-│   ├── focus                # `life focus`
-│   ├── due                  # `life due`
-│   ├── rename               # `life rename`
-│   ├── tag                  # `life tag`
-│   ├── habits               # `life habits`
-│   ├── profile              # `life profile`
-│   ├── context              # `life context`
-│   ├── dates                # `life dates` (add, remove, list)
-│   ├── backup               # `life backup`
-│   ├── personas             # `life personas`
-│   ├── chat                 # `life chat`
-│   └── list                 # `life list`
-├── lib/                      # Utilities (db, format, parse, render)
-│   ├── __init__.py
-│   ├── ansi.py              # ANSI color/styling
-│   ├── backup.py            # Database backup/restore
-│   ├── claude.py            # Claude API client
-│   ├── clock.py             # Date/time utilities
-│   ├── converters.py        # Row-to-object conversions
-│   ├── dates.py             # Date parsing
-│   ├── errors.py            # Custom exceptions
-│   ├── format.py            # Task/habit formatting for CLI
-│   ├── fuzzy.py             # Fuzzy item matching
-│   ├── parsing.py           # Argument parsing
-│   ├── render.py            # Dashboard + list rendering
-│   └── spinner.py           # Loading indicator
-├── personas/                 # Persona behavioral constitutions
-│   ├── __init__.py
-│   ├── base.py              # Shared instruction structure
-│   ├── kim.py               # Methodical analyst persona
-│   ├── pepper.py            # Optimistic catalyst persona
-│   └── roast.py             # Harsh accountability persona
-├── migrations/              # Database schema migrations
+│   ├── base.py
+│   ├── kim.py
+│   ├── pepper.py
+│   └── roast.py
+├── lib/                      # Shared utilities
+│   ├── ansi.py
+│   ├── backup.py
+│   ├── clock.py
+│   ├── converters.py
+│   ├── dates.py
+│   ├── format.py
+│   ├── fuzzy.py
+│   ├── parsing.py
+│   ├── render.py
+│   └── spinner.py
+├── migrations/               # Database schema migrations
 │   └── 001_foundation.sql
-├── config.py                # Config singleton (profile, context, dates)
-├── db.py                    # Schema registration + connection pool
-└── __init__.py              # Empty
+├── models.py                 # Domain dataclasses
+├── config.py                 # Profile/context/dates storage
+├── db.py                     # SQLite connection + migrations
+└── __init__.py
 ```
 
 ## Layers
 
-**api/** - Domain logic + data access
-- Pure business logic, no I/O or presentation concerns
-- Functions return data (dicts, lists, objects), not formatted strings
-- Raises ValueError on errors
-- Owns all DB interactions
-- Examples:
-  - `add_task(content, focus=False, due=None, tags=None) → str (task_id)`
-  - `list_dates() → list[dict]`
-  - `get_persona_instructions(name: str) → str`
+**Domain modules** (`tasks.py`, `habits.py`, `tags.py`, `dashboard.py`, `momentum.py`)
+- Own DB reads/writes and return domain objects.
+- Keep domain logic local to each module.
+- Errors are raised as `ValueError` where appropriate.
 
-**cli.py** - Typer command handlers (presentation layer)
-- One function per command (task, habit, done, etc.)
-- Calls api/ functions to get data
-- Handles all typer decorators, argument parsing, options
-- Responsible for formatting output and error messages
-- Catches api/ exceptions and translates to user-friendly output
-- Example: `dates()` command calls `list_dates()`, formats output, echoes
+**cli.py** - Typer command handlers (presentation)
+- One function per CLI command.
+- Calls domain modules and renders output.
+- Does argument parsing, user-facing errors, and exit codes.
 
-**personas/** - Ephemeral agent behavioral constitutions
-- Pure instruction text for Claude API
-- Roast, pepper, kim behavioral rules (no logic)
-- Built by `api/personas.py` via `_build_persona_prompt()`
+**personas/** + `chat.py`
+- Personas are pure instruction text.
+- `chat.py` builds prompt and spawns the `claude` subprocess.
+- Persona selection and prompt construction live in `personas/__init__.py`.
 
-**lib/** - Shared utilities
-- `render.py`: Dashboard, list rendering
-- `format.py`: Task/habit CLI formatting (symbols, dates, tags)
-- `fuzzy.py`: Fuzzy item matching
-- `claude.py`: Claude API client
-- `clock.py`, `ansi.py`, `converters.py`, `parsing.py`: Pure helpers
-- Zero domain logic
+**lib/** - Utilities
+- Formatting, rendering, parsing, fuzzy matching, and clocks.
+- No state or DB access except through callers.
 
-**config.py** - Config singleton
-- Single-instance Config class (load once, cache in memory)
-- Provides `.get(key)` and `.set(key, value)` methods
-- Module-level API for backwards compatibility
-- Used by dashboard, personas, and CLI for profile/context/dates
+**config.py** - Persistent profile/context/dates
+- Minimal key/value storage in `~/.life/config.yaml`.
+## Key Patterns
 
 ## Key Patterns
 
 ### Item Lifecycle
-- **Create**: `ops.add_task()` → `api.add_item()` → `lib/store.py` (INSERT)
-- **Complete**: `cli.done` → `ops.done_item()` → `ops.complete()` → `api.complete_item()` → `lib/store.py` (UPDATE)
-- **Repeat**: Habits auto-reset on completion via `api.add_check()` → `lib/store.py`
-- **Matching**: Fuzzy matching via `lib/match.find_item()` for user input
+- **Create**: `cli.task` → `tasks.add_task()` / `habits.add_habit()` (INSERT)
+- **Complete**: `cli.done` → `tasks.toggle_completed()` / `habits.toggle_check()` (UPDATE)
+- **Repeat**: Habits are represented as rows + daily checks (not duplicated tasks)
+- **Matching**: Fuzzy matching via `lib.fuzzy.find_item()`
 
 ### Persona System (Agent Behavior Constitution)
 1. User invokes `life "message"` (natural language, not a command)
-2. `cli/__init__.py:main()` calls `ops.personas.maybe_spawn_persona()`
+2. `cli.chat()` resolves default persona and calls `chat.invoke()`
 3. Persona system:
    - Gathers task state from dashboard (same output humans see)
    - Reads profile + context (user identity + current situation)
@@ -128,24 +91,18 @@ life/
 Personas are the mechanism for agent behavior constitution. No special output tags needed—behavioral rules injected at invocation time.
 
 ### Formatting Layer
-- Dashboard: `lib/render.render_dashboard()` (pending tasks, momentum, context, completion)
-- Lists: `lib/render.render_item_list()` (for `life list`)
-- CLI output: Ops layer returns formatted strings (messages with ✓, [FOCUS], #tags, etc.)
+- Dashboard: `lib.render.render_dashboard()`
+- Lists: `lib.render.render_item_list()`
+- CLI output is formatted in `cli.py` using `lib.format`
 
 ## Testing
 
-- **Unit tests** in `tests/unit/` mirror codebase structure
-  - `tests/unit/api/` - Pure domain logic
-  - `tests/unit/ops/` - Orchestration workflows
-  - `tests/unit/lib/` - Utility functions
-- **Integration tests** in `tests/integration/`
-  - CLI command execution
-  - Full workflows (create → complete → verify)
+- **Unit tests** in `tests/unit/` cover domain modules and `lib/`.
+- **Integration tests** in `tests/integration/` cover CLI workflows and storage.
 
 ## Audit Principle
 
-- **api/** is testable in isolation (mock db)
-- **ops/** is testable without typer or CLI
-- **cli/** stays thin (routing, not logic)
-- **lib/** contains only pure utilities or helpers
-- No ceremony, no forwarding without logic
+- Domain modules own DB access and return domain objects.
+- `cli.py` stays thin: routing, formatting, errors.
+- `lib/` is pure helpers: formatting, parsing, fuzzy matching.
+- No imaginary layers, no ceremonial forwarding.
