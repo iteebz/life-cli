@@ -19,6 +19,7 @@ dependencies = [
 dev = [
     "ruff>=0.13.0",
     "pytest>=8.4.1",
+    "pyright>=1.1.407",
 ]
 
 [project.scripts]
@@ -57,3 +58,17 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+include = ["life"]
+typeCheckingMode = "standard"
+reportUnnecessaryTypeIgnoreComment = true
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
+reportDuplicateImport = true
+reportMissingTypeStubs = true
+reportUninitializedInstanceVariable = true
+reportInvalidTypeVarUse = true
+reportImplicitOverride = true
+reportPossiblyUnboundVariable = false

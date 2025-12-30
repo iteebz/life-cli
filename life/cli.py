@@ -108,7 +108,7 @@ def done(
         toggle_check(habit.id)
         checked = not is_undo_action
         typer.echo(format_habit(habit, checked=checked))
-    else:
+    elif task:
         toggle_completed(task.id)
         typer.echo(format_task(task))
 
@@ -240,7 +240,7 @@ def tag(
         else:
             add_tag(task.id, None, tag_name)
             typer.echo(f"Tagged: {task.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
-    else:
+    elif habit:
         if remove:
             remove_tag(None, habit.id, tag_name)
             typer.echo(f"Untagged: {habit.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")

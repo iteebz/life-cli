@@ -73,7 +73,7 @@ def get_habit(habit_id: str) -> Habit | None:
         return _hydrate_habit(habit, checks, tags)
 
 
-def update_habit(habit_id: str, content: str | None = None) -> Habit:
+def update_habit(habit_id: str, content: str | None = None) -> Habit | None:
     """UPDATE content only (habits have no other mutable fields), return updated Habit."""
     if content is None:
         return get_habit(habit_id)

@@ -58,7 +58,7 @@ def _get_completed_today() -> list[Task]:
         return hydrate_tags(tasks, tags_map)
 
 
-def get_pending_items(asc=True) -> list[Task | Habit]:
+def get_pending_items(asc=True) -> list[Task]:
     """Get pending tasks for display."""
     tasks = _get_pending_tasks()
     return sorted(tasks, key=_task_sort_key, reverse=not asc)

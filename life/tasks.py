@@ -93,7 +93,7 @@ def get_focus() -> list[Task]:
 
 def update_task(
     task_id: str, content: str | None = None, focus: bool | None = None, due: str | None = None
-) -> Task:
+) -> Task | None:
     """Partial update, return updated Task."""
     updates = {
         "content": content,

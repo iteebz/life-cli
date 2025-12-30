@@ -11,8 +11,8 @@ BACKUP_DIR = Path.home() / ".life_backups"
 class Config:
     """Single-instance config manager. Load once, cache in memory."""
 
-    _instance = None
-    _data = None
+    _instance: "Config | None" = None
+    _data: dict = {}
 
     def __new__(cls):
         if cls._instance is None:
@@ -50,10 +50,10 @@ class Config:
 _config = Config()
 
 
-def get_context():
+def get_context() -> str:
     """Get current life context"""
-    context = _config.get("context", "").strip()
-    return context if context else "No context set"
+    context = _config.get("context", "")
+    return context.strip() if context else "No context set"
 
 
 def set_context(context):
@@ -61,9 +61,10 @@ def set_context(context):
     _config.set("context", context)
 
 
-def get_profile():
+def get_profile() -> str:
     """Get current profile"""
-    return _config.get("profile", "").strip()
+    profile = _config.get("profile", "")
+    return profile.strip() if profile else ""
 
 
 def set_profile(profile):
@@ -83,18 +84,18 @@ def set_default_persona(persona: str) -> None:
 
 def get_dates() -> list[dict]:
     """Get list of dates from config."""
-    return _config.get("dates", [])
+    return _config.get("dates") or []
 
 
 def add_date(name: str, date: str, emoji: str = "📌") -> None:
     """Add a date to config."""
-    dates = _config.get("dates", [])
+    dates = _config.get("dates") or []
     dates.append({"name": name, "date": date, "emoji": emoji})
     _config.set("dates", dates)
 
 
 def remove_date(name: str) -> None:
     """Remove a date from config."""
-    dates = _config.get("dates", [])
+    dates = _config.get("dates") or []
     filtered = [d for d in dates if d.get("name") != name]
     _config.set("dates", filtered)

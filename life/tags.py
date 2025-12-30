@@ -1,10 +1,13 @@
 import contextlib
 import sqlite3
 from collections import defaultdict
+from typing import TypeVar
 
 from . import db
 from .lib.converters import _hydrate_tags, _row_to_habit, _row_to_task
 from .models import Habit, Task
+
+T = TypeVar("T", Task, Habit)
 
 
 def add_tag(task_id: str | None, habit_id: str | None, tag: str, conn=None) -> None:
@@ -145,7 +148,7 @@ def load_tags_for_habits(habit_ids: list[str], conn=None) -> dict[str, list[str]
             ctx.__exit__(None, None, None)
 
 
-def hydrate_tags(items, tag_map: dict[str, list[str]]):
+def hydrate_tags(items: list[T], tag_map: dict[str, list[str]]) -> list[T]:
     """Apply tags to a list of items using a pre-loaded tag map.
 
     Args:

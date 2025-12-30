@@ -1,4 +1,6 @@
+from collections.abc import Sequence
 from difflib import get_close_matches
+from typing import TypeVar
 
 from ..habits import get_habits
 from ..models import Habit, Task
@@ -6,8 +8,10 @@ from ..tasks import get_all_tasks, get_tasks
 
 FUZZY_MATCH_CUTOFF = 0.8
 
+T = TypeVar("T", Task, Habit)
 
-def _match_uuid_prefix(partial: str, pool: list[Task | Habit]) -> Task | Habit | None:
+
+def _match_uuid_prefix(partial: str, pool: Sequence[T]) -> T | None:
     """Match item by UUID prefix (first 8 chars)."""
     partial_lower = partial.lower()
     for item in pool:
@@ -16,7 +20,7 @@ def _match_uuid_prefix(partial: str, pool: list[Task | Habit]) -> Task | Habit |
     return None
 
 
-def _match_substring(partial: str, pool: list[Task | Habit]) -> Task | Habit | None:
+def _match_substring(partial: str, pool: Sequence[T]) -> T | None:
     """Match item by substring in content."""
     partial_lower = partial.lower()
     for item in pool:
@@ -25,7 +29,7 @@ def _match_substring(partial: str, pool: list[Task | Habit]) -> Task | Habit | N
     return None
 
 
-def _match_fuzzy(partial: str, pool: list[Task | Habit]) -> Task | Habit | None:
+def _match_fuzzy(partial: str, pool: Sequence[T]) -> T | None:
     """Match item by fuzzy matching content."""
     partial_lower = partial.lower()
     contents = [item.content for item in pool]
@@ -40,7 +44,7 @@ def _match_fuzzy(partial: str, pool: list[Task | Habit]) -> Task | Habit | None:
     return None
 
 
-def _find_by_partial(partial: str, pool: list[Task | Habit]) -> Task | Habit | None:
+def _find_by_partial(partial: str, pool: Sequence[T]) -> T | None:
     """Find item in pool: UUID prefix, substring, fuzzy match."""
     if not pool:
         return None

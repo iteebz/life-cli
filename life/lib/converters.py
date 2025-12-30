@@ -1,7 +1,10 @@
 import dataclasses
 from datetime import date, datetime
+from typing import TypeVar
 
 from ..models import Habit, Task
+
+T = TypeVar("T", Task, Habit)
 
 
 def _parse_date(val) -> date | None:
@@ -64,7 +67,7 @@ def _row_to_habit(row: tuple) -> Habit:
     )
 
 
-def _hydrate_tags(item: Task | Habit, tags: list[str]) -> Task | Habit:
+def _hydrate_tags(item: T, tags: list[str]) -> T:
     """
     Attaches tags list to a Task or Habit object.
     Returns a new frozen dataclass instance with tags populated.
