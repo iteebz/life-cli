@@ -5,17 +5,16 @@ install:
     @uv sync
 
 ci:
-    #!/bin/bash
-    set -e
-    uv run ruff format .
-    uv run ruff check . --fix --unsafe-fixes
-    uv run ruff check .
-    uv run pytest tests -x -qq
+    @uv run ruff format .
+    @uv run ruff check . --fix --unsafe-fixes
+    @uv run ruff check .
+    @uv run pyright
+    @uv run pytest tests -q
 
 lint:
     @uv run ruff check .
 
-fmt:
+format:
     @uv run ruff format .
 
 fix:
