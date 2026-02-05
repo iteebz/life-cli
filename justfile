@@ -6,15 +6,6 @@ install:
 
 ci:
     #!/bin/bash
-    if just _ci > .ci.log 2>&1; then
-        echo "CI passed"
-    else
-        cat .ci.log
-        exit 1
-    fi
-
-_ci:
-    #!/bin/bash
     set -e
     uv run ruff format .
     uv run ruff check . --fix --unsafe-fixes
