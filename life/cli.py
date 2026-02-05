@@ -35,6 +35,7 @@ app = typer.Typer(
     help="Life CLI: manage your tasks, habits, and focus.",
     no_args_is_help=False,
     add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 
@@ -218,12 +219,27 @@ def rename(
 
 @app.command()
 def tag(
-    tag_name: str = typer.Argument(..., help="Tag name"),  # noqa: B008
-    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
+    tag_name: str | None = typer.Argument(None, help="Tag name"),  # noqa: B008
+    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
+    tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),  # noqa: B008
     remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),  # noqa: B008
 ):
     """Add or remove tag on item (fuzzy match)"""
-    item_partial = " ".join(args) if args else ""
+    # Support both syntaxes:
+    # - `life tag finance home loan` (positional tag_name + item args)
+    # - `life tag home loan --tag finance` (option tag + item args)
+    if tag_opt:
+        tag_name_final = tag_opt
+        positionals = ([tag_name] if tag_name else []) + (args or [])
+        item_partial = " ".join(positionals)
+    else:
+        if not tag_name or not args:
+            typer.echo(
+                "Error: Missing arguments. Use `life tag TAG ITEM...` or `life tag ITEM... --tag TAG`."
+            )
+            raise typer.Exit(1)
+        tag_name_final = tag_name
+        item_partial = " ".join(args)
     task, habit = find_item(item_partial)
 
     # If no pending task/habit match, allow tagging completed tasks as well.
@@ -235,18 +251,18 @@ def tag(
 
     if task:
         if remove:
-            remove_tag(task.id, None, tag_name)
-            typer.echo(f"Untagged: {task.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+            remove_tag(task.id, None, tag_name_final)
+            typer.echo(f"Untagged: {task.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
         else:
-            add_tag(task.id, None, tag_name)
-            typer.echo(f"Tagged: {task.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+            add_tag(task.id, None, tag_name_final)
+            typer.echo(f"Tagged: {task.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
     elif habit:
         if remove:
-            remove_tag(None, habit.id, tag_name)
-            typer.echo(f"Untagged: {habit.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+            remove_tag(None, habit.id, tag_name_final)
+            typer.echo(f"Untagged: {habit.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
         else:
-            add_tag(None, habit.id, tag_name)
-            typer.echo(f"Tagged: {habit.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+            add_tag(None, habit.id, tag_name_final)
+            typer.echo(f"Tagged: {habit.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
 
 
 @app.command()
