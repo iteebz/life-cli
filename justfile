@@ -6,7 +6,7 @@ install:
 
 ci:
     @uv run ruff format .
-    @uv run ruff check . --fix --unsafe-fixes
+    @uv run ruff check . --fix
     @uv run ruff check .
     @uv run pyright
     @uv run pytest tests -q
@@ -18,7 +18,7 @@ format:
     @uv run ruff format .
 
 fix:
-    @uv run ruff check . --fix --unsafe-fixes
+    @uv run ruff check . --fix
 
 test:
     @uv run pytest tests
