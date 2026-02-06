@@ -1,0 +1,101 @@
+import shutil
+import subprocess
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
+
+from life import config
+from life.db import get_db
+
+
+@dataclass
+class CheckResult:
+    ok: bool
+    score: int
+    detail: str
+
+
+def _check_ci() -> CheckResult:
+    just_bin = shutil.which("just")
+    if not just_bin:
+        return CheckResult(ok=False, score=0, detail="just not found")
+    result = subprocess.run(  # noqa: S603
+        [just_bin, "ci"],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=180,
+    )
+    if result.returncode != 0:
+        return CheckResult(ok=False, score=0, detail=f"CI failed: {result.returncode}")
+    return CheckResult(ok=True, score=100, detail="CI passed")
+
+
+def _check_db_integrity() -> CheckResult:
+    if not config.DB_PATH.exists():
+        return CheckResult(ok=False, score=0, detail="db not initialized")
+
+    try:
+        with get_db() as conn:
+            result = conn.execute("PRAGMA integrity_check").fetchone()
+            if result and result[0] == "ok":
+                return CheckResult(ok=True, score=100, detail="db integrity ok")
+            return CheckResult(ok=False, score=0, detail=f"integrity: {result}")
+    except Exception as e:
+        return CheckResult(ok=False, score=0, detail=f"db error: {e}")
+
+
+def _check_config_exists() -> CheckResult:
+    try:
+        with get_db() as conn:
+            profile = conn.execute("SELECT value FROM config WHERE key = 'profile'").fetchone()
+            context = conn.execute("SELECT value FROM config WHERE key = 'context'").fetchone()
+
+        if not profile or not profile[0]:
+            return CheckResult(ok=False, score=50, detail="profile not set")
+        if not context or not context[0]:
+            return CheckResult(ok=False, score=50, detail="context not set")
+        return CheckResult(ok=True, score=100, detail="profile + context set")
+    except Exception:
+        return CheckResult(ok=True, score=100, detail="config table missing (ok)")
+
+
+_CHECKS: list[tuple[str, Callable[[], CheckResult], int]] = [
+    ("ci", _check_ci, 50),
+    ("db", _check_db_integrity, 30),
+    ("config", _check_config_exists, 20),
+]
+
+
+def score() -> dict[str, Any]:
+    results: dict[str, CheckResult] = {}
+    total_weight = sum(w for _, _, w in _CHECKS)
+    weighted_score = 0
+
+    for name, check_fn, weight in _CHECKS:
+        result = check_fn()
+        results[name] = result
+        weighted_score += (result.score / 100) * weight
+
+    final_score = int((weighted_score / total_weight) * 100)
+    all_ok = all(r.ok for r in results.values())
+
+    return {
+        "ok": all_ok,
+        "score": final_score,
+        "checks": {name: {"ok": r.ok, "detail": r.detail} for name, r in results.items()},
+    }
+
+
+def cli() -> None:
+    result = score()
+    print(f"health: {result['score']}/100 {'✓' if result['ok'] else '✗'}")
+    for name, check in result["checks"].items():
+        status = "✓" if check["ok"] else "✗"
+        print(f"  {name}: {status} {check['detail']}")
+    if not result["ok"]:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    cli()
