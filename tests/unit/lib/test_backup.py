@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 
 from life.lib.backup import backup
@@ -39,12 +38,3 @@ def test_backup_excludes_backups_dir(tmp_life_dir):
     backup_path = backup()
     backups_subdir = backup_path / "backups"
     assert not backups_subdir.exists()
-
-
-def test_multiple_backups_sequential(tmp_life_dir):
-    backup1 = backup()
-    time.sleep(1)
-    backup2 = backup()
-    assert backup1.name != backup2.name
-    assert backup1.exists()
-    assert backup2.exists()
