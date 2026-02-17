@@ -11,30 +11,35 @@ FUZZY_MATCH_CUTOFF = 0.8
 T = TypeVar("T", Task, Habit)
 
 
-def _match_uuid_prefix(partial: str, pool: Sequence[T]) -> T | None:
-    """Match item by UUID prefix (first 8 chars)."""
-    partial_lower = partial.lower()
+def _match_uuid_prefix(ref: str, pool: Sequence[T]) -> T | None:
+    ref_lower = ref.lower()
+    matches = [item for item in pool if item.id[:8].startswith(ref_lower)]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        exact = next((item for item in matches if item.id == ref), None)
+        if exact:
+            return exact
+        from .errors import exit_error
+
+        sample = ", ".join(item.id[:8] for item in matches[:3])
+        exit_error(f"Ambiguous ref '{ref}' matches multiple items: {sample}")
+    return None
+
+
+def _match_substring(ref: str, pool: Sequence[T]) -> T | None:
+    ref_lower = ref.lower()
     for item in pool:
-        if item.id[:8].startswith(partial_lower):
+        if ref_lower in item.content.lower():
             return item
     return None
 
 
-def _match_substring(partial: str, pool: Sequence[T]) -> T | None:
-    """Match item by substring in content."""
-    partial_lower = partial.lower()
-    for item in pool:
-        if partial_lower in item.content.lower():
-            return item
-    return None
-
-
-def _match_fuzzy(partial: str, pool: Sequence[T]) -> T | None:
-    """Match item by fuzzy matching content."""
-    partial_lower = partial.lower()
+def _match_fuzzy(ref: str, pool: Sequence[T]) -> T | None:
+    ref_lower = ref.lower()
     contents = [item.content for item in pool]
     matches = get_close_matches(
-        partial_lower, [c.lower() for c in contents], n=1, cutoff=FUZZY_MATCH_CUTOFF
+        ref_lower, [c.lower() for c in contents], n=1, cutoff=FUZZY_MATCH_CUTOFF
     )
     if matches:
         match_content = matches[0]
@@ -44,17 +49,7 @@ def _match_fuzzy(partial: str, pool: Sequence[T]) -> T | None:
     return None
 
 
-def _find_by_partial(partial: str, pool: Sequence[T]) -> T | None:
-    """Find item in pool: UUID prefix, substring, fuzzy match."""
+def find_in_pool(ref: str, pool: Sequence[T]) -> T | None:
     if not pool:
         return None
-    return (
-        _match_uuid_prefix(partial, pool)
-        or _match_substring(partial, pool)
-        or _match_fuzzy(partial, pool)
-    )
-
-
-def find_in_pool(partial: str, pool: Sequence[T]) -> T | None:
-    """Public entry point: find item in an arbitrary pool."""
-    return _find_by_partial(partial, pool)
+    return _match_uuid_prefix(ref, pool) or _match_substring(ref, pool) or _match_fuzzy(ref, pool)

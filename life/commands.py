@@ -4,8 +4,6 @@ from .config import get_profile, set_profile
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import (
     add_habit,
-    delete_habit,
-    find_habit,
     get_checks,
     get_habits,
     toggle_check,
@@ -19,14 +17,13 @@ from .lib.errors import echo, exit_error
 from .lib.format import format_habit, format_status, format_task
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
+from .lib.resolve import resolve_item, resolve_task
 from .models import Habit, Task
 from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
 from .tasks import (
     add_task,
     delete_task,
-    find_task,
-    find_task_any,
     get_tasks,
     set_blocked_by,
     toggle_completed,
@@ -36,14 +33,10 @@ from .tasks import (
 
 
 def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:
-    blocked_str = " ".join(blocked_args)
-    blocker_str = " ".join(blocker_args)
-    blocked = find_task(blocked_str)
-    if not blocked:
-        exit_error(f"No task found matching '{blocked_str}'")
-    blocker = find_task(blocker_str)
-    if not blocker:
-        exit_error(f"No task found matching '{blocker_str}'")
+    blocked_ref = " ".join(blocked_args)
+    blocker_ref = " ".join(blocker_args)
+    blocked = resolve_task(blocked_ref)
+    blocker = resolve_task(blocker_ref)
     if blocker.id == blocked.id:
         exit_error("A task cannot block itself")
     set_blocked_by(blocked.id, blocker.id)
@@ -51,8 +44,7 @@ def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:
 
 
 def cmd_unblock(args: list[str]) -> None:
-    partial = " ".join(args)
-    task = _require_task(partial)
+    task = resolve_task(" ".join(args))
     if not task.blocked_by:
         exit_error(f"'{task.content}' is not blocked")
     set_blocked_by(task.id, None)
@@ -69,7 +61,6 @@ def cmd_steward() -> None:
 
 
 def _parse_time(time_str: str) -> str:
-    """Parse HH:MM or H:MM, return HH:MM or raise ValueError."""
     import re
 
     time_str = time_str.strip().lower()
@@ -106,24 +97,6 @@ __all__ = [
 ]
 
 
-def _require_task(partial: str) -> Task:
-    task = find_task(partial)
-    if not task:
-        exit_error(f"No task found matching '{partial}'")
-    return task
-
-
-def _require_item(partial: str) -> tuple[Task | None, Habit | None]:
-    task = find_task(partial)
-    habit = find_habit(partial) if not task else None
-    if not task and not habit:
-        task = find_task_any(partial)
-        habit = find_habit(partial) if not task else None
-    if not task and not habit:
-        exit_error(f"No item found matching '{partial}'")
-    return task, habit
-
-
 def cmd_dashboard(verbose: bool = False) -> None:
     items = get_pending_items() + get_habits()
     today_items = get_today_completed()
@@ -146,9 +119,7 @@ def cmd_task(
     resolved_due = parse_due_date(due) if due else None
     parent_id = None
     if under:
-        parent_task = find_task(under)
-        if not parent_task:
-            exit_error(f"No task found matching '{under}'")
+        parent_task = resolve_task(under)
         if parent_task.parent_id:
             exit_error("Error: subtasks cannot have subtasks")
         parent_id = parent_task.id
@@ -169,10 +140,10 @@ def cmd_habit(content_args: list[str], tags: list[str] | None = None) -> None:
 
 
 def cmd_done(args: list[str]) -> None:
-    partial = " ".join(args) if args else ""
-    if not partial:
+    ref = " ".join(args) if args else ""
+    if not ref:
         exit_error("Usage: life done <item>")
-    task, habit = _require_item(partial)
+    task, habit = resolve_item(ref)
 
     if habit:
         today_date = today()
@@ -187,26 +158,24 @@ def cmd_done(args: list[str]) -> None:
 
 
 def cmd_rm(args: list[str]) -> None:
-    partial = " ".join(args) if args else ""
-    if not partial:
+    ref = " ".join(args) if args else ""
+    if not ref:
         exit_error("Usage: life rm <item>")
-    task = find_task(partial)
-    habit = find_habit(partial) if not task else None
+    task, habit = resolve_item(ref)
     if task:
         delete_task(task.id)
         echo(f"{ANSI.DIM}{task.content}{ANSI.RESET}")
     elif habit:
+        from .habits import delete_habit
         delete_habit(habit.id)
         echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}")
-    else:
-        exit_error(f"No match for: {partial}")
 
 
 def cmd_focus(args: list[str]) -> None:
-    partial = " ".join(args) if args else ""
-    if not partial:
+    ref = " ".join(args) if args else ""
+    if not ref:
         exit_error("Usage: life focus <item>")
-    task = _require_task(partial)
+    task = resolve_task(ref)
     toggle_focus(task.id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if not task.focus else "□"
     echo(format_status(symbol, task.content))
@@ -217,7 +186,7 @@ def cmd_due(args: list[str], remove: bool = False) -> None:
         date_str, item_name = parse_due_and_item(args, remove=remove)
     except ValueError as e:
         exit_error(str(e))
-    task = _require_task(item_name)
+    task = resolve_task(item_name)
     if remove:
         update_task(task.id, due=None)
         echo(format_status("□", task.content))
@@ -233,19 +202,16 @@ def cmd_due(args: list[str], remove: bool = False) -> None:
 def cmd_rename(from_args: list[str], to_content: str) -> None:
     if not to_content:
         exit_error("Error: 'to' content cannot be empty.")
-    partial_from = " ".join(from_args) if from_args else ""
-    task = find_task(partial_from)
-    habit = find_habit(partial_from) if not task else None
-    item_to_rename = task or habit
-    if not item_to_rename:
-        exit_error(f"No fuzzy match found for: '{partial_from}'")
-    if item_to_rename.content == to_content:
-        exit_error(f"Error: Cannot rename '{item_to_rename.content}' to itself.")
-    if isinstance(item_to_rename, Task):
-        update_task(item_to_rename.id, content=to_content)
+    ref = " ".join(from_args) if from_args else ""
+    task, habit = resolve_item(ref)
+    item = task or habit
+    if item.content == to_content:
+        exit_error(f"Error: Cannot rename '{item.content}' to itself.")
+    if isinstance(item, Task):
+        update_task(item.id, content=to_content)
     else:
-        update_habit(item_to_rename.id, content=to_content)
-    echo(f"Updated: '{item_to_rename.content}' → '{to_content}'")
+        update_habit(item.id, content=to_content)
+    echo(f"Updated: '{item.content}' → '{to_content}'")
 
 
 def cmd_tag(
@@ -257,20 +223,15 @@ def cmd_tag(
     if tag_opt:
         tag_name_final = tag_opt
         positionals = ([tag_name] if tag_name else []) + (args or [])
-        item_partial = " ".join(positionals)
+        item_ref = " ".join(positionals)
     else:
         if not tag_name or not args:
             exit_error(
                 "Error: Missing arguments. Use `life tag TAG ITEM...` or `life tag ITEM... --tag TAG`."
             )
         tag_name_final = tag_name
-        item_partial = " ".join(args)
-    task = find_task(item_partial)
-    habit = find_habit(item_partial) if not task else None
-    if not task and not habit:
-        task = find_task_any(item_partial)
-        if not task:
-            exit_error(f"No match for: {item_partial}")
+        item_ref = " ".join(args)
+    task, habit = resolve_item(item_ref)
     if task:
         if remove:
             remove_tag(task.id, None, tag_name_final)
@@ -369,10 +330,10 @@ def cmd_momentum() -> None:
 
 
 def _set_due_relative(args: list[str], offset_days: int, label: str) -> None:
-    partial = " ".join(args) if args else ""
-    if not partial:
+    ref = " ".join(args) if args else ""
+    if not ref:
         exit_error(f"Usage: life {label} <task>")
-    task = _require_task(partial)
+    task = resolve_task(ref)
     due_str = (today() + timedelta(days=offset_days)).isoformat()
     update_task(task.id, due=due_str)
     echo(format_status("□", task.content))
@@ -390,8 +351,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
     if not args:
         exit_error("Usage: life schedule <HH:MM> <task> | life schedule -r <task>")
     if remove:
-        partial = " ".join(args)
-        task = _require_task(partial)
+        task = resolve_task(" ".join(args))
         from . import db as _db
 
         with _db.get_db() as conn:
@@ -399,13 +359,13 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
         echo(format_status("□", task.content))
         return
     time_str = args[0]
-    partial = " ".join(args[1:])
-    if not partial:
+    ref = " ".join(args[1:])
+    if not ref:
         exit_error("Usage: life schedule <HH:MM> <task>")
     try:
         parsed = _parse_time(time_str)
     except ValueError as e:
         exit_error(str(e))
-    task = _require_task(partial)
+    task = resolve_task(ref)
     update_task(task.id, scheduled_time=parsed)
     echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content))

@@ -16,7 +16,8 @@ life/
   migrations/   - numbered .sql migration files
   lib/          - shared infrastructure (no domain imports)
     errors.py   - echo(), exit_error()
-    fuzzy.py    - find_task(), find_habit(), find_item(), find_task_any()
+    fuzzy.py    - find_in_pool(): UUID prefix → substring → fuzzy match
+    resolve.py  - resolve_task(), resolve_habit(), resolve_item(): resolve at CLI boundary, exit on no match
     render.py   - dashboard, habit matrix, momentum rendering
     format.py   - format_task(), format_habit(), format_status()
     ansi.py     - ANSI color constants
@@ -34,6 +35,7 @@ Higher imports lower. Never upward.
 ```
 cli       → commands
 commands  → tasks, habits, tags, dashboard, momentum, lib, models
+resolve   → tasks, habits, lib/errors
 tasks     → db, models, lib/converters
 habits    → db, models, lib/converters
 tags      → db, models
@@ -45,7 +47,7 @@ models    → (nothing)
 db        → config
 ```
 
-`lib/` must not import from domain modules (tasks, habits, tags, dashboard, momentum).
+`lib/` must not import from domain modules (tasks, habits, tags, dashboard, momentum). Exception: `lib/resolve.py` imports domain finders — this is intentional, it is the boundary layer.
 
 ## Key Invariants
 

@@ -173,10 +173,10 @@ def get_streak(habit_id: str) -> int:
     return streak
 
 
-def find_habit(partial: str) -> Habit | None:
+def find_habit(ref: str) -> Habit | None:
     from .lib.fuzzy import find_in_pool
 
-    return find_in_pool(partial, get_habits())
+    return find_in_pool(ref, get_habits())
 
 
 def toggle_check(habit_id: str) -> None:
