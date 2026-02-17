@@ -125,21 +125,26 @@ def _record_mutations(conn: sqlite3.Connection, task_id: str, old: Task, updates
             )
 
 
+_UNSET = object()
+
+
 def update_task(
     task_id: str,
     content: str | None = None,
     focus: bool | None = None,
-    due: str | None = None,
-    due_time: str | None = None,
+    due: str | None = _UNSET,
+    due_time: str | None = _UNSET,
 ) -> Task | None:
-    """Partial update, return updated Task."""
-    updates = {
-        "content": content,
-        "focus": focus,
-        "due_date": due,
-        "due_time": due_time,
-    }
-    updates = {k: v for k, v in updates.items() if v is not None}
+    """Partial update, return updated Task. Pass None to clear a nullable field."""
+    updates = {}
+    if content is not None:
+        updates["content"] = content
+    if focus is not None:
+        updates["focus"] = focus
+    if due is not _UNSET:
+        updates["due_date"] = due
+    if due_time is not _UNSET:
+        updates["due_time"] = due_time
 
     if updates:
         old = get_task(task_id)

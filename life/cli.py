@@ -6,6 +6,7 @@ from .commands import (
     cmd_block,
     cmd_dashboard,
     cmd_dates,
+    cmd_list,
     cmd_done,
     cmd_due,
     cmd_focus,
@@ -145,6 +146,12 @@ def dates(
 ):
     """Add, remove, or list dates to track"""
     cmd_dates(action, name, date_str, emoji)
+
+
+@app.command(name="list")
+def list_cmd():
+    """List all pending tasks and habits"""
+    cmd_list()
 
 
 @app.command()

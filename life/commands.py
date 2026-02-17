@@ -75,6 +75,7 @@ def _parse_time(time_str: str) -> str:
 __all__ = [
     "cmd_block",
     "cmd_dashboard",
+    "cmd_list",
     "cmd_task",
     "cmd_habit",
     "cmd_done",
@@ -290,6 +291,18 @@ def cmd_dates(
         )
 
 
+def cmd_list() -> None:
+    tasks = get_tasks()
+    habits = get_habits()
+    for t in tasks:
+        tag_str = f"  {ANSI.GREY}#{' #'.join(t.tags)}{ANSI.RESET}" if t.tags else ""
+        symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if t.focus else "□"
+        echo(f"{symbol} {t.content}{tag_str}")
+    for h in habits:
+        tag_str = f"  {ANSI.GREY}#{' #'.join(h.tags)}{ANSI.RESET}" if h.tags else ""
+        echo(f"↻ {h.content}{tag_str}")
+
+
 def cmd_status() -> None:
     tasks = get_tasks()
     habits = get_habits()
@@ -352,10 +365,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
         exit_error("Usage: life schedule <HH:MM> <task> | life schedule -r <task>")
     if remove:
         task = resolve_task(" ".join(args))
-        from . import db as _db
-
-        with _db.get_db() as conn:
-            conn.execute("UPDATE tasks SET due_time = NULL WHERE id = ?", (task.id,))
+        update_task(task.id, due_time=None)
         echo(format_status("□", task.content))
         return
     time_str = args[0]
