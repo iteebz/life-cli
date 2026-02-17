@@ -3,12 +3,12 @@ import uuid
 
 from . import db
 from .lib import clock
-from .lib.converters import _row_to_task
+from .lib.converters import row_to_task
 from .models import Task
 from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
 
-def _task_sort_key(task: Task) -> tuple:
+def _task_sort_key(task: Task) -> tuple[bool, bool, object, object]:
     """Canonical sort order: focus first, then by due date, then by creation."""
     return (
         not task.focus,
@@ -52,7 +52,7 @@ def get_task(task_id: str) -> Task | None:
         if not row:
             return None
 
-        task = _row_to_task(row)
+        task = row_to_task(row)
         tags_map = load_tags_for_tasks([task_id], conn=conn)
         return hydrate_tags([task], tags_map)[0]
 
@@ -63,7 +63,7 @@ def get_tasks() -> list[Task]:
         cursor = conn.execute(
             "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE completed_at IS NULL"
         )
-        tasks = [_row_to_task(row) for row in cursor.fetchall()]
+        tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
         result = hydrate_tags(tasks, tags_map)
@@ -75,7 +75,7 @@ def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute("SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks")
-        tasks = [_row_to_task(row) for row in cursor.fetchall()]
+        tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
         result = hydrate_tags(tasks, tags_map)
@@ -89,7 +89,7 @@ def get_focus() -> list[Task]:
         cursor = conn.execute(
             "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE focus = 1 AND completed_at IS NULL"
         )
-        tasks = [_row_to_task(row) for row in cursor.fetchall()]
+        tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
         return hydrate_tags(tasks, tags_map)

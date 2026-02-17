@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from . import db
 from .lib import clock
-from .lib.converters import _row_to_habit
+from .lib.converters import row_to_habit
 from .models import Habit
 from .tags import load_tags_for_habits
 
@@ -67,7 +67,7 @@ def get_habit(habit_id: str) -> Habit | None:
         if not row:
             return None
 
-        habit = _row_to_habit(row)
+        habit = row_to_habit(row)
         checks = _get_habit_checks(conn, habit_id)
         tags = _get_habit_tags(conn, habit_id)
         return _hydrate_habit(habit, checks, tags)
@@ -109,7 +109,7 @@ def get_habits(habit_ids: list[str] | None = None) -> list[Habit]:
                 habit_id = row[0]
                 checks = _get_habit_checks(conn, habit_id)
                 tags = tags_map.get(habit_id, [])
-                habit = _row_to_habit(row)
+                habit = row_to_habit(row)
                 habits.append(_hydrate_habit(habit, checks, tags))
             return habits
 

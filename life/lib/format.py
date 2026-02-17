@@ -1,6 +1,7 @@
 from datetime import date
 
 from . import clock
+from ..models import Habit, Task
 from .ansi import ANSI
 
 
@@ -83,7 +84,7 @@ def format_status(symbol: str, content: str, item_id: str | None = None) -> str:
     return f"{symbol} {content}"
 
 
-def format_ambiguous(items: list) -> str:
+def format_ambiguous(items: list[Task | Habit]) -> str:
     """Format ambiguous match list for user disambiguation."""
     lines = ["Multiple matches:"]
     for item in items:

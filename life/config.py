@@ -12,11 +12,12 @@ class Config:
     """Single-instance config manager. Load once, cache in memory."""
 
     _instance: "Config | None" = None
-    _data: dict = {}
+    _data: dict[str, object]
 
-    def __new__(cls):
+    def __new__(cls) -> "Config":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance._data = {}
             cls._instance._load()
         return cls._instance
 
@@ -53,7 +54,7 @@ _config = Config()
 def get_profile() -> str:
     """Get current profile"""
     profile = _config.get("profile", "")
-    return profile.strip() if profile else ""
+    return str(profile).strip() if profile else ""
 
 
 def set_profile(profile):
@@ -63,7 +64,8 @@ def set_profile(profile):
 
 def get_default_persona() -> str | None:
     """Get default persona from config, or None if not set."""
-    return _config.get("default_persona")
+    val = _config.get("default_persona")
+    return str(val) if val is not None else None
 
 
 def set_default_persona(persona: str) -> None:
@@ -71,20 +73,23 @@ def set_default_persona(persona: str) -> None:
     _config.set("default_persona", persona)
 
 
-def get_dates() -> list[dict]:
+def get_dates() -> list[dict[str, str]]:
     """Get list of dates from config."""
-    return _config.get("dates") or []
+    val = _config.get("dates")
+    return val if isinstance(val, list) else []
 
 
 def add_date(name: str, date: str, emoji: str = "📌") -> None:
     """Add a date to config."""
-    dates = _config.get("dates") or []
+    val = _config.get("dates")
+    dates: list[dict[str, str]] = val if isinstance(val, list) else []
     dates.append({"name": name, "date": date, "emoji": emoji})
     _config.set("dates", dates)
 
 
 def remove_date(name: str) -> None:
     """Remove a date from config."""
-    dates = _config.get("dates") or []
+    val = _config.get("dates")
+    dates: list[dict[str, str]] = val if isinstance(val, list) else []
     filtered = [d for d in dates if d.get("name") != name]
     _config.set("dates", filtered)

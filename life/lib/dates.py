@@ -31,7 +31,7 @@ def parse_due_date(due_str: str) -> str | None:
         return None  # Invalid date format
 
 
-def list_dates() -> list[dict]:
+def list_dates() -> list[dict[str, str]]:
     """Get all dates, sorted by date."""
     dates = get_dates()
     return sorted(dates, key=lambda x: x["date"])

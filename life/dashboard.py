@@ -1,7 +1,7 @@
 from . import db
 from .habits import get_habit
 from .lib import clock
-from .lib.converters import _row_to_task
+from .lib.converters import row_to_task
 from .models import Habit, Task
 from .tags import hydrate_tags, load_tags_for_tasks
 from .tasks import _task_sort_key
@@ -13,7 +13,7 @@ def _get_pending_tasks() -> list[Task]:
         cursor = conn.execute(
             "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE completed_at IS NULL"
         )
-        tasks = [_row_to_task(row) for row in cursor.fetchall()]
+        tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
         result = hydrate_tags(tasks, tags_map)
@@ -52,7 +52,7 @@ def _get_completed_today() -> list[Task]:
             "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE date(completed_at) = ? AND completed_at IS NOT NULL",
             (today_str,),
         )
-        tasks = [_row_to_task(row) for row in cursor.fetchall()]
+        tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
         return hydrate_tags(tasks, tags_map)

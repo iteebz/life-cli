@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import TypeVar
 
 from . import db
-from .lib.converters import _hydrate_tags, _row_to_habit, _row_to_task
+from .lib.converters import hydrate_tags_onto, row_to_habit, row_to_task
 from .models import Habit, Task
 
 T = TypeVar("T", Task, Habit)
@@ -52,7 +52,7 @@ def get_tasks_by_tag(tag: str) -> list[Task]:
             """,
             (tag.lower(),),
         )
-        tasks = [_row_to_task(row) for row in cursor.fetchall()]
+        tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
         return hydrate_tags(tasks, tags_map)
@@ -69,7 +69,7 @@ def get_habits_by_tag(tag: str) -> list[Habit]:
             """,
             (tag.lower(),),
         )
-        habits = [_row_to_habit(row) for row in cursor.fetchall()]
+        habits = [row_to_habit(row) for row in cursor.fetchall()]
         habit_ids = [h.id for h in habits]
         tags_map = load_tags_for_habits(habit_ids, conn=conn)
         return hydrate_tags(habits, tags_map)
@@ -92,7 +92,9 @@ def list_all_tags() -> list[str]:
         return [row[0] for row in cursor.fetchall()]
 
 
-def load_tags_for_tasks(task_ids: list[str], conn=None) -> dict[str, list[str]]:
+def load_tags_for_tasks(
+    task_ids: list[str], conn: sqlite3.Connection | None = None
+) -> dict[str, list[str]]:
     """Batch load all tags for multiple tasks.
 
     Returns dict mapping task_id -> list of tag strings.
@@ -100,27 +102,25 @@ def load_tags_for_tasks(task_ids: list[str], conn=None) -> dict[str, list[str]]:
     if not task_ids:
         return {}
 
-    use_context = conn is None
-    if use_context:
-        ctx = db.get_db()
-        conn = ctx.__enter__()
+    placeholders = ",".join("?" * len(task_ids))
+    query = f"SELECT task_id, tag FROM tags WHERE task_id IN ({placeholders}) ORDER BY tag"
 
-    try:
-        placeholders = ",".join("?" * len(task_ids))
-        cursor = conn.execute(
-            f"SELECT task_id, tag FROM tags WHERE task_id IN ({placeholders}) ORDER BY tag",
-            task_ids,
-        )
-        tags_map = defaultdict(list)
+    def _run(c: sqlite3.Connection) -> dict[str, list[str]]:
+        cursor = c.execute(query, task_ids)
+        tags_map: defaultdict[str, list[str]] = defaultdict(list)
         for task_id, tag in cursor.fetchall():
             tags_map[task_id].append(tag)
         return dict(tags_map)
-    finally:
-        if use_context:
-            ctx.__exit__(None, None, None)
+
+    if conn is not None:
+        return _run(conn)
+    with db.get_db() as c:
+        return _run(c)
 
 
-def load_tags_for_habits(habit_ids: list[str], conn=None) -> dict[str, list[str]]:
+def load_tags_for_habits(
+    habit_ids: list[str], conn: sqlite3.Connection | None = None
+) -> dict[str, list[str]]:
     """Batch load all tags for multiple habits.
 
     Returns dict mapping habit_id -> list of tag strings.
@@ -128,24 +128,20 @@ def load_tags_for_habits(habit_ids: list[str], conn=None) -> dict[str, list[str]
     if not habit_ids:
         return {}
 
-    use_context = conn is None
-    if use_context:
-        ctx = db.get_db()
-        conn = ctx.__enter__()
+    placeholders = ",".join("?" * len(habit_ids))
+    query = f"SELECT habit_id, tag FROM tags WHERE habit_id IN ({placeholders}) ORDER BY tag"
 
-    try:
-        placeholders = ",".join("?" * len(habit_ids))
-        cursor = conn.execute(
-            f"SELECT habit_id, tag FROM tags WHERE habit_id IN ({placeholders}) ORDER BY tag",
-            habit_ids,
-        )
-        tags_map = defaultdict(list)
+    def _run(c: sqlite3.Connection) -> dict[str, list[str]]:
+        cursor = c.execute(query, habit_ids)
+        tags_map: defaultdict[str, list[str]] = defaultdict(list)
         for habit_id, tag in cursor.fetchall():
             tags_map[habit_id].append(tag)
         return dict(tags_map)
-    finally:
-        if use_context:
-            ctx.__exit__(None, None, None)
+
+    if conn is not None:
+        return _run(conn)
+    with db.get_db() as c:
+        return _run(c)
 
 
 def hydrate_tags(items: list[T], tag_map: dict[str, list[str]]) -> list[T]:
@@ -157,4 +153,4 @@ def hydrate_tags(items: list[T], tag_map: dict[str, list[str]]) -> list[T]:
 
     Returns list of items with tags hydrated.
     """
-    return [_hydrate_tags(item, tag_map.get(item.id, [])) for item in items]
+    return [hydrate_tags_onto(item, tag_map.get(item.id, [])) for item in items]

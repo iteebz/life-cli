@@ -38,7 +38,7 @@ app = typer.Typer(
 
 
 @app.callback(invoke_without_command=True)
-def _dashboard(ctx: typer.Context):
+def dashboard(ctx: typer.Context):
     """Ephemeral life agent"""
     if ctx.invoked_subcommand is None:
         items = get_pending_items() + get_habits()
@@ -339,7 +339,6 @@ def dates(
 def status():
     """Health check — untagged tasks, overdue, habit streaks, jaynice signal"""
     from .lib.clock import today
-    from datetime import date
 
     tasks = get_tasks()
     habits = get_habits()

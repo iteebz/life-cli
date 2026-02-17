@@ -1,12 +1,12 @@
 from datetime import date, datetime
 
 from life.lib.converters import (
-    _hydrate_tags,
     _parse_date,
     _parse_datetime,
     _parse_datetime_optional,
-    _row_to_habit,
-    _row_to_task,
+    hydrate_tags_onto,
+    row_to_habit,
+    row_to_task,
 )
 from life.models import Habit, Task
 
@@ -90,7 +90,7 @@ def test_row_to_task_complete():
         "2025-10-30T10:00:00",
         "2025-10-30T15:00:00",
     )
-    task = _row_to_task(row)
+    task = row_to_task(row)
     assert task.id == "task-1"
     assert task.content == "Buy milk"
     assert task.focus is True
@@ -107,7 +107,7 @@ def test_row_to_task_no_focus():
         "2025-10-30T10:00:00",
         None,
     )
-    task = _row_to_task(row)
+    task = row_to_task(row)
     assert task.focus is False
     assert task.due_date is None
     assert task.completed_at is None
@@ -119,7 +119,7 @@ def test_row_to_habit_complete():
         "Morning run",
         "2025-10-30T06:00:00",
     )
-    habit = _row_to_habit(row)
+    habit = row_to_habit(row)
     assert habit.id == "habit-1"
     assert habit.content == "Morning run"
     assert habit.created.date() == date(2025, 10, 30)
@@ -135,7 +135,7 @@ def test_hydrate_tags_task():
         completed_at=None,
         tags=[],
     )
-    hydrated = _hydrate_tags(task, ["urgent", "shopping"])
+    hydrated = hydrate_tags_onto(task, ["urgent", "shopping"])
     assert hydrated.tags == ["urgent", "shopping"]
     assert hydrated.id == task.id
 
@@ -147,7 +147,7 @@ def test_hydrate_tags_habit():
         created=datetime.now(),
         tags=[],
     )
-    hydrated = _hydrate_tags(habit, ["morning", "exercise"])
+    hydrated = hydrate_tags_onto(habit, ["morning", "exercise"])
     assert hydrated.tags == ["morning", "exercise"]
     assert hydrated.id == habit.id
 
@@ -162,5 +162,5 @@ def test_hydrate_tags_empty():
         completed_at=None,
         tags=[],
     )
-    hydrated = _hydrate_tags(task, [])
+    hydrated = hydrate_tags_onto(task, [])
     assert hydrated.tags == []

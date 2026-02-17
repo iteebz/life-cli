@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
+from typing import cast
 
 from . import config
 
@@ -76,7 +77,8 @@ def load_migrations() -> list[Migration]:
             if name.startswith("migration_") and callable(obj):
                 mig_name = name.replace("migration_", "", 1)
                 if not any(m[0] == mig_name for m in migrations):
-                    migrations.append((mig_name, obj))
+                    fn: MigrationFn = cast(MigrationFn, obj)
+                    migrations.append((mig_name, fn))
     except (ImportError, AttributeError):
         pass
 

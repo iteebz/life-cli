@@ -1,10 +1,13 @@
 import dataclasses
 from datetime import date, datetime
-from typing import TypeVar
+from typing import TypeVar, cast
 
 from ..models import Habit, Task
 
 T = TypeVar("T", Task, Habit)
+
+TaskRow = tuple[object, ...]
+HabitRow = tuple[object, ...]
 
 
 def _parse_date(val) -> date | None:
@@ -40,35 +43,35 @@ def _parse_datetime_optional(val) -> datetime | None:
     return None
 
 
-def _row_to_task(row: tuple) -> Task:
+def row_to_task(row: TaskRow) -> Task:
     """
     Converts a raw database row from tasks table into a Task object.
     Expected row format: (id, content, focus, due_date, created, completed, parent_id)
     """
     return Task(
-        id=row[0],
-        content=row[1],
+        id=cast(str, row[0]),
+        content=cast(str, row[1]),
         focus=bool(row[2]),
         due_date=_parse_date(row[3]),
         created=_parse_datetime(row[4]),
         completed_at=_parse_datetime_optional(row[5]),
-        parent_id=row[6] if len(row) > 6 else None,
+        parent_id=cast(str, row[6]) if len(row) > 6 and row[6] is not None else None,
     )
 
 
-def _row_to_habit(row: tuple) -> Habit:
+def row_to_habit(row: HabitRow) -> Habit:
     """
     Converts a raw database row from habits table into a Habit object.
     Expected row format: (id, content, created)
     """
     return Habit(
-        id=row[0],
-        content=row[1],
+        id=cast(str, row[0]),
+        content=cast(str, row[1]),
         created=_parse_datetime(row[2]),
     )
 
 
-def _hydrate_tags(item: T, tags: list[str]) -> T:
+def hydrate_tags_onto(item: T, tags: list[str]) -> T:
     """
     Attaches tags list to a Task or Habit object.
     Returns a new frozen dataclass instance with tags populated.
