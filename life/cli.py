@@ -20,7 +20,7 @@ from .habits import (
 from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
 from .lib.clock import today
-from .lib.dates import add_date, list_dates, remove_date
+from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.format import format_habit, format_status, format_task
 from .lib.fuzzy import find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
@@ -71,7 +71,8 @@ def task(
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None
-    task_id = add_task(content, focus=focus, due=due, tags=tags)
+    resolved_due = parse_due_date(due) if due else None
+    task_id = add_task(content, focus=focus, due=resolved_due, tags=tags)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
     typer.echo(format_status(symbol, content, task_id))
 
