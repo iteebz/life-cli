@@ -24,6 +24,7 @@ from .commands import (
     cmd_task,
     cmd_today,
     cmd_tomorrow,
+    cmd_track,
     cmd_unblock,
 )
 
@@ -225,6 +226,34 @@ def unblock(
 def steward():
     """Print autonomous Steward boot prompt"""
     cmd_steward()
+
+
+@app.command()
+def track(
+    description: list[str] = typer.Argument(None, help="Intervention description"),  # noqa: B008
+    won: bool = typer.Option(False, "--won", "-w", help="Mark as won"),  # noqa: B008
+    lost: bool = typer.Option(False, "--lost", "-l", help="Mark as lost"),  # noqa: B008
+    deferred: bool = typer.Option(False, "--deferred", "-d", help="Mark as deferred"),  # noqa: B008
+    note: str = typer.Option(None, "--note", "-n", help="Optional note"),  # noqa: B008
+    stats: bool = typer.Option(False, "--stats", "-s", help="Show intervention stats"),  # noqa: B008
+    log: bool = typer.Option(False, "--log", help="Show recent interventions"),  # noqa: B008
+):
+    """Log intervention results (Steward use)"""
+    if stats:
+        cmd_track(show_stats=True)
+        return
+    if log:
+        cmd_track(show_log=True)
+        return
+    result = None
+    if won:
+        result = "won"
+    elif lost:
+        result = "lost"
+    elif deferred:
+        result = "deferred"
+    desc = " ".join(description) if description else None
+    cmd_track(description=desc, result=result, note=note)
 
 
 def main():

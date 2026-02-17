@@ -9,6 +9,8 @@ from .habits import (
     toggle_check,
     update_habit,
 )
+from .interventions import add_intervention, get_interventions
+from .interventions import get_stats as get_intervention_stats
 from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
 from .lib.clock import today
@@ -62,6 +64,50 @@ def cmd_steward() -> None:
     echo(prompt_path.read_text())
 
 
+def cmd_track(
+    description: str | None = None,
+    result: str | None = None,
+    note: str | None = None,
+    show_stats: bool = False,
+    show_log: bool = False,
+) -> None:
+    if show_stats:
+        stats = get_intervention_stats()
+        total = sum(stats.values())
+        if not total:
+            echo("no interventions logged")
+            return
+        won = stats.get("won", 0)
+        lost = stats.get("lost", 0)
+        deferred = stats.get("deferred", 0)
+        win_rate = int((won / total) * 100) if total else 0
+        echo(
+            f"won: {won}  lost: {lost}  deferred: {deferred}  total: {total}  win_rate: {win_rate}%"
+        )
+        return
+
+    if show_log:
+        interventions = get_interventions(20)
+        if not interventions:
+            echo("no interventions logged")
+            return
+        for i in interventions:
+            ts = i.timestamp.strftime("%m-%d %H:%M")
+            note_str = f"  ({i.note})" if i.note else ""
+            echo(f"{ts}  {i.result:<8}  {i.description}{note_str}")
+        return
+
+    if not description or not result:
+        exit_error("Usage: life track <description> --won|--lost|--deferred [--note 'text']")
+
+    if result not in ("won", "lost", "deferred"):
+        exit_error("Result must be --won, --lost, or --deferred")
+
+    add_intervention(description, result, note)
+    symbol = {"won": "✓", "lost": "✗", "deferred": "→"}[result]
+    echo(f"{symbol} {description}")
+
+
 def _parse_time(time_str: str) -> str:
     import re
 
@@ -97,6 +143,7 @@ __all__ = [
     "cmd_tomorrow",
     "cmd_schedule",
     "cmd_steward",
+    "cmd_track",
     "cmd_unblock",
 ]
 
