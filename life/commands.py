@@ -201,12 +201,12 @@ def cmd_done(args: list[str]) -> None:
         today_date = today()
         checks = get_checks(habit.id)
         is_undo_action = today_date in checks
-        toggle_check(habit.id)
+        updated_habit = toggle_check(habit.id)
         checked = not is_undo_action
-        echo(format_habit(habit, checked=checked))
+        echo(format_habit(updated_habit or habit, checked=checked))
     elif task:
         updated = toggle_completed(task.id)
-        echo(format_task(updated))
+        echo(format_task(updated or task))
 
 
 def cmd_rm(args: list[str]) -> None:
@@ -231,7 +231,7 @@ def cmd_focus(args: list[str]) -> None:
     task = resolve_task(ref)
     toggle_focus(task.id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if not task.focus else "□"
-    echo(format_status(symbol, task.content))
+    echo(format_status(symbol, task.content, task.id))
 
 
 def cmd_due(args: list[str], remove: bool = False) -> None:
@@ -242,10 +242,10 @@ def cmd_due(args: list[str], remove: bool = False) -> None:
     task = resolve_task(item_name)
     if remove:
         update_task(task.id, due=None)
-        echo(format_status("□", task.content))
+        echo(format_status("□", task.content, task.id))
     elif date_str:
         update_task(task.id, due=date_str)
-        echo(format_status(f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content))
+        echo(format_status(f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content, task.id))
     else:
         exit_error(
             "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
@@ -264,7 +264,7 @@ def cmd_rename(from_args: list[str], to_content: str) -> None:
         update_task(item.id, content=to_content)
     else:
         update_habit(item.id, content=to_content)
-    echo(f"Updated: '{item.content}' → '{to_content}'")
+    echo(f"→ {to_content}")
 
 
 def cmd_tag(
@@ -414,7 +414,7 @@ def _set_due_relative(args: list[str], offset_days: int, label: str) -> None:
     task = resolve_task(ref)
     due_str = (today() + timedelta(days=offset_days)).isoformat()
     update_task(task.id, due=due_str)
-    echo(format_status("□", task.content))
+    echo(format_status("□", task.content, task.id))
 
 
 def cmd_today(args: list[str]) -> None:
@@ -434,7 +434,7 @@ def cmd_now(args: list[str]) -> None:
     due_str = today().isoformat()
     time_str = current.strftime("%H:%M")
     update_task(task.id, due=due_str, due_time=time_str)
-    echo(f"□ {task.content.lower()} → {time_str}")
+    echo(format_status(f"{ANSI.GREY}{time_str}{ANSI.RESET}", task.content.lower(), task.id))
 
 
 def cmd_schedule(args: list[str], remove: bool = False) -> None:
@@ -443,7 +443,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
     if remove:
         task = resolve_task(" ".join(args))
         update_task(task.id, due_time=None)
-        echo(format_status("□", task.content))
+        echo(format_status("□", task.content, task.id))
         return
     time_str = args[0]
     ref = " ".join(args[1:])
@@ -455,4 +455,4 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
         exit_error(str(e))
     task = resolve_task(ref)
     update_task(task.id, due_time=parsed)
-    echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content))
+    echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content, task.id))

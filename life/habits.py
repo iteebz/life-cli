@@ -179,8 +179,11 @@ def find_habit(ref: str) -> Habit | None:
     return find_in_pool(ref, get_habits())
 
 
-def toggle_check(habit_id: str) -> None:
-    """Toggle check for today."""
+def toggle_check(habit_id: str) -> Habit | None:
+    """Toggle check for today. Returns updated Habit or None if not found."""
+    habit = get_habit(habit_id)
+    if not habit:
+        return None
     today_str = clock.today().isoformat()
     with db.get_db() as conn:
         cursor = conn.execute(
@@ -198,3 +201,4 @@ def toggle_check(habit_id: str) -> None:
                     "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
                     (habit_id, today_str),
                 )
+    return get_habit(habit_id)
