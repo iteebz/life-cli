@@ -20,12 +20,12 @@ def _due_time_color(due_time: str, now: datetime) -> str:
         h, m = map(int, due_time.split(":"))
         task_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
         delta = (task_dt - now).total_seconds() / 60
-        if delta < 0 and delta >= -60:
-            return ANSI.GREEN
-        if delta < 0:
+        if delta < -30:
             return ANSI.GREY
+        if delta < 0:
+            return ANSI.BOLD + ANSI.RED
         if delta <= 15:
-            return ANSI.RED
+            return ANSI.SOFT_ORANGE
         if delta <= 60:
             return ANSI.YELLOW
         return ANSI.GREY
@@ -88,9 +88,9 @@ def render_today_completed(today_items: list[Task | Habit]):
         else:
             time_str = "--:--"
         if isinstance(item, Habit):
-            lines.append(f"  {ANSI.GREY}{time_str} ✓ {content}{tags_str}{ANSI.RESET}")
+            lines.append(f"  {ANSI.GREY}✓ {time_str} {content}{tags_str}{ANSI.RESET}")
         else:
-            lines.append(f"  {ANSI.GREY}{time_str}{ANSI.RESET} ✓ {content}{tags_str}")
+            lines.append(f"  ✓ {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}")
 
     return "\n".join(lines)
 
@@ -173,7 +173,7 @@ def render_dashboard(
             if task.blocked_by:
                 blocker_name = today_task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
                 blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
-                lines.append(f"  ⊘ {time_str}{task.content.lower()}{tags_str}{blocked_str}{id_str}")
+                lines.append(f"  ⊘ {ANSI.GREY}{time_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}")
             else:
                 fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
                 lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
@@ -261,7 +261,7 @@ def render_dashboard(
             if task.blocked_by:
                 blocker_name = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
                 blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
-                rows = [f"{indent}⊘ {task.content.lower()}{tags_str}{blocked_str}{id_str}"]
+                rows = [f"{indent}⊘ {ANSI.GREY}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"]
             else:
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
                 rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}{id_str}"]

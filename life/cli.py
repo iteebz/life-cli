@@ -22,6 +22,7 @@ from .commands import (
     cmd_steward,
     cmd_tag,
     cmd_task,
+    cmd_now,
     cmd_today,
     cmd_tomorrow,
     cmd_track,
@@ -178,6 +179,14 @@ def backup():
 def momentum():
     """Show momentum and weekly trends"""
     cmd_momentum()
+
+
+@app.command(name="now")
+def now_cmd(
+    args: list[str] = typer.Argument(..., help="Task to schedule for right now"),  # noqa: B008
+):
+    """Set a task due today at the current time"""
+    cmd_now(args)
 
 
 @app.command(name="today")

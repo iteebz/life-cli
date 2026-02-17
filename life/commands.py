@@ -13,7 +13,7 @@ from .interventions import add_intervention, get_interventions
 from .interventions import get_stats as get_intervention_stats
 from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
-from .lib.clock import today
+from .lib.clock import now, today
 from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.errors import echo, exit_error
 from .lib.format import format_habit, format_status, format_task
@@ -139,6 +139,7 @@ __all__ = [
     "cmd_stats",
     "cmd_backup",
     "cmd_momentum",
+    "cmd_now",
     "cmd_today",
     "cmd_tomorrow",
     "cmd_schedule",
@@ -422,6 +423,18 @@ def cmd_today(args: list[str]) -> None:
 
 def cmd_tomorrow(args: list[str]) -> None:
     _set_due_relative(args, 1, "tomorrow")
+
+
+def cmd_now(args: list[str]) -> None:
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life now <task>")
+    task = resolve_task(ref)
+    current = now()
+    due_str = today().isoformat()
+    time_str = current.strftime("%H:%M")
+    update_task(task.id, due=due_str, due_time=time_str)
+    echo(f"□ {task.content.lower()} → {time_str}")
 
 
 def cmd_schedule(args: list[str], remove: bool = False) -> None:
