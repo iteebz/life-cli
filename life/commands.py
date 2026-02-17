@@ -35,6 +35,34 @@ from .tasks import (
     update_task,
 )
 
+__all__ = [
+    "cmd_block",
+    "cmd_dashboard",
+    "cmd_list",
+    "cmd_task",
+    "cmd_habit",
+    "cmd_done",
+    "cmd_rm",
+    "cmd_focus",
+    "cmd_due",
+    "cmd_rename",
+    "cmd_tag",
+    "cmd_habits",
+    "cmd_profile",
+    "cmd_dates",
+    "cmd_status",
+    "cmd_stats",
+    "cmd_backup",
+    "cmd_momentum",
+    "cmd_now",
+    "cmd_today",
+    "cmd_tomorrow",
+    "cmd_schedule",
+    "cmd_steward",
+    "cmd_track",
+    "cmd_unblock",
+]
+
 
 def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:
     blocked_ref = " ".join(blocked_args)
@@ -107,35 +135,6 @@ def cmd_track(
     symbol = {"won": "✓", "lost": "✗", "deferred": "→"}[result]
     echo(f"{symbol} {description}")
 
-
-__all__ = [
-    "cmd_block",
-    "cmd_dashboard",
-    "cmd_list",
-    "cmd_task",
-    "cmd_habit",
-    "cmd_done",
-    "cmd_rm",
-    "cmd_focus",
-    "cmd_due",
-    "cmd_rename",
-    "cmd_tag",
-    "cmd_habits",
-    "cmd_profile",
-    "cmd_dates",
-    "cmd_status",
-    "cmd_stats",
-    "cmd_backup",
-    "cmd_momentum",
-    "cmd_now",
-    "cmd_today",
-    "cmd_tomorrow",
-    "cmd_schedule",
-    "cmd_steward",
-    "cmd_track",
-    "cmd_unblock",
-    "cmd_block",
-]
 
 
 def cmd_dashboard(verbose: bool = False) -> None:
