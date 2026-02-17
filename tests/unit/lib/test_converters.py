@@ -95,7 +95,7 @@ def test_row_to_task_complete():
     assert task.content == "Buy milk"
     assert task.focus is True
     assert task.due_date == date(2025, 10, 31)
-    assert task.completed is not None
+    assert task.completed_at is not None
 
 
 def test_row_to_task_no_focus():
@@ -110,7 +110,7 @@ def test_row_to_task_no_focus():
     task = _row_to_task(row)
     assert task.focus is False
     assert task.due_date is None
-    assert task.completed is None
+    assert task.completed_at is None
 
 
 def test_row_to_habit_complete():
@@ -132,7 +132,7 @@ def test_hydrate_tags_task():
         focus=False,
         due_date=None,
         created=datetime.now(),
-        completed=None,
+        completed_at=None,
         tags=[],
     )
     hydrated = _hydrate_tags(task, ["urgent", "shopping"])
@@ -159,7 +159,7 @@ def test_hydrate_tags_empty():
         focus=False,
         due_date=None,
         created=datetime.now(),
-        completed=None,
+        completed_at=None,
         tags=[],
     )
     hydrated = _hydrate_tags(task, [])

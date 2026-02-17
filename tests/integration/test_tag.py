@@ -9,7 +9,7 @@ def test_tag_positional_syntax(tmp_life_dir):
     result = runner.invoke(app, ["tag", "finance", "home loan"])
 
     assert result.exit_code == 0
-    assert "Tagged:" in result.stdout
+    assert "#finance" in result.stdout
 
 
 def test_tag_option_syntax(tmp_life_dir):
@@ -18,4 +18,4 @@ def test_tag_option_syntax(tmp_life_dir):
     result = runner.invoke(app, ["tag", "home loan", "--tag", "finance"])
 
     assert result.exit_code == 0
-    assert "Tagged:" in result.stdout
+    assert "#finance" in result.stdout

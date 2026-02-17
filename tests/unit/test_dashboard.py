@@ -125,7 +125,7 @@ def test_today_completed_exclude_yesterday(tmp_life_dir, fixed_today):
     with db.get_db() as conn:
         yesterday = fixed_today - timedelta(days=1)
         conn.execute(
-            "UPDATE tasks SET completed = ? WHERE id = ?",
+            "UPDATE tasks SET completed_at = ? WHERE id = ?",
             (datetime.combine(yesterday, time.min).isoformat(), task_id),
         )
 

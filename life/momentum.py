@@ -82,7 +82,7 @@ def weekly_momentum():
                 FROM tasks
                 WHERE (
                     created <= ?
-                    OR (completed >= ? AND completed <= ?)
+                    OR (completed_at >= ? AND completed_at <= ?)
                 )""",
                 (end_str, start_str, end_str),
             )

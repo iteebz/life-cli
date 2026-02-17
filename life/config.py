@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 
 LIFE_DIR = Path.home() / ".life"
-DB_PATH = LIFE_DIR / "store.db"
+DB_PATH = LIFE_DIR / "life.db"
 CONFIG_PATH = LIFE_DIR / "config.yaml"
 BACKUP_DIR = Path.home() / ".life_backups"
 
