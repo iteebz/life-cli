@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from ..config import get_dates
 from ..models import Habit, Task
@@ -13,6 +13,24 @@ __all__ = [
     "render_item_list",
     "render_momentum",
 ]
+
+
+def _scheduled_time_color(scheduled_time: str, now: datetime) -> str:
+    try:
+        h, m = map(int, scheduled_time.split(":"))
+        task_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        delta = (task_dt - now).total_seconds() / 60
+        if delta < 0 and delta >= -60:
+            return ANSI.GREEN
+        if delta < 0:
+            return ANSI.GREY
+        if delta <= 15:
+            return ANSI.RED
+        if delta <= 30:
+            return ANSI.YELLOW
+        return ANSI.GREY
+    except (ValueError, AttributeError):
+        return ANSI.GREY
 
 
 def _get_trend(current: int, previous: int) -> str:
@@ -132,7 +150,11 @@ def render_dashboard(
                 else ""
             )
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
-            time_str = f"{ANSI.GREY}{task.scheduled_time}{ANSI.RESET} " if task.scheduled_time else ""
+            if task.scheduled_time:
+                tc = _scheduled_time_color(task.scheduled_time, now)
+                time_str = f"{tc}{task.scheduled_time}{ANSI.RESET} "
+            else:
+                time_str = ""
             lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
