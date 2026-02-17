@@ -68,6 +68,11 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
     now = clock.now().astimezone()
     current_time = now.strftime("%H:%M")
 
+    today_str = today.isoformat()
+    tomorrow = today + timedelta(days=1)
+    tomorrow_str = tomorrow.isoformat()
+    scheduled_ids = set()
+
     lines = []
     lines.append(f"\nToday: {today} {current_time}")
     dates_list = get_dates()
@@ -82,46 +87,31 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             emoji = next_date.get("emoji", "📌")
             name = next_date.get("name", "event")
             lines.append(f"{emoji} {days} days until {name}!")
-    if context:
-        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}CONTEXT:{ANSI.RESET}")
-        lines.append(f"{context}")
-    if profile:
-        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}PROFILE:{ANSI.RESET}")
-        lines.append(f"{profile}")
 
-    lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}MOMENTUM:{ANSI.RESET}")
-    for week_name in ["this_week", "last_week", "prior_week"]:
-        week_data = momentum[week_name]
-        tasks_c = week_data.tasks_completed
-        habits_c = week_data.habits_completed
-        tasks_t = week_data.tasks_total
-        habits_t = week_data.habits_total
+    all_pending = [item for item in items if isinstance(item, Task)]
+    due_today = [t for t in all_pending if t.due_date and t.due_date.isoformat() == today_str]
+    due_tomorrow = [t for t in all_pending if t.due_date and t.due_date.isoformat() == tomorrow_str]
 
-        tasks_rate = (tasks_c / tasks_t) * 100 if tasks_t > 0 else 0
-        habits_rate = (habits_c / habits_t) * 100 if habits_t > 0 else 0
+    lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TODAY:{ANSI.RESET}")
+    if due_today:
+        for task in sorted(due_today, key=_task_sort_key):
+            scheduled_ids.add(task.id)
+            indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else "  □ "
+            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags) if task.tags else ""
+            lines.append(f"{indicator}{task.content.lower()}{tags_str}")
+    else:
+        lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 
-        lines.append(f"  {week_name.replace('_', ' ').lower()}:")
-        lines.append(f"    tasks: {tasks_c}/{tasks_t} ({tasks_rate:.0f}%)")
-        lines.append(f"    habits: {habits_c}/{habits_t} ({habits_rate:.0f}%)")
-
-    # Add trend indicators (comparing this_week to last_week)
-    if "this_week" in momentum and "last_week" in momentum:
-        this_week = momentum["this_week"]
-        last_week = momentum["last_week"]
-
-        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TRENDS (vs. Last Week):{ANSI.RESET}")
-
-        tasks_trend = _get_trend(this_week.tasks_completed, last_week.tasks_completed)
-        habits_trend = _get_trend(this_week.habits_completed, last_week.habits_completed)
-
-        lines.append(f"  Tasks: {tasks_trend}")
-        lines.append(f"  Habits: {habits_trend}")
-
-    if today_items:
-        lines.append(render_today_completed(today_items))
+    if due_tomorrow:
+        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TOMORROW:{ANSI.RESET}")
+        for task in sorted(due_tomorrow, key=_task_sort_key):
+            scheduled_ids.add(task.id)
+            indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else "  □ "
+            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags) if task.tags else ""
+            lines.append(f"{indicator}{task.content.lower()}{tags_str}")
 
     habits = [item for item in items if isinstance(item, Habit)]
-    regular_items = [item for item in items if isinstance(item, Task)]
+    regular_items = [item for item in items if isinstance(item, Task) and item.id not in scheduled_ids]
 
     today_habit_items = [item for item in (today_items or []) if isinstance(item, Habit)]
     today_habit_ids = {item.id for item in today_habit_items}
@@ -155,11 +145,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
                 f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{ANSI.RESET}"
             )
 
-    if not regular_items:
-        lines.append("\nNo pending items. You're either productive or fucked.")
-    else:
-        today = clock.today()
-
+    if regular_items:
         tagged_regular = {}
         untagged = []
 
@@ -183,21 +169,49 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
                 f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(items_by_tag)}):{ANSI.RESET}"
             )
             for task in items_by_tag:
-                due_str = format_due(task.due_date) if task.due_date else ""
                 other_tags = [t for t in task.tags if t != tag]
                 tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
-                due_part = f"{due_str} " if due_str else ""
-                lines.append(f"  {indicator}{due_part}{task.content.lower()}{tags_str}")
+                lines.append(f"  {indicator}{task.content.lower()}{tags_str}")
 
         untagged_sorted = sort_items(untagged)
         if untagged_sorted:
             lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
             for task in untagged_sorted:
-                due_str = format_due(task.due_date) if task.due_date else ""
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
-                due_part = f"{due_str} " if due_str else ""
-                lines.append(f"  {indicator}{due_part}{task.content.lower()}")
+                lines.append(f"  {indicator}{task.content.lower()}")
+
+    return "\n".join(lines)
+
+
+def render_momentum(momentum) -> str:
+    """Render momentum and trends view."""
+    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}MOMENTUM:{ANSI.RESET}"]
+    for week_name in ["this_week", "last_week", "prior_week"]:
+        week_data = momentum[week_name]
+        tasks_c = week_data.tasks_completed
+        habits_c = week_data.habits_completed
+        tasks_t = week_data.tasks_total
+        habits_t = week_data.habits_total
+
+        tasks_rate = (tasks_c / tasks_t) * 100 if tasks_t > 0 else 0
+        habits_rate = (habits_c / habits_t) * 100 if habits_t > 0 else 0
+
+        lines.append(f"  {week_name.replace('_', ' ').lower()}:")
+        lines.append(f"    tasks: {tasks_c}/{tasks_t} ({tasks_rate:.0f}%)")
+        lines.append(f"    habits: {habits_c}/{habits_t} ({habits_rate:.0f}%)")
+
+    if "this_week" in momentum and "last_week" in momentum:
+        this_week = momentum["this_week"]
+        last_week = momentum["last_week"]
+
+        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TRENDS (vs. Last Week):{ANSI.RESET}")
+
+        tasks_trend = _get_trend(this_week.tasks_completed, last_week.tasks_completed)
+        habits_trend = _get_trend(this_week.habits_completed, last_week.habits_completed)
+
+        lines.append(f"  Tasks: {tasks_trend}")
+        lines.append(f"  Habits: {habits_trend}")
 
     return "\n".join(lines)
 

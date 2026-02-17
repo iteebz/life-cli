@@ -8,7 +8,7 @@ from .config import (
     get_context,
     get_profile,
     set_context,
-    set_profile,
+    set_profile,  # noqa: F401
 )
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import (
@@ -26,7 +26,7 @@ from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.format import format_habit, format_status, format_task
 from .lib.fuzzy import find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
-from .lib.render import render_dashboard, render_day_view, render_habit_matrix, render_item_list
+from .lib.render import render_dashboard, render_day_view, render_habit_matrix, render_item_list, render_momentum
 from .momentum import weekly_momentum
 from .personas import get_default_persona_name, manage_personas
 from .tags import add_tag, remove_tag
@@ -46,14 +46,11 @@ def _dashboard(ctx: typer.Context):
     """Ephemeral life agent"""
     if ctx.invoked_subcommand is None:
         items = get_pending_items() + get_habits()
-        life_context = get_context()
-        life_profile = get_profile()
         today_items = get_today_completed()
         today_breakdown = get_today_breakdown()
-        momentum = weekly_momentum()
         typer.echo(
             render_dashboard(
-                items, today_breakdown, momentum, life_context, today_items, life_profile
+                items, today_breakdown, None, None, today_items
             )
         )
 
@@ -371,6 +368,12 @@ def list_items():
     habits = get_habits()
     items = tasks + habits
     typer.echo(render_item_list(items))
+
+
+@app.command()
+def momentum():
+    """Show momentum and weekly trends"""
+    typer.echo(render_momentum(weekly_momentum()))
 
 
 @app.command(name="today")
