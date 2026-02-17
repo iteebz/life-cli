@@ -63,7 +63,7 @@ def render_today_completed(today_items: list[Task | Habit]):
 
 def render_dashboard(items, today_breakdown, momentum, context, today_items=None, profile=None):
     """Render full dashboard view"""
-    habits_today, tasks_today = today_breakdown
+    habits_today, tasks_today, added_today = today_breakdown
     today = clock.today()
     now = clock.now().astimezone()
     current_time = now.strftime("%H:%M")
@@ -74,7 +74,8 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
     scheduled_ids = set()
 
     lines = []
-    lines.append(f"\nToday: {today} {current_time}")
+    checked_today = habits_today + tasks_today
+    lines.append(f"\n{today} {current_time}\nchecked: {checked_today}  added: {added_today}")
     dates_list = get_dates()
     if dates_list:
         upcoming = sorted(
@@ -96,9 +97,9 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
     if due_today:
         for task in sorted(due_today, key=_task_sort_key):
             scheduled_ids.add(task.id)
-            indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else "  □ "
+            fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags) if task.tags else ""
-            lines.append(f"{indicator}{task.content.lower()}{tags_str}")
+            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 
@@ -106,9 +107,9 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
         lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TOMORROW:{ANSI.RESET}")
         for task in sorted(due_tomorrow, key=_task_sort_key):
             scheduled_ids.add(task.id)
-            indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else "  □ "
+            fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags) if task.tags else ""
-            lines.append(f"{indicator}{task.content.lower()}{tags_str}")
+            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}")
 
     habits = [item for item in items if isinstance(item, Habit)]
     regular_items = [item for item in items if isinstance(item, Task) and item.id not in scheduled_ids]

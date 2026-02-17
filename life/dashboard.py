@@ -72,7 +72,7 @@ def get_today_completed() -> list[Task | Habit]:
 
 
 def get_today_breakdown():
-    """Get count of tasks and habits completed today."""
+    """Get count of tasks and habits completed today, and items added today."""
     today_str = clock.today().isoformat()
     with db.get_db() as conn:
         cursor = conn.execute(
@@ -81,5 +81,18 @@ def get_today_breakdown():
         )
         habits_today = cursor.fetchone()[0]
 
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM tasks WHERE DATE(created) = DATE(?)",
+            (today_str,),
+        )
+        tasks_added = cursor.fetchone()[0]
+
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM habits WHERE DATE(created) = DATE(?)",
+            (today_str,),
+        )
+        habits_added = cursor.fetchone()[0]
+
     tasks_today = len(_get_completed_today())
-    return habits_today, tasks_today
+    added_today = tasks_added + habits_added
+    return habits_today, tasks_today, added_today
