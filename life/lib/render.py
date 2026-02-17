@@ -7,6 +7,13 @@ from . import clock
 from .ansi import ANSI
 from .format import format_habit, format_task
 
+__all__ = [
+    "render_dashboard",
+    "render_habit_matrix",
+    "render_item_list",
+    "render_momentum",
+]
+
 
 def _get_trend(current: int, previous: int) -> str:
     """Determine trend indicator based on current vs previous value."""
@@ -19,7 +26,7 @@ def _get_trend(current: int, previous: int) -> str:
     return "→"
 
 
-def get_habit_trend(checks: list[date]) -> str:
+def _get_habit_trend(checks: list[date]) -> str:
     """Determine if a habit is trending up, down, or stable based on check counts."""
     today = clock.today()
 
@@ -70,7 +77,9 @@ def render_today_completed(today_items: list[Task | Habit]):
     return "\n".join(lines)
 
 
-def render_dashboard(items, today_breakdown, momentum, context, today_items=None, profile=None, verbose=False):
+def render_dashboard(
+    items, today_breakdown, momentum, context, today_items=None, profile=None, verbose=False
+):
     """Render full dashboard view"""
     habits_today, tasks_today, added_today = today_breakdown
     today = clock.today()
@@ -160,14 +169,14 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             content = habit.content
             tags = habit.tags
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-            trend_indicator = get_habit_trend(habit.checks)
+            trend_indicator = _get_habit_trend(habit.checks)
             lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}")
 
         for habit in completed_habits:
             content = habit.content
             tags = habit.tags
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-            trend_indicator = get_habit_trend(habit.checks)
+            trend_indicator = _get_habit_trend(habit.checks)
             lines.append(
                 f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{ANSI.RESET}"
             )
@@ -207,7 +216,9 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
                 sub_tags_str = " " + " ".join(f"#{t}" for t in sub.tags) if sub.tags else ""
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
-                rows.append(f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_tags_str}{sub_id_str}")
+                rows.append(
+                    f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_tags_str}{sub_id_str}"
+                )
             return rows
 
         for idx, tag in enumerate(sorted(tagged_regular.keys())):

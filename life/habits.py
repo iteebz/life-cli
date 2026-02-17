@@ -10,6 +10,17 @@ from .lib.converters import row_to_habit
 from .models import Habit
 from .tags import load_tags_for_habits
 
+__all__ = [
+    "add_habit",
+    "delete_habit",
+    "get_checks",
+    "get_habit",
+    "get_habits",
+    "get_streak",
+    "toggle_check",
+    "update_habit",
+]
+
 
 def _hydrate_habit(habit: Habit, checks: list[date], tags: list[str]) -> Habit:
     """Attach checks and tags to a habit."""

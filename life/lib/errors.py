@@ -2,6 +2,8 @@ from typing import NoReturn
 
 import typer
 
+__all__ = ["echo", "exit_error"]
+
 
 def echo(message: str = "", err: bool = False) -> None:
     typer.echo(message, err=err)

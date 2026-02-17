@@ -6,6 +6,12 @@ from .models import Habit, Task
 from .tags import hydrate_tags, load_tags_for_tasks
 from .tasks import _task_sort_key
 
+__all__ = [
+    "get_pending_items",
+    "get_today_breakdown",
+    "get_today_completed",
+]
+
 
 def _get_pending_tasks() -> list[Task]:
     """Internal: SELECT completed IS NULL, sorted by (focus DESC, due_date ASC, created ASC)."""

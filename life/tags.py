@@ -9,6 +9,19 @@ from .models import Habit, Task
 
 T = TypeVar("T", Task, Habit)
 
+__all__ = [
+    "add_tag",
+    "get_habits_by_tag",
+    "get_tags_for_habit",
+    "get_tags_for_task",
+    "get_tasks_by_tag",
+    "hydrate_tags",
+    "list_all_tags",
+    "load_tags_for_habits",
+    "load_tags_for_tasks",
+    "remove_tag",
+]
+
 
 def add_tag(task_id: str | None, habit_id: str | None, tag: str, conn=None) -> None:
     if (task_id is None and habit_id is None) or (task_id is not None and habit_id is not None):

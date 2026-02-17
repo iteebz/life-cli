@@ -2,6 +2,18 @@ import sqlite3
 import uuid
 
 from . import db
+
+__all__ = [
+    "add_task",
+    "delete_task",
+    "get_all_tasks",
+    "get_focus",
+    "get_task",
+    "get_tasks",
+    "toggle_completed",
+    "toggle_focus",
+    "update_task",
+]
 from .lib import clock
 from .lib.converters import row_to_task
 from .models import Task

@@ -3,6 +3,13 @@ from datetime import date
 from . import clock
 from .ansi import ANSI
 
+__all__ = [
+    "format_due",
+    "format_habit",
+    "format_status",
+    "format_task",
+]
+
 
 def format_due(due_date, colorize=True):
     if not due_date:

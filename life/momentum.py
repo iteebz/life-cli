@@ -5,6 +5,8 @@ from . import db
 from .lib import clock
 from .models import Weekly
 
+__all__ = ["weekly_momentum"]
+
 
 def _calculate_total_possible(active_items_data, week_start_date, week_end_date):
     total_possible = 0

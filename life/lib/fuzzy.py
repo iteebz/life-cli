@@ -6,6 +6,13 @@ from ..habits import get_habits
 from ..models import Habit, Task
 from ..tasks import get_all_tasks, get_tasks
 
+__all__ = [
+    "find_habit",
+    "find_item",
+    "find_task",
+    "find_task_any",
+]
+
 FUZZY_MATCH_CUTOFF = 0.8
 
 T = TypeVar("T", Task, Habit)
