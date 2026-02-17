@@ -113,16 +113,25 @@ def get_focus() -> list[Task]:
         return hydrate_tags(tasks, tags_map)
 
 
+_TRACKED_FIELDS = {"content", "due_date", "due_time", "focus", "completed_at"}
+
+
+def _record_mutation(conn: sqlite3.Connection, task_id: str, field: str, old_val, new_val) -> None:
+    if field not in _TRACKED_FIELDS:
+        return
+    old_str = str(old_val) if old_val is not None else None
+    new_str = str(new_val) if new_val is not None else None
+    if old_str == new_str:
+        return
+    conn.execute(
+        "INSERT INTO task_mutations (task_id, field, old_value, new_value) VALUES (?, ?, ?, ?)",
+        (task_id, field, old_str, new_str),
+    )
+
+
 def _record_mutations(conn: sqlite3.Connection, task_id: str, old: Task, updates: dict) -> None:
-    field_map = {"due_date": "due_date", "due_time": "due_time", "content": "content", "focus": "focus"}
     for field, new_val in updates.items():
-        old_val = str(getattr(old, field_map.get(field, field), None))
-        new_str = str(new_val)
-        if old_val != new_str:
-            conn.execute(
-                "INSERT INTO task_mutations (task_id, field, old_value, new_value) VALUES (?, ?, ?, ?)",
-                (task_id, field, old_val if old_val != "None" else None, new_str),
-            )
+        _record_mutation(conn, task_id, field, getattr(old, field, None), new_val)
 
 
 _UNSET = object()
@@ -197,12 +206,15 @@ def toggle_completed(task_id: str) -> Task | None:
     if task.completed_at:
         with db.get_db() as conn:
             conn.execute("UPDATE tasks SET completed_at = NULL WHERE id = ?", (task_id,))
+            _record_mutation(conn, task_id, "completed_at", task.completed_at, None)
     else:
+        completed = clock.now().strftime("%Y-%m-%dT%H:%M:%S")
         with db.get_db() as conn:
             conn.execute(
                 "UPDATE tasks SET completed_at = ? WHERE id = ?",
-                (clock.now().strftime("%Y-%m-%dT%H:%M:%S"), task_id),
+                (completed, task_id),
             )
+            _record_mutation(conn, task_id, "completed_at", None, completed)
 
     return get_task(task_id)
 
