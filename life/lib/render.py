@@ -70,7 +70,7 @@ def render_today_completed(today_items: list[Task | Habit]):
     return "\n".join(lines)
 
 
-def render_dashboard(items, today_breakdown, momentum, context, today_items=None, profile=None):
+def render_dashboard(items, today_breakdown, momentum, context, today_items=None, profile=None, verbose=False):
     """Render full dashboard view"""
     habits_today, tasks_today, added_today = today_breakdown
     today = clock.today()
@@ -117,7 +117,8 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
                 if task.tags
                 else ""
             )
-            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}")
+            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
+            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 
@@ -131,7 +132,8 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
                 if task.tags
                 else ""
             )
-            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}")
+            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
+            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}")
 
     habits = [item for item in items if isinstance(item, Habit)]
     regular_items = [
@@ -199,11 +201,13 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             other_tags = [t for t in task.tags if t != tag] if tag else task.tags
             tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
             indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
-            rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}"]
+            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
+            rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}{id_str}"]
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
                 sub_tags_str = " " + " ".join(f"#{t}" for t in sub.tags) if sub.tags else ""
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
-                rows.append(f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_tags_str}")
+                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                rows.append(f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_tags_str}{sub_id_str}")
             return rows
 
         for idx, tag in enumerate(sorted(tagged_regular.keys())):

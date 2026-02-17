@@ -39,13 +39,16 @@ app = typer.Typer(
 
 
 @app.callback(invoke_without_command=True)
-def dashboard(ctx: typer.Context):
+def dashboard(
+    ctx: typer.Context,
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show IDs"),  # noqa: B008
+):
     """Life dashboard"""
     if ctx.invoked_subcommand is None:
         items = get_pending_items() + get_habits()
         today_items = get_today_completed()
         today_breakdown = get_today_breakdown()
-        typer.echo(render_dashboard(items, today_breakdown, None, None, today_items))
+        typer.echo(render_dashboard(items, today_breakdown, None, None, today_items, verbose=verbose))
 
 
 @app.command()
@@ -373,16 +376,6 @@ def status():
 def backup():
     """Create database backup"""
     typer.echo(backup_life())
-
-
-@app.command(name="list")
-def list_items():
-    """List all items."""
-
-    tasks = get_tasks()
-    habits = get_habits()
-    items = tasks + habits
-    typer.echo(render_item_list(items))
 
 
 @app.command()
