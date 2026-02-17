@@ -50,17 +50,6 @@ class Config:
 _config = Config()
 
 
-def get_context() -> str:
-    """Get current life context"""
-    context = _config.get("context", "")
-    return context.strip() if context else "No context set"
-
-
-def set_context(context):
-    """Set current life context"""
-    _config.set("context", context)
-
-
 def get_profile() -> str:
     """Get current profile"""
     profile = _config.get("profile", "")

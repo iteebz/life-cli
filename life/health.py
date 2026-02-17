@@ -49,13 +49,10 @@ def _check_config_exists() -> CheckResult:
     try:
         with get_db() as conn:
             profile = conn.execute("SELECT value FROM config WHERE key = 'profile'").fetchone()
-            context = conn.execute("SELECT value FROM config WHERE key = 'context'").fetchone()
 
         if not profile or not profile[0]:
             return CheckResult(ok=False, score=50, detail="profile not set")
-        if not context or not context[0]:
-            return CheckResult(ok=False, score=50, detail="context not set")
-        return CheckResult(ok=True, score=100, detail="profile + context set")
+        return CheckResult(ok=True, score=100, detail="profile set")
     except Exception:
         return CheckResult(ok=True, score=100, detail="config table missing (ok)")
 

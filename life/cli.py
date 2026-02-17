@@ -4,9 +4,7 @@ import typer
 
 from . import db
 from .config import (
-    get_context,
     get_profile,
-    set_context,
     set_profile,
 )
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
@@ -295,18 +293,6 @@ def profile(
         typer.echo(f"Profile set to: {profile_text}")
     else:
         typer.echo(get_profile() or "No profile set")
-
-
-@app.command()
-def context(
-    context_text: str = typer.Argument(None, help="Context text to set"),  # noqa: B008
-):
-    """View or set current context"""
-    if context_text:
-        set_context(context_text)
-        typer.echo(f"Context set to: {context_text}")
-    else:
-        typer.echo(get_context() or "No context set")
 
 
 @app.command()
