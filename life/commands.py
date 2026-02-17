@@ -33,6 +33,18 @@ from .tasks import (
     update_task,
 )
 
+
+def _parse_time(time_str: str) -> str:
+    """Parse HH:MM or H:MM, return HH:MM or raise ValueError."""
+    import re
+    time_str = time_str.strip().lower()
+    m = re.match(r'^(\d{1,2}):(\d{2})$', time_str)
+    if m:
+        h, mn = int(m.group(1)), int(m.group(2))
+        if 0 <= h <= 23 and 0 <= mn <= 59:
+            return f"{h:02d}:{mn:02d}"
+    raise ValueError(f"Invalid time '{time_str}' — use HH:MM")
+
 __all__ = [
     "cmd_dashboard",
     "cmd_task",
@@ -51,6 +63,7 @@ __all__ = [
     "cmd_momentum",
     "cmd_today",
     "cmd_tomorrow",
+    "cmd_schedule",
 ]
 
 
@@ -332,3 +345,27 @@ def cmd_today(args: list[str]) -> None:
 
 def cmd_tomorrow(args: list[str]) -> None:
     _set_due_relative(args, 1, "tomorrow")
+
+
+def cmd_schedule(args: list[str], remove: bool = False) -> None:
+    if not args:
+        exit_error("Usage: life schedule <HH:MM> <task> | life schedule -r <task>")
+    if remove:
+        partial = " ".join(args)
+        task = _require_task(partial)
+        from . import db as _db
+        with _db.get_db() as conn:
+            conn.execute("UPDATE tasks SET scheduled_time = NULL WHERE id = ?", (task.id,))
+        echo(format_status("□", task.content))
+        return
+    time_str = args[0]
+    partial = " ".join(args[1:])
+    if not partial:
+        exit_error("Usage: life schedule <HH:MM> <task>")
+    try:
+        parsed = _parse_time(time_str)
+    except ValueError as e:
+        exit_error(str(e))
+    task = _require_task(partial)
+    update_task(task.id, scheduled_time=parsed)
+    echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content))

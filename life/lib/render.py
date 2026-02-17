@@ -116,9 +116,14 @@ def render_dashboard(
     due_today = [t for t in all_pending if t.due_date and t.due_date.isoformat() == today_str]
     due_tomorrow = [t for t in all_pending if t.due_date and t.due_date.isoformat() == tomorrow_str]
 
+    def _today_sort_key(task: Task):
+        if task.scheduled_time:
+            return (0, task.scheduled_time, not task.focus)
+        return (1, "", not task.focus)
+
     lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TODAY:{ANSI.RESET}")
     if due_today:
-        for task in sorted(due_today, key=_task_sort_key):
+        for task in sorted(due_today, key=_today_sort_key):
             scheduled_ids.add(task.id)
             fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
             tags_str = (
@@ -127,7 +132,8 @@ def render_dashboard(
                 else ""
             )
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
-            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}")
+            time_str = f"{ANSI.GREY}{task.scheduled_time}{ANSI.RESET} " if task.scheduled_time else ""
+            lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 

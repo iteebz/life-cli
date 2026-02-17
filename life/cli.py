@@ -14,6 +14,7 @@ from .commands import (
     cmd_profile,
     cmd_rename,
     cmd_rm,
+    cmd_schedule,
     cmd_status,
     cmd_tag,
     cmd_task,
@@ -175,6 +176,15 @@ def tomorrow(
 ):
     """Set due date to tomorrow on a task (fuzzy match)"""
     cmd_tomorrow(args)
+
+
+@app.command()
+def schedule(
+    args: list[str] = typer.Argument(..., help="HH:MM and task name, or task name with -r"),  # noqa: B008
+    remove: bool = typer.Option(False, "-r", "--remove", help="Clear scheduled time"),  # noqa: B008
+):
+    """Set or clear scheduled time on a task (fuzzy match)"""
+    cmd_schedule(args, remove=remove)
 
 
 def main():

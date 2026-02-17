@@ -59,7 +59,7 @@ def get_task(task_id: str) -> Task | None:
     """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time FROM tasks WHERE id = ?",
             (task_id,),
         )
         row = cursor.fetchone()
@@ -75,7 +75,7 @@ def get_tasks() -> list[Task]:
     """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time FROM tasks WHERE completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -89,7 +89,7 @@ def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time FROM tasks"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -103,7 +103,7 @@ def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE focus = 1 AND completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time FROM tasks WHERE focus = 1 AND completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -112,13 +112,18 @@ def get_focus() -> list[Task]:
 
 
 def update_task(
-    task_id: str, content: str | None = None, focus: bool | None = None, due: str | None = None
+    task_id: str,
+    content: str | None = None,
+    focus: bool | None = None,
+    due: str | None = None,
+    scheduled_time: str | None = None,
 ) -> Task | None:
     """Partial update, return updated Task."""
     updates = {
         "content": content,
         "focus": focus,
         "due_date": due,
+        "scheduled_time": scheduled_time,
     }
     updates = {k: v for k, v in updates.items() if v is not None}
 

@@ -56,6 +56,7 @@ def row_to_task(row: TaskRow) -> Task:
         created=_parse_datetime(row[4]),
         completed_at=_parse_datetime_optional(row[5]),
         parent_id=cast(str, row[6]) if len(row) > 6 and row[6] is not None else None,
+        scheduled_time=cast(str, row[7]) if len(row) > 7 and row[7] is not None else None,
     )
 
 
