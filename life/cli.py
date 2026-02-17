@@ -20,11 +20,12 @@ from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
 from .lib.clock import today
 from .lib.dates import add_date, list_dates, parse_due_date, remove_date
+from .lib.errors import echo, exit_error
 from .lib.format import format_habit, format_status, format_task
 from .lib.fuzzy import find_habit, find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
-from .lib.render import render_dashboard, render_habit_matrix, render_item_list, render_momentum
-from .models import Task
+from .lib.render import render_dashboard, render_habit_matrix, render_momentum
+from .models import Habit, Task
 from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
 from .tasks import add_task, delete_task, get_tasks, toggle_completed, toggle_focus, update_task
@@ -38,6 +39,23 @@ app = typer.Typer(
 )
 
 
+def _require_task(partial: str) -> Task:
+    task = find_task(partial)
+    if not task:
+        exit_error(f"No task found matching '{partial}'")
+    return task
+
+
+def _require_item(partial: str) -> tuple[Task | None, Habit | None]:
+    task, habit = find_item(partial)
+    if not task and not habit:
+        task = find_task_any(partial)
+        habit = find_habit(partial) if not task else None
+    if not task and not habit:
+        exit_error(f"No item found matching '{partial}'")
+    return task, habit
+
+
 @app.callback(invoke_without_command=True)
 def dashboard(
     ctx: typer.Context,
@@ -48,7 +66,7 @@ def dashboard(
         items = get_pending_items() + get_habits()
         today_items = get_today_completed()
         today_breakdown = get_today_breakdown()
-        typer.echo(render_dashboard(items, today_breakdown, None, None, today_items, verbose=verbose))
+        echo(render_dashboard(items, today_breakdown, None, None, today_items, verbose=verbose))
 
 
 @app.command()
@@ -66,23 +84,20 @@ def task(
     try:
         validate_content(content)
     except ValueError as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1) from None
+        exit_error(f"Error: {e}")
     resolved_due = parse_due_date(due) if due else None
     parent_id = None
     if under:
         parent_task = find_task(under)
         if not parent_task:
-            typer.echo(f"No task found matching '{under}'", err=True)
-            raise typer.Exit(1)
+            exit_error(f"No task found matching '{under}'")
         if parent_task.parent_id:
-            typer.echo("Error: subtasks cannot have subtasks", err=True)
-            raise typer.Exit(1)
+            exit_error("Error: subtasks cannot have subtasks")
         parent_id = parent_task.id
     task_id = add_task(content, focus=focus, due=resolved_due, tags=tags, parent_id=parent_id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
     prefix = "  └ " if parent_id else ""
-    typer.echo(f"{prefix}{format_status(symbol, content, task_id)}")
+    echo(f"{prefix}{format_status(symbol, content, task_id)}")
 
 
 @app.command()
@@ -95,10 +110,9 @@ def habit(
     try:
         validate_content(content)
     except ValueError as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1) from None
+        exit_error(f"Error: {e}")
     habit_id = add_habit(content, tags=tags)
-    typer.echo(format_status("□", content, habit_id))
+    echo(format_status("□", content, habit_id))
 
 
 @app.command()
@@ -108,16 +122,8 @@ def done(
     """Mark task/habit as done or undone."""
     partial = " ".join(args) if args else ""
     if not partial:
-        typer.echo("Usage: life done <item>")
-        raise typer.Exit(1)
-    task, habit = find_item(partial)
-    if not task and not habit:
-        task = find_task_any(partial)
-        habit = find_habit(partial) if not task else None
-
-    if not task and not habit:
-        typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
-        raise typer.Exit(code=1)
+        exit_error("Usage: life done <item>")
+    task, habit = _require_item(partial)
 
     if habit:
         today_date = today()
@@ -125,10 +131,10 @@ def done(
         is_undo_action = today_date in checks
         toggle_check(habit.id)
         checked = not is_undo_action
-        typer.echo(format_habit(habit, checked=checked))
+        echo(format_habit(habit, checked=checked))
     elif task:
         toggle_completed(task.id)
-        typer.echo(format_task(task))
+        echo(format_task(task))
 
 
 @app.command()
@@ -138,17 +144,16 @@ def rm(
     """Delete item or completed task (fuzzy match)"""
     partial = " ".join(args) if args else ""
     if not partial:
-        typer.echo("Usage: life rm <item>")
-        raise typer.Exit(1)
+        exit_error("Usage: life rm <item>")
     task, habit = find_item(partial)
     if task:
         delete_task(task.id)
-        typer.echo(f"{ANSI.DIM}{task.content}{ANSI.RESET}")
+        echo(f"{ANSI.DIM}{task.content}{ANSI.RESET}")
     elif habit:
         delete_habit(habit.id)
-        typer.echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}")
+        echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}")
     else:
-        typer.echo(f"No match for: {partial}")
+        exit_error(f"No match for: {partial}")
 
 
 @app.command()
@@ -158,17 +163,11 @@ def focus(
     """Toggle focus status on task (fuzzy match)"""
     partial = " ".join(args) if args else ""
     if not partial:
-        typer.echo("Usage: life focus <item>")
-        raise typer.Exit(1)
-
-    task = find_task(partial)
-    if not task:
-        typer.echo(f"No task found matching '{partial}'")
-        raise typer.Exit(1)
-
+        exit_error("Usage: life focus <item>")
+    task = _require_task(partial)
     toggle_focus(task.id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if not task.focus else "□"
-    typer.echo(format_status(symbol, task.content))
+    echo(format_status(symbol, task.content))
 
 
 @app.command()
@@ -180,27 +179,18 @@ def due(
     try:
         date_str, item_name = parse_due_and_item(args, remove=remove)
     except ValueError as e:
-        typer.echo(str(e))
-        raise typer.Exit(1) from None
-
-    task = find_task(item_name)
-    if not task:
-        typer.echo(f"No match for: {item_name}")
-        raise typer.Exit(1)
-
+        exit_error(str(e))
+    task = _require_task(item_name)
     if remove:
         update_task(task.id, due=None)
-        typer.echo(format_status("□", task.content))
+        echo(format_status("□", task.content))
     elif date_str:
         update_task(task.id, due=date_str)
-        typer.echo(
-            format_status(f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content)
-        )
+        echo(format_status(f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content))
     else:
-        typer.echo(
+        exit_error(
             "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
         )
-        raise typer.Exit(1)
 
 
 @app.command()
@@ -212,26 +202,19 @@ def rename(
 ):
     """Rename an item using fuzzy matching for 'from' and exact match for 'to'"""
     if not to_content:
-        typer.echo("Error: 'to' content cannot be empty.")
-        raise typer.Exit(code=1)
-
+        exit_error("Error: 'to' content cannot be empty.")
     partial_from = " ".join(from_args) if from_args else ""
     task, habit = find_item(partial_from)
     item_to_rename = task or habit
-
     if not item_to_rename:
-        typer.echo(f"No fuzzy match found for: '{partial_from}'")
-        raise typer.Exit(code=1)
-
+        exit_error(f"No fuzzy match found for: '{partial_from}'")
     if item_to_rename.content == to_content:
-        typer.echo(f"Error: Cannot rename '{item_to_rename.content}' to itself.")
-        raise typer.Exit(code=1)
-
+        exit_error(f"Error: Cannot rename '{item_to_rename.content}' to itself.")
     if isinstance(item_to_rename, Task):
         update_task(item_to_rename.id, content=to_content)
     else:
         update_habit(item_to_rename.id, content=to_content)
-    typer.echo(f"Updated: '{item_to_rename.content}' → '{to_content}'")
+    echo(f"Updated: '{item_to_rename.content}' → '{to_content}'")
 
 
 @app.command()
@@ -242,50 +225,42 @@ def tag(
     remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),  # noqa: B008
 ):
     """Add or remove tag on item (fuzzy match)"""
-    # Support both syntaxes:
-    # - `life tag finance home loan` (positional tag_name + item args)
-    # - `life tag home loan --tag finance` (option tag + item args)
     if tag_opt:
         tag_name_final = tag_opt
         positionals = ([tag_name] if tag_name else []) + (args or [])
         item_partial = " ".join(positionals)
     else:
         if not tag_name or not args:
-            typer.echo(
+            exit_error(
                 "Error: Missing arguments. Use `life tag TAG ITEM...` or `life tag ITEM... --tag TAG`."
             )
-            raise typer.Exit(1)
         tag_name_final = tag_name
         item_partial = " ".join(args)
     task, habit = find_item(item_partial)
-
-    # If no pending task/habit match, allow tagging completed tasks as well.
     if not task and not habit:
         task = find_task_any(item_partial)
         if not task:
-            typer.echo(f"No match for: {item_partial}")
-            raise typer.Exit(1)
-
+            exit_error(f"No match for: {item_partial}")
     if task:
         if remove:
             remove_tag(task.id, None, tag_name_final)
-            typer.echo(f"{task.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+            echo(f"{task.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
         else:
             add_tag(task.id, None, tag_name_final)
-            typer.echo(f"{task.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+            echo(f"{task.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
     elif habit:
         if remove:
             remove_tag(None, habit.id, tag_name_final)
-            typer.echo(f"{habit.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+            echo(f"{habit.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
         else:
             add_tag(None, habit.id, tag_name_final)
-            typer.echo(f"{habit.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+            echo(f"{habit.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
 
 
 @app.command()
 def habits():
     """Show all habits and their checked off list for the last 7 days."""
-    typer.echo(render_habit_matrix(get_habits()))
+    echo(render_habit_matrix(get_habits()))
 
 
 @app.command()
@@ -295,9 +270,9 @@ def profile(
     """View or set personal profile"""
     if profile_text:
         set_profile(profile_text)
-        typer.echo(f"Profile set to: {profile_text}")
+        echo(f"Profile set to: {profile_text}")
     else:
-        typer.echo(get_profile() or "No profile set")
+        echo(get_profile() or "No profile set")
 
 
 @app.command()
@@ -312,36 +287,29 @@ def dates(
         dates_list = list_dates()
         if dates_list:
             for d in dates_list:
-                typer.echo(f"{d.get('emoji', '📌')} {d['name']} - {d['date']}")
+                echo(f"{d.get('emoji', '📌')} {d['name']} - {d['date']}")
         else:
-            typer.echo("No dates set")
+            echo("No dates set")
         return
-
     if action == "add":
         if not name or not date_str:
-            typer.echo("Error: add requires name and date (YYYY-MM-DD)", err=True)
-            raise typer.Exit(1)
+            exit_error("Error: add requires name and date (YYYY-MM-DD)")
         add_date(name, date_str, emoji)
-        typer.echo(f"Added date: {emoji} {name} on {date_str}")
+        echo(f"Added date: {emoji} {name} on {date_str}")
     elif action == "remove":
         if not name:
-            typer.echo("Error: remove requires a date name", err=True)
-            raise typer.Exit(1)
+            exit_error("Error: remove requires a date name")
         remove_date(name)
-        typer.echo(f"Removed date: {name}")
+        echo(f"Removed date: {name}")
     else:
-        typer.echo(
-            f"Error: unknown action '{action}'. Use 'add', 'remove', or no argument to list.",
-            err=True,
+        exit_error(
+            f"Error: unknown action '{action}'. Use 'add', 'remove', or no argument to list."
         )
-        raise typer.Exit(1)
 
 
 @app.command()
 def status():
     """Health check — untagged tasks, overdue, habit streaks, jaynice signal"""
-    from .lib.clock import today
-
     tasks = get_tasks()
     habits = get_habits()
     today_date = today()
@@ -369,33 +337,29 @@ def status():
         for t in jaynice:
             lines.append(f"  ♥ {t.content}")
 
-    typer.echo("\n".join(lines))
+    echo("\n".join(lines))
 
 
 @app.command()
 def backup():
     """Create database backup"""
-    typer.echo(backup_life())
+    echo(str(backup_life()))
 
 
 @app.command()
 def momentum():
     """Show momentum and weekly trends"""
-    typer.echo(render_momentum(weekly_momentum()))
+    echo(render_momentum(weekly_momentum()))
 
 
-def _set_due_relative(args: list[str], offset_days: int, label: str):
+def _set_due_relative(args: list[str], offset_days: int, label: str) -> None:
     partial = " ".join(args) if args else ""
     if not partial:
-        typer.echo(f"Usage: life {label} <task>")
-        raise typer.Exit(1)
-    task = find_task(partial)
-    if not task:
-        typer.echo(f"No task found matching '{partial}'")
-        raise typer.Exit(1)
+        exit_error(f"Usage: life {label} <task>")
+    task = _require_task(partial)
     due_str = (today() + timedelta(days=offset_days)).isoformat()
     update_task(task.id, due=due_str)
-    typer.echo(format_status("□", task.content))
+    echo(format_status("□", task.content))
 
 
 @app.command(name="today")

@@ -1,7 +1,12 @@
+from typing import NoReturn
+
 import typer
 
 
-def exit_error(message: str, code: int = 1) -> None:
-    """Print error and exit."""
+def echo(message: str = "", err: bool = False) -> None:
+    typer.echo(message, err=err)
+
+
+def exit_error(message: str, code: int = 1) -> NoReturn:
     typer.echo(message, err=True)
     raise typer.Exit(code)
