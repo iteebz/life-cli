@@ -9,7 +9,7 @@ class Task:
     focus: bool
     due_date: date | None
     created: datetime
-    completed: datetime | None
+    completed_at: datetime | None
     parent_id: str | None = None
     tags: list[str] = dataclasses.field(default_factory=list, hash=False)
 

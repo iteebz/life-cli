@@ -59,9 +59,9 @@ def weekly_momentum():
                 """
                 SELECT COUNT(*)
                 FROM tasks
-                WHERE completed >= ?
-                AND completed <= ?
-                AND completed IS NOT NULL""",
+                WHERE completed_at >= ?
+                AND completed_at <= ?
+                AND completed_at IS NOT NULL""",
                 (start_str, end_str),
             )
             tasks = cursor.fetchone()[0]

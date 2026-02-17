@@ -41,22 +41,31 @@ def get_habit_trend(checks: list[date]) -> str:
 
 
 def render_today_completed(today_items: list[Task | Habit]):
-    """Render today's completed tasks only (habits handled at bottom)"""
+    """Render today's completed tasks and habits, chronologically."""
     if not today_items:
         return ""
 
-    tasks_only = [item for item in today_items if isinstance(item, Task)]
+    def _sort_key(item):
+        if isinstance(item, Task) and item.completed_at:
+            return item.completed_at
+        return item.created
 
-    if not tasks_only:
-        return ""
+    sorted_items = sorted(today_items, key=_sort_key)
 
-    lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}DONE:{ANSI.RESET}"]
+    lines = [f"{ANSI.BOLD}{ANSI.GREEN}DONE:{ANSI.RESET}"]
 
-    for task in tasks_only:
-        content = task.content
-        tags = task.tags
+    for item in sorted_items:
+        tags = item.tags
         tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-        lines.append(f"  ✓ {content.lower()}{tags_str}")
+        content = item.content.lower()
+        if isinstance(item, Task) and item.completed_at:
+            time_str = item.completed_at.strftime("%H:%M")
+        else:
+            time_str = "--:--"
+        if isinstance(item, Habit):
+            lines.append(f"  {ANSI.GREY}{time_str} ✓ {content}{tags_str}{ANSI.RESET}")
+        else:
+            lines.append(f"  {ANSI.GREY}{time_str}{ANSI.RESET} ✓ {content}{tags_str}")
 
     return "\n".join(lines)
 
@@ -75,6 +84,11 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
     lines = []
     checked_today = habits_today + tasks_today
+
+    done_section = render_today_completed(today_items or [])
+    if done_section:
+        lines.append(f"\n{done_section}")
+
     lines.append(f"\n{today} {current_time}\ndone: {checked_today}  added: {added_today}")
     dates_list = get_dates()
     if dates_list:
@@ -196,10 +210,6 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(top_untagged)}):{ANSI.RESET}")
             for task in top_untagged:
                 lines.extend(_render_task_with_subtasks(task))
-
-    done_today = render_today_completed(today_items or [])
-    if done_today:
-        lines.append(done_today)
 
     return "\n".join(lines) + "\n"
 

@@ -51,7 +51,7 @@ def _row_to_task(row: tuple) -> Task:
         focus=bool(row[2]),
         due_date=_parse_date(row[3]),
         created=_parse_datetime(row[4]),
-        completed=_parse_datetime_optional(row[5]),
+        completed_at=_parse_datetime_optional(row[5]),
         parent_id=row[6] if len(row) > 6 else None,
     )
 

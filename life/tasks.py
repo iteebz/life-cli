@@ -45,7 +45,7 @@ def get_task(task_id: str) -> Task | None:
     """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed, parent_id FROM tasks WHERE id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE id = ?",
             (task_id,),
         )
         row = cursor.fetchone()
@@ -61,7 +61,7 @@ def get_tasks() -> list[Task]:
     """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed, parent_id FROM tasks WHERE completed IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE completed_at IS NULL"
         )
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -74,7 +74,7 @@ def get_tasks() -> list[Task]:
 def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
-        cursor = conn.execute("SELECT id, content, focus, due_date, created, completed, parent_id FROM tasks")
+        cursor = conn.execute("SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks")
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
@@ -84,10 +84,10 @@ def get_all_tasks() -> list[Task]:
 
 
 def get_focus() -> list[Task]:
-    """SELECT focus = 1 AND completed IS NULL."""
+    """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed, parent_id FROM tasks WHERE focus = 1 AND completed IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks WHERE focus = 1 AND completed_at IS NULL"
         )
         tasks = [_row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -134,14 +134,14 @@ def toggle_completed(task_id: str) -> Task | None:
     if not task:
         return None
 
-    if task.completed:
+    if task.completed_at:
         with db.get_db() as conn:
-            conn.execute("UPDATE tasks SET completed = NULL WHERE id = ?", (task_id,))
+            conn.execute("UPDATE tasks SET completed_at = NULL WHERE id = ?", (task_id,))
     else:
         with db.get_db() as conn:
             conn.execute(
-                "UPDATE tasks SET completed = ? WHERE id = ?",
-                (clock.today().isoformat(), task_id),
+                "UPDATE tasks SET completed_at = ? WHERE id = ?",
+                (clock.now().strftime("%Y-%m-%dT%H:%M:%S"), task_id),
             )
 
     return get_task(task_id)
