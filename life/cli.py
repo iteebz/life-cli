@@ -3,12 +3,11 @@ from datetime import timedelta
 import typer
 
 from . import db
-from .chat import invoke
 from .config import (
     get_context,
     get_profile,
     set_context,
-    set_profile,  # noqa: F401
+    set_profile,
 )
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import (
@@ -28,7 +27,6 @@ from .lib.fuzzy import find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list, render_momentum
 from .momentum import weekly_momentum
-from .personas import get_default_persona_name, manage_personas
 from .tags import add_tag, remove_tag
 from .tasks import add_task, delete_task, get_tasks, toggle_completed, toggle_focus, update_task
 
@@ -273,20 +271,26 @@ def habits():
 
 @app.command()
 def profile(
-    profile_text: str = typer.Argument(..., help="Profile to set"),  # noqa: B008
+    profile_text: str = typer.Argument(None, help="Profile to set"),  # noqa: B008
 ):
-    """Set personal profile"""
-    set_profile(profile_text)
-    typer.echo(f"Profile set to: {profile_text}")
+    """View or set personal profile"""
+    if profile_text:
+        set_profile(profile_text)
+        typer.echo(f"Profile set to: {profile_text}")
+    else:
+        typer.echo(get_profile() or "No profile set")
 
 
 @app.command()
 def context(
-    context_text: str = typer.Argument(..., help="Context text to set"),  # noqa: B008
+    context_text: str = typer.Argument(None, help="Context text to set"),  # noqa: B008
 ):
-    """Set current context"""
-    set_context(context_text)
-    typer.echo(f"Context set to: {context_text}")
+    """View or set current context"""
+    if context_text:
+        set_context(context_text)
+        typer.echo(f"Context set to: {context_text}")
+    else:
+        typer.echo(get_context() or "No context set")
 
 
 @app.command()
@@ -331,33 +335,6 @@ def backup():
     """Create database backup"""
     typer.echo(backup_life())
 
-
-@app.command()
-def personas(
-    name: str = typer.Argument(None, help="Persona name (roast, pepper, kim)"),  # noqa: B008
-    set: bool = typer.Option(False, "-s", "--set", help="Set as default persona"),  # noqa: B008
-    prompt: bool = typer.Option(False, "-p", "--prompt", help="Show full ephemeral prompt"),  # noqa: B008
-):
-    """View or set AI personas (roast, pepper, kim)"""
-    try:
-        typer.echo(manage_personas(name, set_default=set, show_prompt=prompt))
-    except ValueError as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1) from None  # noqa: B904
-
-
-@app.command()
-def chat(
-    args: list[str] = typer.Argument(None, help="Message to send to agent"),  # noqa: B008
-):
-    """Chat with ephemeral agent."""
-    message = " ".join(args) if args else ""
-    if not message:
-        typer.echo("Error: message required")
-        raise typer.Exit(1)
-    default_persona = "roast"
-    selected_persona = get_default_persona_name() or default_persona
-    invoke(message, selected_persona)
 
 
 @app.command(name="list")
@@ -413,7 +390,6 @@ def tomorrow(
 
 
 def main():
-    """Check for personas before passing to typer."""
     db.init()
     app()
 
