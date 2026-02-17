@@ -390,7 +390,22 @@ def cmd_stats() -> None:
 
 
 def cmd_backup() -> None:
-    echo(str(backup_life()))
+    result = backup_life()
+    path = result["path"]
+    rows = result["rows"]
+    delta_total = result["delta_total"]
+    delta_by_table = result["delta_by_table"]
+
+    delta_str = ""
+    if delta_total is not None and delta_total != 0:
+        delta_str = f" (+{delta_total})" if delta_total > 0 else f" ({delta_total})"
+
+    echo(str(path))
+    echo(f"  {rows} rows{delta_str}")
+
+    for table, delta in sorted(delta_by_table.items(), key=lambda x: -abs(x[1])):
+        sign = "+" if delta > 0 else ""
+        echo(f"    {table} {sign}{delta}")
 
 
 def cmd_momentum() -> None:
