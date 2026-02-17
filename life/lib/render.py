@@ -50,7 +50,7 @@ def render_today_completed(today_items: list[Task | Habit]):
     if not tasks_only:
         return ""
 
-    lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}✅ DONE TODAY:{ANSI.RESET}"]
+    lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}DONE TODAY:{ANSI.RESET}"]
 
     for task in tasks_only:
         content = task.content
@@ -75,7 +75,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
 
     lines = []
     checked_today = habits_today + tasks_today
-    lines.append(f"\n{today} {current_time}\nchecked: {checked_today}  added: {added_today}")
+    lines.append(f"\n{today} {current_time}\ndone: {checked_today}  added: {added_today}")
     dates_list = get_dates()
     if dates_list:
         upcoming = sorted(
@@ -196,6 +196,10 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(top_untagged)}):{ANSI.RESET}")
             for task in top_untagged:
                 lines.extend(_render_task_with_subtasks(task))
+
+    done_today = render_today_completed(today_items or [])
+    if done_today:
+        lines.append(done_today)
 
     return "\n".join(lines)
 

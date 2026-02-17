@@ -103,9 +103,13 @@ def habit(
 
 @app.command()
 def done(
-    partial: str = typer.Argument(..., help="Partial match for the item to mark done/undone"),
+    args: list[str] = typer.Argument(..., help="Partial match for the item to mark done/undone"),  # noqa: B008
 ):
     """Mark task/habit as done or undone."""
+    partial = " ".join(args) if args else ""
+    if not partial:
+        typer.echo("Usage: life done <item>")
+        raise typer.Exit(1)
     task, habit = find_item(partial)
 
     if not task and not habit:
