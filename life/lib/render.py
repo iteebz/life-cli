@@ -233,6 +233,24 @@ def render_focus_items(items: list[Task]):
     return "\n".join(lines)
 
 
+def render_day_view(tasks: list[Task], day_label: str, day_date) -> str:
+    """Render a focused view of tasks due on a given day."""
+    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}{day_label.upper()} — {day_date}:{ANSI.RESET}"]
+
+    if not tasks:
+        lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
+        return "\n".join(lines)
+
+    sorted_tasks = sorted(tasks, key=_task_sort_key)
+    for task in sorted_tasks:
+        indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else "  □ "
+        tags = task.tags
+        tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+        lines.append(f"{indicator}{task.content.lower()}{tags_str}")
+
+    return "\n".join(lines)
+
+
 def render_habit_matrix(habits: list[Habit]) -> str:
     """Render a matrix of habits and their check-off status for the last 7 days."""
     lines = []

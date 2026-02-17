@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import typer
 
 from . import db
@@ -24,7 +26,7 @@ from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.format import format_habit, format_status, format_task
 from .lib.fuzzy import find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
-from .lib.render import render_dashboard, render_habit_matrix, render_item_list
+from .lib.render import render_dashboard, render_day_view, render_habit_matrix, render_item_list
 from .momentum import weekly_momentum
 from .personas import get_default_persona_name, manage_personas
 from .tags import add_tag, remove_tag
@@ -369,6 +371,58 @@ def list_items():
     habits = get_habits()
     items = tasks + habits
     typer.echo(render_item_list(items))
+
+
+@app.command(name="today")
+def today_cmd(
+    args: list[str] = typer.Argument(None, help="Task content (omit to view today's tasks)"),  # noqa: B008
+    focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),  # noqa: B008
+    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),  # noqa: B008
+):
+    """Add task due today, or view today's scheduled tasks"""
+    content = " ".join(args) if args else ""
+    today_date = today()
+    due_str = today_date.isoformat()
+
+    if content:
+        try:
+            validate_content(content)
+        except ValueError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(1) from None
+        task_id = add_task(content, focus=focus, due=due_str, tags=tags)
+        symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
+        typer.echo(format_status(symbol, content, task_id))
+    else:
+        all_tasks = get_tasks()
+        due_today = [t for t in all_tasks if t.due_date and t.due_date.isoformat() == due_str]
+        typer.echo(render_day_view(due_today, "today", today_date))
+
+
+@app.command()
+def tomorrow(
+    args: list[str] = typer.Argument(None, help="Task content (omit to view tomorrow's tasks)"),  # noqa: B008
+    focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),  # noqa: B008
+    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),  # noqa: B008
+):
+    """Add task due tomorrow, or view tomorrow's scheduled tasks"""
+    content = " ".join(args) if args else ""
+    tomorrow_date = today() + timedelta(days=1)
+    due_str = tomorrow_date.isoformat()
+
+    if content:
+        try:
+            validate_content(content)
+        except ValueError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(1) from None
+        task_id = add_task(content, focus=focus, due=due_str, tags=tags)
+        symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
+        typer.echo(format_status(symbol, content, task_id))
+    else:
+        all_tasks = get_tasks()
+        due_tomorrow = [t for t in all_tasks if t.due_date and t.due_date.isoformat() == due_str]
+        typer.echo(render_day_view(due_tomorrow, "tomorrow", tomorrow_date))
 
 
 def main():
