@@ -9,7 +9,7 @@ ci:
     @uv run ruff check . --fix
     @uv run ruff check .
     @uv run pyright
-    @uv run pytest tests -q
+    @uv run pytest tests -v
 
 lint:
     @uv run ruff check .
