@@ -5,7 +5,7 @@ from ..models import Habit, Task
 from ..tasks import _task_sort_key
 from . import clock
 from .ansi import ANSI
-from .format import format_due, format_habit, format_task
+from .format import format_habit, format_task
 
 
 def _get_trend(current: int, previous: int) -> str:
@@ -257,40 +257,6 @@ def render_item_list(items: list[Task | Habit]):
             lines.append(format_task(item, tags=item.tags, show_id=True))
         else:
             lines.append(format_habit(item, tags=item.tags, show_id=True))
-
-    return "\n".join(lines)
-
-
-def render_focus_items(items: list[Task]):
-    """Render focused items list"""
-    if not items:
-        return f"{ANSI.GREY}No focus items. Time to focus on something.{ANSI.RESET}"
-
-    lines = [f"{ANSI.BOLD}{ANSI.YELLOW}🔥 FOCUS ITEMS:{ANSI.RESET}\n"]
-    for task in items:
-        due_str = format_due(task.due_date) if task.due_date else ""
-        due_part = f"{due_str} " if due_str else ""
-        tags = task.tags
-        tags_str = " " + " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags) if tags else ""
-        lines.append(f"  • {due_part}{task.content.lower()}{tags_str}")
-
-    return "\n".join(lines)
-
-
-def render_day_view(tasks: list[Task], day_label: str, day_date) -> str:
-    """Render a focused view of tasks due on a given day."""
-    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}{day_label.upper()} — {day_date}:{ANSI.RESET}"]
-
-    if not tasks:
-        lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
-        return "\n".join(lines)
-
-    sorted_tasks = sorted(tasks, key=_task_sort_key)
-    for task in sorted_tasks:
-        indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else "  □ "
-        tags = task.tags
-        tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-        lines.append(f"{indicator}{task.content.lower()}{tags_str}")
 
     return "\n".join(lines)
 
