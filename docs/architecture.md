@@ -34,8 +34,7 @@ life/
 │   ├── format.py
 │   ├── fuzzy.py
 │   ├── parsing.py
-│   ├── render.py
-│   └── spinner.py
+│   └── render.py
 ├── migrations/               # Database schema migrations
 │   └── 001_foundation.sql
 ├── models.py                 # Domain dataclasses
