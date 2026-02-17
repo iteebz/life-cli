@@ -10,6 +10,7 @@ class Task:
     due_date: date | None
     created: datetime
     completed: datetime | None
+    parent_id: str | None = None
     tags: list[str] = dataclasses.field(default_factory=list, hash=False)
 
 

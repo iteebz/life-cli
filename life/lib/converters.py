@@ -43,7 +43,7 @@ def _parse_datetime_optional(val) -> datetime | None:
 def _row_to_task(row: tuple) -> Task:
     """
     Converts a raw database row from tasks table into a Task object.
-    Expected row format: (id, content, focus, due_date, created, completed)
+    Expected row format: (id, content, focus, due_date, created, completed, parent_id)
     """
     return Task(
         id=row[0],
@@ -52,6 +52,7 @@ def _row_to_task(row: tuple) -> Task:
         due_date=_parse_date(row[3]),
         created=_parse_datetime(row[4]),
         completed=_parse_datetime_optional(row[5]),
+        parent_id=row[6] if len(row) > 6 else None,
     )
 
 

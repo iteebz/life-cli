@@ -163,24 +163,39 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
         def sort_items(task_list: list[Task]):
             return sorted(task_list, key=_task_sort_key)
 
+        subtask_ids = {t.id for t in regular_items if t.parent_id}
+        subtasks_by_parent: dict[str, list[Task]] = {}
+        for t in regular_items:
+            if t.parent_id:
+                subtasks_by_parent.setdefault(t.parent_id, []).append(t)
+
+        def _render_task_with_subtasks(task: Task, indent: str = "  ", tag: str | None = None) -> list[str]:
+            other_tags = [t for t in task.tags if t != tag] if tag else task.tags
+            tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
+            indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
+            rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}"]
+            for sub in sort_items(subtasks_by_parent.get(task.id, [])):
+                sub_tags_str = " " + " ".join(f"#{t}" for t in sub.tags) if sub.tags else ""
+                sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
+                rows.append(f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_tags_str}")
+            return rows
+
         for idx, tag in enumerate(sorted(tagged_regular.keys())):
-            items_by_tag = sort_items(tagged_regular[tag])
+            tag_tasks = [t for t in sort_items(tagged_regular[tag]) if t.id not in subtask_ids]
+            if not tag_tasks:
+                continue
             tag_color = ANSI.POOL[idx % len(ANSI.POOL)]
             lines.append(
-                f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(items_by_tag)}):{ANSI.RESET}"
+                f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}"
             )
-            for task in items_by_tag:
-                other_tags = [t for t in task.tags if t != tag]
-                tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
-                indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
-                lines.append(f"  {indicator}{task.content.lower()}{tags_str}")
+            for task in tag_tasks:
+                lines.extend(_render_task_with_subtasks(task, tag=tag))
 
-        untagged_sorted = sort_items(untagged)
-        if untagged_sorted:
-            lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(untagged_sorted)}):{ANSI.RESET}")
-            for task in untagged_sorted:
-                indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
-                lines.append(f"  {indicator}{task.content.lower()}")
+        top_untagged = [t for t in sort_items(untagged) if t.id not in subtask_ids]
+        if top_untagged:
+            lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(top_untagged)}):{ANSI.RESET}")
+            for task in top_untagged:
+                lines.extend(_render_task_with_subtasks(task))
 
     return "\n".join(lines)
 

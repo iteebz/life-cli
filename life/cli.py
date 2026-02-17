@@ -61,6 +61,7 @@ def task(
         None, "--due", "-d", help="Set due date (today, tomorrow, mon, YYYY-MM-DD)"
     ),  # noqa: B008
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),  # noqa: B008
+    under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),  # noqa: B008
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
     try:
@@ -69,9 +70,20 @@ def task(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None
     resolved_due = parse_due_date(due) if due else None
-    task_id = add_task(content, focus=focus, due=resolved_due, tags=tags)
+    parent_id = None
+    if under:
+        parent_task = find_task(under)
+        if not parent_task:
+            typer.echo(f"No task found matching '{under}'", err=True)
+            raise typer.Exit(1)
+        if parent_task.parent_id:
+            typer.echo("Error: subtasks cannot have subtasks", err=True)
+            raise typer.Exit(1)
+        parent_id = parent_task.id
+    task_id = add_task(content, focus=focus, due=resolved_due, tags=tags, parent_id=parent_id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
-    typer.echo(format_status(symbol, content, task_id))
+    prefix = "  └ " if parent_id else ""
+    typer.echo(f"{prefix}{format_status(symbol, content, task_id)}")
 
 
 @app.command()
@@ -250,17 +262,17 @@ def tag(
     if task:
         if remove:
             remove_tag(task.id, None, tag_name_final)
-            typer.echo(f"Untagged: {task.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+            typer.echo(f"{task.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
         else:
             add_tag(task.id, None, tag_name_final)
-            typer.echo(f"Tagged: {task.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+            typer.echo(f"{task.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
     elif habit:
         if remove:
             remove_tag(None, habit.id, tag_name_final)
-            typer.echo(f"Untagged: {habit.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+            typer.echo(f"{habit.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
         else:
             add_tag(None, habit.id, tag_name_final)
-            typer.echo(f"Tagged: {habit.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+            typer.echo(f"{habit.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
 
 
 @app.command()
