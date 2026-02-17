@@ -21,7 +21,7 @@ from .lib.backup import backup as backup_life
 from .lib.clock import today
 from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.format import format_habit, format_status, format_task
-from .lib.fuzzy import find_item, find_task, find_task_any
+from .lib.fuzzy import find_habit, find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list, render_momentum
 from .momentum import weekly_momentum
@@ -109,6 +109,9 @@ def done(
         typer.echo("Usage: life done <item>")
         raise typer.Exit(1)
     task, habit = find_item(partial)
+    if not task and not habit:
+        task = find_task_any(partial)
+        habit = find_habit(partial) if not task else None
 
     if not task and not habit:
         typer.echo(f"{ANSI.RED}Error:{ANSI.RESET} No item found matching '{partial}'")
