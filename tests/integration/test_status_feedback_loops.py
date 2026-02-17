@@ -14,10 +14,9 @@ def test_status_shows_feedback_metrics(tmp_life_dir):
     result = runner.invoke(app, ["status"])
 
     assert result.exit_code == 0
-    assert "FEEDBACK LOOPS (7d):" in result.stdout
-    assert "admin_closure_rate:" in result.stdout
-    assert "jaynice_followthrough_rate:" in result.stdout
-    assert "avoidance_half_life_days:" in result.stdout
+    assert "HEALTH:" in result.stdout
+    assert "FLAGS:" in result.stdout
+    assert "HOT LIST:" in result.stdout
 
 
 def test_status_flags_relationship_and_stuck_task(tmp_life_dir):
@@ -35,12 +34,12 @@ def test_status_flags_relationship_and_stuck_task(tmp_life_dir):
     result = runner.invoke(app, ["status"])
 
     assert result.exit_code == 0
-    assert "flags:" in result.stdout
+    assert "FLAGS:" in result.stdout
     assert "relationship_escalation" in result.stdout
     assert "stuck_task_protocol" in result.stdout
 
 
-def test_status_admin_closure_rate_counts_recent_overdue_closures(tmp_life_dir):
+def test_stats_admin_closure_rate_counts_recent_overdue_closures(tmp_life_dir):
     runner = CliRunner()
     today = date.today()
     runner.invoke(app, ["task", "invoice jeff", "-t", "finance", "-d", "today"])
@@ -58,7 +57,8 @@ def test_status_admin_closure_rate_counts_recent_overdue_closures(tmp_life_dir):
             ),
         )
 
-    result = runner.invoke(app, ["status"])
+    result = runner.invoke(app, ["stats"])
 
     assert result.exit_code == 0
+    assert "STATS (7d):" in result.stdout
     assert "admin_closure_rate: 100% (1/1)" in result.stdout

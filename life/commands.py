@@ -1,5 +1,4 @@
 from datetime import timedelta
-from statistics import median
 
 from .config import get_profile, set_profile
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
@@ -19,6 +18,7 @@ from .lib.format import format_habit, format_status, format_task
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
 from .lib.resolve import resolve_item, resolve_item_any, resolve_task
+from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
@@ -90,6 +90,7 @@ __all__ = [
     "cmd_profile",
     "cmd_dates",
     "cmd_status",
+    "cmd_stats",
     "cmd_backup",
     "cmd_momentum",
     "cmd_today",
@@ -307,14 +308,6 @@ def cmd_list() -> None:
 
 
 def cmd_status() -> None:
-    def _in_last_days(dt, days: int) -> bool:
-        return (today_date - dt.date()).days < days
-
-    def _fmt_ratio(done: int, created: int) -> str:
-        if created == 0:
-            return "n/a"
-        return f"{done / created:.0%}"
-
     tasks = get_tasks()
     all_tasks = get_all_tasks()
     habits = get_habits()
@@ -325,78 +318,37 @@ def cmd_status() -> None:
     jaynice = [t for t in tasks if "jaynice" in (t.tags or [])]
     focused = [t for t in tasks if t.focus]
 
-    overdue_created_7d = [
-        t
-        for t in all_tasks
-        if t.due_date and _in_last_days(t.created, 7) and t.due_date < today_date
-    ]
-    overdue_closed_7d = [
-        t
-        for t in all_tasks
-        if t.due_date
-        and t.completed_at
-        and _in_last_days(t.completed_at, 7)
-        and t.due_date < t.completed_at.date()
-    ]
-
-    jaynice_created_7d = [
-        t for t in all_tasks if "jaynice" in (t.tags or []) and _in_last_days(t.created, 7)
-    ]
-    jaynice_done_7d = [
-        t
-        for t in all_tasks
-        if "jaynice" in (t.tags or []) and t.completed_at and _in_last_days(t.completed_at, 7)
-    ]
-
-    discomfort_open_ages = [
-        (today_date - t.created.date()).days
-        for t in tasks
-        if set(t.tags or []).intersection({"finance", "legal", "jaynice"})
-    ]
-    avoidance_half_life_days = int(median(discomfort_open_ages)) if discomfort_open_ages else 0
-
-    admin_closure_rate = _fmt_ratio(len(overdue_closed_7d), len(overdue_created_7d))
-    jaynice_followthrough_rate = _fmt_ratio(len(jaynice_done_7d), len(jaynice_created_7d))
+    snapshot = build_feedback_snapshot(all_tasks=all_tasks, pending_tasks=tasks, today=today_date)
 
     lines = []
     lines.append(f"tasks: {len(tasks)}  habits: {len(habits)}  focused: {len(focused)}")
-    lines.append("\nFEEDBACK LOOPS (7d):")
-    lines.append(
-        f"  admin_closure_rate: {admin_closure_rate} ({len(overdue_closed_7d)}/{len(overdue_created_7d)})"
-    )
-    lines.append(
-        f"  jaynice_followthrough_rate: {jaynice_followthrough_rate} ({len(jaynice_done_7d)}/{len(jaynice_created_7d)})"
-    )
-    lines.append(f"  avoidance_half_life_days: {avoidance_half_life_days}")
-
-    flags: list[str] = []
-    if jaynice_created_7d and (len(jaynice_done_7d) / len(jaynice_created_7d)) < 0.5:
-        flags.append("relationship_escalation")
-    if discomfort_open_ages and max(discomfort_open_ages) >= 3:
-        flags.append("stuck_task_protocol")
-    if overdue and overdue_created_7d and not overdue_closed_7d:
-        flags.append("admin_closure_risk")
-    if flags:
-        lines.append("  flags: " + ", ".join(flags))
+    lines.append("\nHEALTH:")
+    lines.append(f"  untagged: {len(untagged)}")
+    lines.append(f"  overdue: {len(overdue)}")
+    lines.append(f"  jaynice_open: {len(jaynice)}")
+    lines.append("\nFLAGS:")
+    if snapshot.flags:
+        lines.append("  " + ", ".join(snapshot.flags))
     else:
-        lines.append("  flags: none")
+        lines.append("  none")
+    lines.append("\nHOT LIST:")
+    for t in overdue[:3]:
+        lines.append(f"  ! {t.content}")
+    for t in jaynice[:3]:
+        lines.append(f"  ♥ {t.content}")
 
-    if overdue:
-        lines.append(f"\nOVERDUE ({len(overdue)}):")
-        for t in overdue:
-            lines.append(f"  ! {t.content}")
-
-    if untagged:
-        lines.append(f"\nUNTAGGED ({len(untagged)}):")
-        for t in untagged:
-            lines.append(f"  ? {t.content}")
-
-    if jaynice:
-        lines.append(f"\nJAYNICE ({len(jaynice)}):")
-        for t in jaynice:
-            lines.append(f"  ♥ {t.content}")
+    if not overdue and not jaynice:
+        lines.append("  none")
 
     echo("\n".join(lines))
+
+
+def cmd_stats() -> None:
+    tasks = get_tasks()
+    all_tasks = get_all_tasks()
+    today_date = today()
+    snapshot = build_feedback_snapshot(all_tasks=all_tasks, pending_tasks=tasks, today=today_date)
+    echo("\n".join(render_feedback_snapshot(snapshot)))
 
 
 def cmd_backup() -> None:

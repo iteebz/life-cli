@@ -6,17 +6,18 @@ from .commands import (
     cmd_block,
     cmd_dashboard,
     cmd_dates,
-    cmd_list,
     cmd_done,
     cmd_due,
     cmd_focus,
     cmd_habit,
     cmd_habits,
+    cmd_list,
     cmd_momentum,
     cmd_profile,
     cmd_rename,
     cmd_rm,
     cmd_schedule,
+    cmd_stats,
     cmd_status,
     cmd_steward,
     cmd_tag,
@@ -158,6 +159,12 @@ def list_cmd():
 def status():
     """Health check — untagged tasks, overdue, habit streaks, jaynice signal"""
     cmd_status()
+
+
+@app.command()
+def stats():
+    """Feedback-loop metrics and escalation signals"""
+    cmd_stats()
 
 
 @app.command()
