@@ -1,31 +1,42 @@
 default:
-    @just --list
+    @just ls
+
+ls:
+    #!/bin/bash
+    echo -e "\033[37minstall.\033[0m  sync dependencies"
+    echo -e "\033[37mlint.\033[0m  format, lint, typecheck"
+    echo -e "\033[37mci.\033[0m  format, lint, typecheck, test"
+    echo -e "\033[37mtest.\033[0m  run tests"
+    echo -e "\033[37mbuild.\033[0m  build package"
+    echo -e "\033[37mclean.\033[0m  remove build artifacts"
+    echo -e "\033[37mcommits.\033[0m  recent commit log"
+    echo -e "\033[37mhealth.\033[0m  system health check"
 
 install:
     @uv sync
 
-ci:
-    @uv run ruff format .
-    @uv run ruff check . --fix
-    @uv run ruff check .
-    @uv run pyright
-    @uv run pytest tests -v
-
 lint:
-    @uv run ruff check .
+    #!/bin/bash
+    set -e
+    uv run ruff format .
+    uv run ruff check . --fix
+    uv run pyright
 
-format:
-    @uv run ruff format .
-
-fix:
-    @uv run ruff check . --fix
+ci:
+    #!/bin/bash
+    set -e
+    just lint
+    uv run pytest tests -q --tb=no -n auto
 
 test:
     @uv run pytest tests
 
+build:
+    @uv build
+
 clean:
-    @rm -rf build/ dist/ *.egg-info .pytest_cache .ruff_cache __pycache__ .venv
-    @find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    @rm -rf dist build .pytest_cache .ruff_cache __pycache__ .venv
+    @find . -type d -name "__pycache__" -exec rm -rf {} +
 
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"

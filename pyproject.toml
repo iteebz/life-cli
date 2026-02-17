@@ -19,7 +19,7 @@ dependencies = [
 dev = [
     "ruff>=0.13.0",
     "pytest>=8.4.1",
-    "pyright>=1.1.407",
+    "pyright>=1.1.408",
 ]
 
 [project.scripts]
@@ -30,7 +30,8 @@ packages = ["life"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
+exclude = ["vendor/"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -38,40 +39,53 @@ indent-style = "space"
 
 [tool.ruff.lint]
 select = [
-    "E",
-    "W",
-    "F",
-    "I",
-    "N",
-    "UP",
-    "B",
-    "C4",
-    "SIM",
-    "RET",
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+    "S",      # flake8-bandit (security)
+    "PTH",    # flake8-use-pathlib
+    "PERF",   # perflint
+    "RUF",    # ruff-specific
+    "TID",    # tidy imports
+    "PIE",    # misc lints
+    "T20",    # flake8-print
+    "FLY",    # flynt (f-strings)
+    "FURB",   # refurb (modern python)
+    "PLC",    # pylint conventions
 ]
 ignore = [
     "SIM108",
+    "SIM115",
     "SIM117",
     "E501",
+    "COM812",
+    "S104",
+    "D100", "D101", "D102", "D103", "D104", "D107",
+    "D202", "D209", "D212", "D213", "D401", "D413", "D417",
+    "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN401",
+    "FBT001", "FBT002", "FBT003",
+    "EM101", "EM102",
+    "TRY003", "TRY300", "TRY301", "TRY400", "TRY401",
+    "G004", "G201",
+    "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR2004",
+    "ARG001", "ARG004",
+    "C901",
+    "BLE001",
+    "S603",
+    "S607",
+    "S108",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S607", "S606"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-
-[tool.pyright]
-pythonVersion = "3.12"
-include = ["life"]
-typeCheckingMode = "strict"
-reportUnnecessaryTypeIgnoreComment = true
-reportIncompatibleMethodOverride = true
-reportIncompatibleVariableOverride = true
-reportDuplicateImport = true
-reportDeprecated = true
-reportConstantRedefinition = true
-reportUnknownMemberType = false
-reportUnknownArgumentType = false
-reportMissingParameterType = false
-reportPrivateUsage = false
-reportUnknownVariableType = false
-reportUnknownParameterType = false

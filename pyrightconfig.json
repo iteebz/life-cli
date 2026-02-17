@@ -1,0 +1,17 @@
+{
+  "include": ["life"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "strict",
+  "reportUnnecessaryTypeIgnoreComment": true,
+  "reportIncompatibleMethodOverride": true,
+  "reportIncompatibleVariableOverride": true,
+  "reportDuplicateImport": true,
+  "reportDeprecated": true,
+  "reportConstantRedefinition": true,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportMissingParameterType": false,
+  "reportPrivateUsage": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownParameterType": false
+}
