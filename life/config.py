@@ -62,17 +62,6 @@ def set_profile(profile):
     _config.set("profile", profile)
 
 
-def get_default_persona() -> str | None:
-    """Get default persona from config, or None if not set."""
-    val = _config.get("default_persona")
-    return str(val) if val is not None else None
-
-
-def set_default_persona(persona: str) -> None:
-    """Set default persona in config."""
-    _config.set("default_persona", persona)
-
-
 def get_dates() -> list[dict[str, str]]:
     """Get list of dates from config."""
     val = _config.get("dates")
