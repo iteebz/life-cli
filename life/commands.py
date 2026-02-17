@@ -1,4 +1,5 @@
 from datetime import timedelta
+from statistics import median
 
 from .config import get_profile, set_profile
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
@@ -18,12 +19,13 @@ from .lib.format import format_habit, format_status, format_task
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
 from .lib.resolve import resolve_item, resolve_item_any, resolve_task
-from .models import Habit, Task
+from .models import Task
 from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
 from .tasks import (
     add_task,
     delete_task,
+    get_all_tasks,
     get_tasks,
     set_blocked_by,
     toggle_completed,
@@ -168,6 +170,7 @@ def cmd_rm(args: list[str]) -> None:
         echo(f"{ANSI.DIM}{task.content}{ANSI.RESET}")
     elif habit:
         from .habits import delete_habit
+
         delete_habit(habit.id)
         echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}")
 
@@ -304,7 +307,16 @@ def cmd_list() -> None:
 
 
 def cmd_status() -> None:
+    def _in_last_days(dt, days: int) -> bool:
+        return (today_date - dt.date()).days < days
+
+    def _fmt_ratio(done: int, created: int) -> str:
+        if created == 0:
+            return "n/a"
+        return f"{done / created:.0%}"
+
     tasks = get_tasks()
+    all_tasks = get_all_tasks()
     habits = get_habits()
     today_date = today()
 
@@ -313,8 +325,61 @@ def cmd_status() -> None:
     jaynice = [t for t in tasks if "jaynice" in (t.tags or [])]
     focused = [t for t in tasks if t.focus]
 
+    overdue_created_7d = [
+        t
+        for t in all_tasks
+        if t.due_date and _in_last_days(t.created, 7) and t.due_date < today_date
+    ]
+    overdue_closed_7d = [
+        t
+        for t in all_tasks
+        if t.due_date
+        and t.completed_at
+        and _in_last_days(t.completed_at, 7)
+        and t.due_date < t.completed_at.date()
+    ]
+
+    jaynice_created_7d = [
+        t for t in all_tasks if "jaynice" in (t.tags or []) and _in_last_days(t.created, 7)
+    ]
+    jaynice_done_7d = [
+        t
+        for t in all_tasks
+        if "jaynice" in (t.tags or []) and t.completed_at and _in_last_days(t.completed_at, 7)
+    ]
+
+    discomfort_open_ages = [
+        (today_date - t.created.date()).days
+        for t in tasks
+        if set(t.tags or []).intersection({"finance", "legal", "jaynice"})
+    ]
+    avoidance_half_life_days = int(median(discomfort_open_ages)) if discomfort_open_ages else 0
+
+    admin_closure_rate = _fmt_ratio(len(overdue_closed_7d), len(overdue_created_7d))
+    jaynice_followthrough_rate = _fmt_ratio(len(jaynice_done_7d), len(jaynice_created_7d))
+
     lines = []
     lines.append(f"tasks: {len(tasks)}  habits: {len(habits)}  focused: {len(focused)}")
+    lines.append("\nFEEDBACK LOOPS (7d):")
+    lines.append(
+        f"  admin_closure_rate: {admin_closure_rate} ({len(overdue_closed_7d)}/{len(overdue_created_7d)})"
+    )
+    lines.append(
+        f"  jaynice_followthrough_rate: {jaynice_followthrough_rate} ({len(jaynice_done_7d)}/{len(jaynice_created_7d)})"
+    )
+    lines.append(f"  avoidance_half_life_days: {avoidance_half_life_days}")
+
+    flags: list[str] = []
+    if jaynice_created_7d and (len(jaynice_done_7d) / len(jaynice_created_7d)) < 0.5:
+        flags.append("relationship_escalation")
+    if discomfort_open_ages and max(discomfort_open_ages) >= 3:
+        flags.append("stuck_task_protocol")
+    if overdue and overdue_created_7d and not overdue_closed_7d:
+        flags.append("admin_closure_risk")
+    if flags:
+        lines.append("  flags: " + ", ".join(flags))
+    else:
+        lines.append("  flags: none")
 
     if overdue:
         lines.append(f"\nOVERDUE ({len(overdue)}):")
