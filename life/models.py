@@ -40,6 +40,7 @@ class TaskMutation:
     old_value: str | None
     new_value: str | None
     mutated_at: datetime
+    reason: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)

@@ -27,6 +27,7 @@ from .tags import add_tag, remove_tag
 from .tasks import (
     add_task,
     delete_task,
+    defer_task,
     get_all_tasks,
     get_tasks,
     set_blocked_by,
@@ -54,6 +55,7 @@ __all__ = [
     "cmd_stats",
     "cmd_backup",
     "cmd_momentum",
+    "cmd_defer",
     "cmd_now",
     "cmd_today",
     "cmd_tomorrow",
@@ -411,6 +413,17 @@ def cmd_today(args: list[str]) -> None:
 
 def cmd_tomorrow(args: list[str]) -> None:
     _set_due_relative(args, 1, "tomorrow")
+
+
+def cmd_defer(args: list[str], reason: str | None) -> None:
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life defer <task> --reason <why>")
+    if not reason:
+        exit_error("--reason required. Why are you deferring this?")
+    task = resolve_task(ref)
+    defer_task(task.id, reason)
+    echo(f"→ {task.content.lower()} deferred: {reason}")
 
 
 def cmd_now(args: list[str]) -> None:

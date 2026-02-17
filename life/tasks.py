@@ -10,6 +10,7 @@ __all__ = [
     "find_task_any",
     "get_all_tasks",
     "get_focus",
+    "defer_task",
     "get_mutations",
     "get_task",
     "get_tasks",
@@ -178,17 +179,30 @@ def get_mutations(task_id: str) -> list[TaskMutation]:
     """Return all recorded mutations for a task, newest first."""
     with db.get_db() as conn:
         rows = conn.execute(
-            "SELECT id, task_id, field, old_value, new_value, mutated_at FROM task_mutations WHERE task_id = ? ORDER BY mutated_at DESC",
+            "SELECT id, task_id, field, old_value, new_value, mutated_at, reason FROM task_mutations WHERE task_id = ? ORDER BY mutated_at DESC",
             (task_id,),
         ).fetchall()
     from datetime import datetime
     return [
         TaskMutation(
             id=r[0], task_id=r[1], field=r[2], old_value=r[3], new_value=r[4],
-            mutated_at=datetime.fromisoformat(r[5])
+            mutated_at=datetime.fromisoformat(r[5]), reason=r[6]
         )
         for r in rows
     ]
+
+
+def defer_task(task_id: str, reason: str) -> Task | None:
+    """Record an explicit deferral with reason. Does not reschedule."""
+    task = get_task(task_id)
+    if not task:
+        return None
+    with db.get_db() as conn:
+        conn.execute(
+            "INSERT INTO task_mutations (task_id, field, old_value, new_value, reason) VALUES (?, 'defer', NULL, NULL, ?)",
+            (task_id, reason),
+        )
+    return task
 
 
 def delete_task(task_id: str) -> None:

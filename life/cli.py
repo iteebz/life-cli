@@ -22,6 +22,7 @@ from .commands import (
     cmd_steward,
     cmd_tag,
     cmd_task,
+    cmd_defer,
     cmd_now,
     cmd_today,
     cmd_tomorrow,
@@ -179,6 +180,15 @@ def backup():
 def momentum():
     """Show momentum and weekly trends"""
     cmd_momentum()
+
+
+@app.command(name="defer")
+def defer_cmd(
+    args: list[str] = typer.Argument(..., help="Task to defer (fuzzy)"),  # noqa: B008
+    reason: str = typer.Option(..., "--reason", "--why", help="Why are you deferring this?"),  # noqa: B008
+):
+    """Defer a task with a required reason"""
+    cmd_defer(args, reason)
 
 
 @app.command(name="now")

@@ -45,22 +45,9 @@ def _check_db_integrity() -> CheckResult:
         return CheckResult(ok=False, score=0, detail=f"db error: {e}")
 
 
-def _check_config_exists() -> CheckResult:
-    try:
-        with get_db() as conn:
-            profile = conn.execute("SELECT value FROM config WHERE key = 'profile'").fetchone()
-
-        if not profile or not profile[0]:
-            return CheckResult(ok=False, score=50, detail="profile not set")
-        return CheckResult(ok=True, score=100, detail="profile set")
-    except Exception:
-        return CheckResult(ok=True, score=100, detail="config table missing (ok)")
-
-
 _CHECKS: list[tuple[str, Callable[[], CheckResult], int]] = [
     ("ci", _check_ci, 50),
-    ("db", _check_db_integrity, 30),
-    ("config", _check_config_exists, 20),
+    ("db", _check_db_integrity, 50),
 ]
 
 
