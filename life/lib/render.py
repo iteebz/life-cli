@@ -139,11 +139,12 @@ def render_dashboard(
             return (0, task.scheduled_time, not task.focus)
         return (1, "", not task.focus)
 
+    today_task_id_to_content: dict[str, str] = {t.id: t.content for t in all_pending}
+
     lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TODAY:{ANSI.RESET}")
     if due_today:
         for task in sorted(due_today, key=_today_sort_key):
             scheduled_ids.add(task.id)
-            fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
             tags_str = (
                 " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags)
                 if task.tags
@@ -155,7 +156,13 @@ def render_dashboard(
                 time_str = f"{tc}{task.scheduled_time}{ANSI.RESET} "
             else:
                 time_str = ""
-            lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
+            if task.blocked_by:
+                blocker_name = today_task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
+                blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
+                lines.append(f"  ⊘ {time_str}{task.content.lower()}{tags_str}{blocked_str}{id_str}")
+            else:
+                fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
+                lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 
@@ -232,14 +239,21 @@ def render_dashboard(
             if t.parent_id:
                 subtasks_by_parent.setdefault(t.parent_id, []).append(t)
 
+        task_id_to_content: dict[str, str] = {t.id: t.content for t in items if isinstance(t, Task)}
+
         def _render_task_with_subtasks(
             task: Task, indent: str = "  ", tag: str | None = None
         ) -> list[str]:
             other_tags = [t for t in task.tags if t != tag] if tag else task.tags
             tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
-            indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
-            rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}{id_str}"]
+            if task.blocked_by:
+                blocker_name = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
+                blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
+                rows = [f"{indent}⊘ {task.content.lower()}{tags_str}{blocked_str}{id_str}"]
+            else:
+                indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
+                rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}{id_str}"]
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
                 sub_tags_str = " " + " ".join(f"#{t}" for t in sub.tags) if sub.tags else ""
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""

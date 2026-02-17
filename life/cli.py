@@ -3,6 +3,7 @@ import typer
 from . import db
 from .commands import (
     cmd_backup,
+    cmd_block,
     cmd_dashboard,
     cmd_dates,
     cmd_done,
@@ -16,11 +17,12 @@ from .commands import (
     cmd_rm,
     cmd_schedule,
     cmd_status,
+    cmd_steward,
     cmd_tag,
     cmd_task,
     cmd_today,
     cmd_tomorrow,
-    cmd_steward,
+    cmd_unblock,
 )
 
 app = typer.Typer(
@@ -186,6 +188,23 @@ def schedule(
 ):
     """Set or clear scheduled time on a task (fuzzy match)"""
     cmd_schedule(args, remove=remove)
+
+
+@app.command()
+def block(
+    blocked: list[str] = typer.Argument(..., help="Task to mark as blocked (fuzzy)"),  # noqa: B008
+    blocker: list[str] = typer.Option(..., "--by", "-b", help="Task that is blocking (fuzzy)"),  # noqa: B008
+):
+    """Mark a task as blocked by another task"""
+    cmd_block(blocked, blocker)
+
+
+@app.command()
+def unblock(
+    args: list[str] = typer.Argument(..., help="Task to unblock (fuzzy)"),  # noqa: B008
+):
+    """Clear blocked_by on a task"""
+    cmd_unblock(args)
 
 
 @app.command()

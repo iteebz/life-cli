@@ -28,14 +28,40 @@ from .tasks import (
     find_task,
     find_task_any,
     get_tasks,
+    set_blocked_by,
     toggle_completed,
     toggle_focus,
     update_task,
 )
 
 
+def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:
+    blocked_str = " ".join(blocked_args)
+    blocker_str = " ".join(blocker_args)
+    blocked = find_task(blocked_str)
+    if not blocked:
+        exit_error(f"No task found matching '{blocked_str}'")
+    blocker = find_task(blocker_str)
+    if not blocker:
+        exit_error(f"No task found matching '{blocker_str}'")
+    if blocker.id == blocked.id:
+        exit_error("A task cannot block itself")
+    set_blocked_by(blocked.id, blocker.id)
+    echo(f"⊘ {blocked.content.lower()}  ←  {blocker.content.lower()}")
+
+
+def cmd_unblock(args: list[str]) -> None:
+    partial = " ".join(args)
+    task = _require_task(partial)
+    if not task.blocked_by:
+        exit_error(f"'{task.content}' is not blocked")
+    set_blocked_by(task.id, None)
+    echo(f"□ {task.content.lower()}  unblocked")
+
+
 def cmd_steward() -> None:
     from pathlib import Path
+
     prompt_path = Path.home() / "life" / "STEWARD.md"
     if not prompt_path.exists():
         exit_error("STEWARD.md not found at ~/life/STEWARD.md")
@@ -45,15 +71,18 @@ def cmd_steward() -> None:
 def _parse_time(time_str: str) -> str:
     """Parse HH:MM or H:MM, return HH:MM or raise ValueError."""
     import re
+
     time_str = time_str.strip().lower()
-    m = re.match(r'^(\d{1,2}):(\d{2})$', time_str)
+    m = re.match(r"^(\d{1,2}):(\d{2})$", time_str)
     if m:
         h, mn = int(m.group(1)), int(m.group(2))
         if 0 <= h <= 23 and 0 <= mn <= 59:
             return f"{h:02d}:{mn:02d}"
     raise ValueError(f"Invalid time '{time_str}' — use HH:MM")
 
+
 __all__ = [
+    "cmd_block",
     "cmd_dashboard",
     "cmd_task",
     "cmd_habit",
@@ -73,6 +102,7 @@ __all__ = [
     "cmd_tomorrow",
     "cmd_schedule",
     "cmd_steward",
+    "cmd_unblock",
 ]
 
 
@@ -363,6 +393,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
         partial = " ".join(args)
         task = _require_task(partial)
         from . import db as _db
+
         with _db.get_db() as conn:
             conn.execute("UPDATE tasks SET scheduled_time = NULL WHERE id = ?", (task.id,))
         echo(format_status("□", task.content))

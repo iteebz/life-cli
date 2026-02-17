@@ -12,6 +12,7 @@ __all__ = [
     "get_focus",
     "get_task",
     "get_tasks",
+    "set_blocked_by",
     "toggle_completed",
     "toggle_focus",
     "update_task",
@@ -59,7 +60,7 @@ def get_task(task_id: str) -> Task | None:
     """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time FROM tasks WHERE id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks WHERE id = ?",
             (task_id,),
         )
         row = cursor.fetchone()
@@ -75,7 +76,7 @@ def get_tasks() -> list[Task]:
     """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time FROM tasks WHERE completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks WHERE completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -89,7 +90,7 @@ def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time FROM tasks"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -103,7 +104,7 @@ def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time FROM tasks WHERE focus = 1 AND completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks WHERE focus = 1 AND completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -188,3 +189,13 @@ def find_task_any(partial: str) -> Task | None:
     from .lib.fuzzy import find_in_pool
 
     return find_in_pool(partial, get_all_tasks())
+
+
+def set_blocked_by(task_id: str, blocker_id: str | None) -> Task | None:
+    """Set or clear the blocked_by pointer on a task."""
+    with db.get_db() as conn:
+        conn.execute(
+            "UPDATE tasks SET blocked_by = ? WHERE id = ?",
+            (blocker_id, task_id),
+        )
+    return get_task(task_id)
