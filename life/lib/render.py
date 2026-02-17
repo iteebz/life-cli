@@ -201,7 +201,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
     if done_today:
         lines.append(done_today)
 
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"
 
 
 def render_momentum(momentum) -> str:
