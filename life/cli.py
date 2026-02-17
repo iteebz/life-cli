@@ -336,6 +336,42 @@ def dates(
 
 
 @app.command()
+def status():
+    """Health check — untagged tasks, overdue, habit streaks, jaynice signal"""
+    from .lib.clock import today
+    from datetime import date
+
+    tasks = get_tasks()
+    habits = get_habits()
+    today_date = today()
+
+    untagged = [t for t in tasks if not t.tags]
+    overdue = [t for t in tasks if t.due_date and t.due_date < today_date]
+    jaynice = [t for t in tasks if "jaynice" in (t.tags or [])]
+    focused = [t for t in tasks if t.focus]
+
+    lines = []
+    lines.append(f"tasks: {len(tasks)}  habits: {len(habits)}  focused: {len(focused)}")
+
+    if overdue:
+        lines.append(f"\nOVERDUE ({len(overdue)}):")
+        for t in overdue:
+            lines.append(f"  ! {t.content}")
+
+    if untagged:
+        lines.append(f"\nUNTAGGED ({len(untagged)}):")
+        for t in untagged:
+            lines.append(f"  ? {t.content}")
+
+    if jaynice:
+        lines.append(f"\nJAYNICE ({len(jaynice)}):")
+        for t in jaynice:
+            lines.append(f"  ♥ {t.content}")
+
+    typer.echo("\n".join(lines))
+
+
+@app.command()
 def backup():
     """Create database backup"""
     typer.echo(backup_life())
