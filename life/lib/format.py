@@ -1,7 +1,6 @@
 from datetime import date
 
 from . import clock
-from ..models import Habit, Task
 from .ansi import ANSI
 
 
@@ -74,5 +73,3 @@ def format_status(symbol: str, content: str, item_id: str | None = None) -> str:
     if item_id:
         return f"{symbol} {content} {ANSI.GREY}[{item_id[:8]}]{ANSI.RESET}"
     return f"{symbol} {content}"
-
-

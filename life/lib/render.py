@@ -112,7 +112,11 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
         for task in sorted(due_today, key=_task_sort_key):
             scheduled_ids.add(task.id)
             fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
-            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags) if task.tags else ""
+            tags_str = (
+                " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags)
+                if task.tags
+                else ""
+            )
             lines.append(f"  □ {task.content.lower()}{tags_str}{fire}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
@@ -122,11 +126,17 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
         for task in sorted(due_tomorrow, key=_task_sort_key):
             scheduled_ids.add(task.id)
             fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
-            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags) if task.tags else ""
+            tags_str = (
+                " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags)
+                if task.tags
+                else ""
+            )
             lines.append(f"  □ {task.content.lower()}{tags_str}{fire}")
 
     habits = [item for item in items if isinstance(item, Habit)]
-    regular_items = [item for item in items if isinstance(item, Task) and item.id not in scheduled_ids]
+    regular_items = [
+        item for item in items if isinstance(item, Task) and item.id not in scheduled_ids
+    ]
 
     today_habit_items = [item for item in (today_items or []) if isinstance(item, Habit)]
     today_habit_ids = {item.id for item in today_habit_items}
@@ -183,7 +193,9 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             if t.parent_id:
                 subtasks_by_parent.setdefault(t.parent_id, []).append(t)
 
-        def _render_task_with_subtasks(task: Task, indent: str = "  ", tag: str | None = None) -> list[str]:
+        def _render_task_with_subtasks(
+            task: Task, indent: str = "  ", tag: str | None = None
+        ) -> list[str]:
             other_tags = [t for t in task.tags if t != tag] if tag else task.tags
             tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
             indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
@@ -199,9 +211,7 @@ def render_dashboard(items, today_breakdown, momentum, context, today_items=None
             if not tag_tasks:
                 continue
             tag_color = ANSI.POOL[idx % len(ANSI.POOL)]
-            lines.append(
-                f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}"
-            )
+            lines.append(f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}")
             for task in tag_tasks:
                 lines.extend(_render_task_with_subtasks(task, tag=tag))
 

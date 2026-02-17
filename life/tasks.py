@@ -74,7 +74,9 @@ def get_tasks() -> list[Task]:
 def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
-        cursor = conn.execute("SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks")
+        cursor = conn.execute(
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id FROM tasks"
+        )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)

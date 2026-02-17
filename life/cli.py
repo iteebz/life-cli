@@ -24,6 +24,7 @@ from .lib.format import format_habit, format_status, format_task
 from .lib.fuzzy import find_habit, find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_item_list, render_momentum
+from .models import Task
 from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
 from .tasks import add_task, delete_task, get_tasks, toggle_completed, toggle_focus, update_task
@@ -39,21 +40,17 @@ app = typer.Typer(
 
 @app.callback(invoke_without_command=True)
 def dashboard(ctx: typer.Context):
-    """Ephemeral life agent"""
+    """Life dashboard"""
     if ctx.invoked_subcommand is None:
         items = get_pending_items() + get_habits()
         today_items = get_today_completed()
         today_breakdown = get_today_breakdown()
-        typer.echo(
-            render_dashboard(
-                items, today_breakdown, None, None, today_items
-            )
-        )
+        typer.echo(render_dashboard(items, today_breakdown, None, None, today_items))
 
 
 @app.command()
 def task(
-    content: str = typer.Argument(..., help="Task content"),  # noqa: B008
+    content_args: list[str] = typer.Argument(..., help="Task content"),  # noqa: B008
     focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),  # noqa: B008
     due: str = typer.Option(
         None, "--due", "-d", help="Set due date (today, tomorrow, mon, YYYY-MM-DD)"
@@ -62,6 +59,7 @@ def task(
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),  # noqa: B008
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
+    content = " ".join(content_args) if content_args else ""
     try:
         validate_content(content)
     except ValueError as e:
@@ -86,10 +84,11 @@ def task(
 
 @app.command()
 def habit(
-    content: str = typer.Argument(..., help="Habit content"),  # noqa: B008
+    content_args: list[str] = typer.Argument(..., help="Habit content"),  # noqa: B008
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to habit"),  # noqa: B008
 ):
     """Add daily habit (auto-resets on completion)"""
+    content = " ".join(content_args) if content_args else ""
     try:
         validate_content(content)
     except ValueError as e:
@@ -225,7 +224,7 @@ def rename(
         typer.echo(f"Error: Cannot rename '{item_to_rename.content}' to itself.")
         raise typer.Exit(code=1)
 
-    if hasattr(item_to_rename, "focus"):
+    if isinstance(item_to_rename, Task):
         update_task(item_to_rename.id, content=to_content)
     else:
         update_habit(item_to_rename.id, content=to_content)
@@ -376,7 +375,6 @@ def backup():
     typer.echo(backup_life())
 
 
-
 @app.command(name="list")
 def list_items():
     """List all items."""
@@ -393,22 +391,26 @@ def momentum():
     typer.echo(render_momentum(weekly_momentum()))
 
 
-@app.command(name="today")
-def today_cmd(
-    args: list[str] = typer.Argument(None, help="Partial task name to set due today"),  # noqa: B008
-):
-    """Set due date to today on a task (fuzzy match)"""
+def _set_due_relative(args: list[str], offset_days: int, label: str):
     partial = " ".join(args) if args else ""
     if not partial:
-        typer.echo("Usage: life today <task>")
+        typer.echo(f"Usage: life {label} <task>")
         raise typer.Exit(1)
     task = find_task(partial)
     if not task:
         typer.echo(f"No task found matching '{partial}'")
         raise typer.Exit(1)
-    due_str = today().isoformat()
+    due_str = (today() + timedelta(days=offset_days)).isoformat()
     update_task(task.id, due=due_str)
     typer.echo(format_status("□", task.content))
+
+
+@app.command(name="today")
+def today_cmd(
+    args: list[str] = typer.Argument(None, help="Partial task name to set due today"),  # noqa: B008
+):
+    """Set due date to today on a task (fuzzy match)"""
+    _set_due_relative(args, 0, "today")
 
 
 @app.command()
@@ -416,17 +418,7 @@ def tomorrow(
     args: list[str] = typer.Argument(None, help="Partial task name to set due tomorrow"),  # noqa: B008
 ):
     """Set due date to tomorrow on a task (fuzzy match)"""
-    partial = " ".join(args) if args else ""
-    if not partial:
-        typer.echo("Usage: life tomorrow <task>")
-        raise typer.Exit(1)
-    task = find_task(partial)
-    if not task:
-        typer.echo(f"No task found matching '{partial}'")
-        raise typer.Exit(1)
-    due_str = (today() + timedelta(days=1)).isoformat()
-    update_task(task.id, due=due_str)
-    typer.echo(format_status("□", task.content))
+    _set_due_relative(args, 1, "tomorrow")
 
 
 def main():
