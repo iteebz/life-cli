@@ -49,6 +49,14 @@ def dashboard(
         cmd_dashboard(verbose=verbose)
 
 
+@app.command(name="dash")
+def dash(
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show IDs"),  # noqa: B008
+):
+    """Life dashboard"""
+    cmd_dashboard(verbose=verbose)
+
+
 @app.command()
 def task(
     content_args: list[str] = typer.Argument(..., help="Task content"),  # noqa: B008

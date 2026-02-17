@@ -149,8 +149,9 @@ def render_dashboard(
             lines.append(f"{emoji} {days} days until {name}!")
 
     all_pending = [item for item in items if isinstance(item, Task)]
-    due_today = [t for t in all_pending if t.due_date and t.due_date.isoformat() == today_str]
-    due_tomorrow = [t for t in all_pending if t.due_date and t.due_date.isoformat() == tomorrow_str]
+    all_subtask_ids = {t.id for t in all_pending if t.parent_id}
+    due_today = [t for t in all_pending if t.due_date and t.due_date.isoformat() == today_str and t.id not in all_subtask_ids]
+    due_tomorrow = [t for t in all_pending if t.due_date and t.due_date.isoformat() == tomorrow_str and t.id not in all_subtask_ids]
 
     def _today_sort_key(task: Task):
         if task.due_time:
@@ -158,6 +159,11 @@ def render_dashboard(
         return (1, "", not task.focus)
 
     today_task_id_to_content: dict[str, str] = {t.id: t.content for t in all_pending}
+
+    all_subtasks_by_parent: dict[str, list[Task]] = {}
+    for t in all_pending:
+        if t.parent_id:
+            all_subtasks_by_parent.setdefault(t.parent_id, []).append(t)
 
     lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TODAY:{ANSI.RESET}")
     if due_today:
@@ -177,6 +183,12 @@ def render_dashboard(
             else:
                 fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
                 lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
+            for sub in sorted(all_subtasks_by_parent.get(task.id, []), key=_task_sort_key):
+                scheduled_ids.add(sub.id)
+                sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
+                lines.append(f"    └ {sub_indicator}{sub.content.lower()}{sub_tags_str}{sub_id_str}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 
@@ -188,6 +200,12 @@ def render_dashboard(
             tags_str = _fmt_tags(task.tags, tag_colors)
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
             lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}")
+            for sub in sorted(all_subtasks_by_parent.get(task.id, []), key=_task_sort_key):
+                scheduled_ids.add(sub.id)
+                sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
+                lines.append(f"    └ {sub_indicator}{sub.content.lower()}{sub_tags_str}{sub_id_str}")
 
     habits = [item for item in items if isinstance(item, Habit)]
     regular_items = [
@@ -244,11 +262,8 @@ def render_dashboard(
         def sort_items(task_list: list[Task]):
             return sorted(task_list, key=_task_sort_key)
 
-        subtask_ids = {t.id for t in regular_items if t.parent_id}
-        subtasks_by_parent: dict[str, list[Task]] = {}
-        for t in regular_items:
-            if t.parent_id:
-                subtasks_by_parent.setdefault(t.parent_id, []).append(t)
+        subtask_ids = {t.id for t in all_pending if t.parent_id}
+        subtasks_by_parent = all_subtasks_by_parent
 
         task_id_to_content: dict[str, str] = {t.id: t.content for t in items if isinstance(t, Task)}
 

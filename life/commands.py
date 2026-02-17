@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from .config import get_profile, set_profile
-from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
+from .dash import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import (
     add_habit,
     get_checks,
