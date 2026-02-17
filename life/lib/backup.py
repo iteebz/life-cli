@@ -1,3 +1,4 @@
+import contextlib
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -35,10 +36,8 @@ def _row_counts(db_path: Path) -> dict[str, int]:
             ]
             counts = {}
             for table in tables:
-                try:
+                with contextlib.suppress(sqlite3.OperationalError):
                     counts[table] = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # noqa: S608
-                except sqlite3.OperationalError:
-                    pass
             return counts
         finally:
             conn.close()

@@ -9,8 +9,13 @@ from .habits import (
     toggle_check,
     update_habit,
 )
-from .interventions import add_intervention, get_interventions
-from .interventions import get_stats as get_intervention_stats
+from .interventions import (
+    add_intervention,
+    get_interventions,
+)
+from .interventions import (
+    get_stats as get_intervention_stats,
+)
 from .lib.ansi import ANSI
 from .lib.backup import backup as backup_life
 from .lib.clock import now, today
@@ -26,8 +31,8 @@ from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
 from .tasks import (
     add_task,
-    delete_task,
     defer_task,
+    delete_task,
     get_all_tasks,
     get_tasks,
     set_blocked_by,
@@ -164,6 +169,8 @@ def cmd_task(
         parent_task = resolve_task(under)
         if parent_task.parent_id:
             exit_error("Error: subtasks cannot have subtasks")
+        if tags:
+            exit_error("Error: subtasks cannot have tags — they inherit from parent")
         parent_id = parent_task.id
     task_id = add_task(content, focus=focus, due=resolved_due, tags=tags, parent_id=parent_id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
@@ -276,6 +283,8 @@ def cmd_tag(
         item_ref = " ".join(args)
     task, habit = resolve_item(item_ref)
     if task:
+        if task.parent_id:
+            exit_error("Error: subtasks cannot have tags — they inherit from parent")
         if remove:
             remove_tag(task.id, None, tag_name_final)
             echo(f"{task.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")

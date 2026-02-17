@@ -185,10 +185,9 @@ def render_dashboard(
                 lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
             for sub in sorted(all_subtasks_by_parent.get(task.id, []), key=_task_sort_key):
                 scheduled_ids.add(sub.id)
-                sub_tags_str = _fmt_tags(sub.tags, tag_colors)
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
-                lines.append(f"    └ {sub_indicator}{sub.content.lower()}{sub_tags_str}{sub_id_str}")
+                lines.append(f"    └ {sub_indicator}{sub.content.lower()}{sub_id_str}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 
@@ -202,10 +201,9 @@ def render_dashboard(
             lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}")
             for sub in sorted(all_subtasks_by_parent.get(task.id, []), key=_task_sort_key):
                 scheduled_ids.add(sub.id)
-                sub_tags_str = _fmt_tags(sub.tags, tag_colors)
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
-                lines.append(f"    └ {sub_indicator}{sub.content.lower()}{sub_tags_str}{sub_id_str}")
+                lines.append(f"    └ {sub_indicator}{sub.content.lower()}{sub_id_str}")
 
     habits = [item for item in items if isinstance(item, Habit)]
     regular_items = [
@@ -281,15 +279,14 @@ def render_dashboard(
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
                 rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}{id_str}"]
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
-                sub_tags_str = " " + " ".join(f"#{t}" for t in sub.tags) if sub.tags else ""
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
                 rows.append(
-                    f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_tags_str}{sub_id_str}"
+                    f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_id_str}"
                 )
             return rows
 
-        for idx, tag in enumerate(sorted(tagged_regular.keys())):
+        for tag in sorted(tagged_regular.keys()):
             tag_tasks = [t for t in sort_items(tagged_regular[tag]) if t.id not in subtask_ids]
             if not tag_tasks:
                 continue
