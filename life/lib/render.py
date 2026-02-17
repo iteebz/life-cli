@@ -26,7 +26,7 @@ def _scheduled_time_color(scheduled_time: str, now: datetime) -> str:
             return ANSI.GREY
         if delta <= 15:
             return ANSI.RED
-        if delta <= 30:
+        if delta <= 60:
             return ANSI.YELLOW
         return ANSI.GREY
     except (ValueError, AttributeError):
@@ -95,6 +95,23 @@ def render_today_completed(today_items: list[Task | Habit]):
     return "\n".join(lines)
 
 
+def _build_tag_color_map(items) -> dict[str, str]:
+    all_tags = sorted({
+        tag
+        for item in items
+        if isinstance(item, Task)
+        for tag in item.tags
+    })
+    return {tag: ANSI.POOL[i % len(ANSI.POOL)] for i, tag in enumerate(all_tags)}
+
+
+def _fmt_tags(tags: list[str], tag_colors: dict[str, str]) -> str:
+    if not tags:
+        return ""
+    parts = [f"{tag_colors.get(t, ANSI.GREY)}#{t}{ANSI.RESET}" for t in tags]
+    return " " + " ".join(parts)
+
+
 def render_dashboard(
     items, today_breakdown, momentum, context, today_items=None, profile=None, verbose=False
 ):
@@ -108,15 +125,16 @@ def render_dashboard(
     tomorrow = today + timedelta(days=1)
     tomorrow_str = tomorrow.isoformat()
     scheduled_ids = set()
+    tag_colors = _build_tag_color_map(items)
 
     lines = []
     checked_today = habits_today + tasks_today
 
+    lines.append(f"\n{today} {current_time}\ndone: {checked_today}  added: {added_today}")
+
     done_section = render_today_completed(today_items or [])
     if done_section:
         lines.append(f"\n{done_section}")
-
-    lines.append(f"\n{today} {current_time}\ndone: {checked_today}  added: {added_today}")
     dates_list = get_dates()
     if dates_list:
         upcoming = sorted(
@@ -145,11 +163,7 @@ def render_dashboard(
     if due_today:
         for task in sorted(due_today, key=_today_sort_key):
             scheduled_ids.add(task.id)
-            tags_str = (
-                " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags)
-                if task.tags
-                else ""
-            )
+            tags_str = _fmt_tags(task.tags, tag_colors)
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
             if task.scheduled_time:
                 tc = _scheduled_time_color(task.scheduled_time, now)
@@ -171,11 +185,7 @@ def render_dashboard(
         for task in sorted(due_tomorrow, key=_task_sort_key):
             scheduled_ids.add(task.id)
             fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
-            tags_str = (
-                " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in task.tags)
-                if task.tags
-                else ""
-            )
+            tags_str = _fmt_tags(task.tags, tag_colors)
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
             lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}")
 
@@ -211,6 +221,7 @@ def render_dashboard(
             content = habit.content
             tags = habit.tags
             tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+
             trend_indicator = _get_habit_trend(habit.checks)
             lines.append(
                 f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{ANSI.RESET}"
@@ -245,7 +256,7 @@ def render_dashboard(
             task: Task, indent: str = "  ", tag: str | None = None
         ) -> list[str]:
             other_tags = [t for t in task.tags if t != tag] if tag else task.tags
-            tags_str = " " + " ".join(f"#{t}" for t in other_tags) if other_tags else ""
+            tags_str = _fmt_tags(other_tags, tag_colors)
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
             if task.blocked_by:
                 blocker_name = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
@@ -267,7 +278,7 @@ def render_dashboard(
             tag_tasks = [t for t in sort_items(tagged_regular[tag]) if t.id not in subtask_ids]
             if not tag_tasks:
                 continue
-            tag_color = ANSI.POOL[idx % len(ANSI.POOL)]
+            tag_color = tag_colors.get(tag, ANSI.GREY)
             lines.append(f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}")
             for task in tag_tasks:
                 lines.extend(_render_task_with_subtasks(task, tag=tag))
