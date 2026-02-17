@@ -20,15 +20,7 @@ def format_due(due_date, colorize=True):
     diff = (due - today).days
 
     if colorize:
-        if diff == 0:
-            return f"{ANSI.GREY}0d:{ANSI.RESET}"
-        if diff > 0:
-            return f"{ANSI.GREY}{diff}d:{ANSI.RESET}"
         return f"{ANSI.GREY}{diff}d:{ANSI.RESET}"
-    if diff == 0:
-        return "0d:"
-    if diff > 0:
-        return f"{diff}d:"
     return f"{diff}d:"
 
 
@@ -84,10 +76,3 @@ def format_status(symbol: str, content: str, item_id: str | None = None) -> str:
     return f"{symbol} {content}"
 
 
-def format_ambiguous(items: list[Task | Habit]) -> str:
-    """Format ambiguous match list for user disambiguation."""
-    lines = ["Multiple matches:"]
-    for item in items:
-        item_id = item.id[:8]
-        lines.append(f"  {item_id}: {item.content}")
-    return "\n".join(lines)
