@@ -2,7 +2,8 @@
 
 ```
 life/
-  cli.py        - Typer router + command handlers (thin, calls domain modules)
+  cli.py        - Typer router (thin decorators, delegates to commands.py)
+  commands.py   - command handler logic (called by cli.py, testable without Typer)
   models.py     - dataclasses: Task, Habit, Tag, Weekly (no deps)
   db.py         - SQLite connection, migrations runner
   config.py     - DB path, profile config
@@ -31,7 +32,8 @@ life/
 Higher imports lower. Never upward.
 
 ```
-cli       → tasks, habits, tags, dashboard, momentum, lib, models
+cli       → commands
+commands  → tasks, habits, tags, dashboard, momentum, lib, models
 tasks     → db, models, lib/converters
 habits    → db, models, lib/converters
 tags      → db, models
@@ -53,4 +55,4 @@ db        → config
 
 ## What Needs Work
 
-- `cli.py` still mixes routing and handler logic — extraction to `commands.py` would clean this.
+- Error hierarchy — currently everything is `ValueError` or bare `typer.Exit`. Add `LifeError` base when there's a second consumer of domain functions.
