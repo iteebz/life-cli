@@ -33,6 +33,16 @@ class Tag:
 
 
 @dataclasses.dataclass(frozen=True)
+class TaskMutation:
+    id: int
+    task_id: str
+    field: str
+    old_value: str | None
+    new_value: str | None
+    mutated_at: datetime
+
+
+@dataclasses.dataclass(frozen=True)
 class Weekly:
     tasks_completed: int = 0
     tasks_total: int = 0

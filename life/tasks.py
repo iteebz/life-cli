@@ -10,6 +10,7 @@ __all__ = [
     "find_task_any",
     "get_all_tasks",
     "get_focus",
+    "get_mutations",
     "get_task",
     "get_tasks",
     "set_blocked_by",
@@ -19,7 +20,7 @@ __all__ = [
 ]
 from .lib import clock
 from .lib.converters import row_to_task
-from .models import Task
+from .models import Task, TaskMutation
 from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
 
@@ -112,6 +113,18 @@ def get_focus() -> list[Task]:
         return hydrate_tags(tasks, tags_map)
 
 
+def _record_mutations(conn: sqlite3.Connection, task_id: str, old: Task, updates: dict) -> None:
+    field_map = {"due_date": "due_date", "scheduled_time": "scheduled_time", "content": "content", "focus": "focus"}
+    for field, new_val in updates.items():
+        old_val = str(getattr(old, field_map.get(field, field), None))
+        new_str = str(new_val)
+        if old_val != new_str:
+            conn.execute(
+                "INSERT INTO task_mutations (task_id, field, old_value, new_value) VALUES (?, ?, ?, ?)",
+                (task_id, field, old_val if old_val != "None" else None, new_str),
+            )
+
+
 def update_task(
     task_id: str,
     content: str | None = None,
@@ -129,6 +142,7 @@ def update_task(
     updates = {k: v for k, v in updates.items() if v is not None}
 
     if updates:
+        old = get_task(task_id)
         set_clauses = [f"{k} = ?" for k in updates]
         values = list(updates.values())
         values.append(task_id)
@@ -138,10 +152,29 @@ def update_task(
                 conn.execute(
                     f"UPDATE tasks SET {', '.join(set_clauses)} WHERE id = ?", tuple(values)
                 )
+                if old:
+                    _record_mutations(conn, task_id, old, updates)
             except sqlite3.IntegrityError as e:
                 raise ValueError(f"Failed to update task: {e}") from e
 
     return get_task(task_id)
+
+
+def get_mutations(task_id: str) -> list[TaskMutation]:
+    """Return all recorded mutations for a task, newest first."""
+    with db.get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, task_id, field, old_value, new_value, mutated_at FROM task_mutations WHERE task_id = ? ORDER BY mutated_at DESC",
+            (task_id,),
+        ).fetchall()
+    from datetime import datetime
+    return [
+        TaskMutation(
+            id=r[0], task_id=r[1], field=r[2], old_value=r[3], new_value=r[4],
+            mutated_at=datetime.fromisoformat(r[5])
+        )
+        for r in rows
+    ]
 
 
 def delete_task(task_id: str) -> None:
@@ -179,16 +212,16 @@ def toggle_focus(task_id: str) -> Task | None:
     return update_task(task_id, focus=new_focus)
 
 
-def find_task(partial: str) -> Task | None:
+def find_task(ref: str) -> Task | None:
     from .lib.fuzzy import find_in_pool
 
-    return find_in_pool(partial, get_tasks())
+    return find_in_pool(ref, get_tasks())
 
 
-def find_task_any(partial: str) -> Task | None:
+def find_task_any(ref: str) -> Task | None:
     from .lib.fuzzy import find_in_pool
 
-    return find_in_pool(partial, get_all_tasks())
+    return find_in_pool(ref, get_all_tasks())
 
 
 def set_blocked_by(task_id: str, blocker_id: str | None) -> Task | None:
