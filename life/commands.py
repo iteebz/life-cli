@@ -205,8 +205,8 @@ def cmd_done(args: list[str]) -> None:
         checked = not is_undo_action
         echo(format_habit(habit, checked=checked))
     elif task:
-        toggle_completed(task.id)
-        echo(format_task(task))
+        updated = toggle_completed(task.id)
+        echo(format_task(updated))
 
 
 def cmd_rm(args: list[str]) -> None:
