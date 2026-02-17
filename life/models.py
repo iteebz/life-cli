@@ -11,7 +11,7 @@ class Task:
     created: datetime
     completed_at: datetime | None
     parent_id: str | None = None
-    scheduled_time: str | None = None
+    due_time: str | None = None
     blocked_by: str | None = None
     tags: list[str] = dataclasses.field(default_factory=list, hash=False)
 

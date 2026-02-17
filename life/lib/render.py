@@ -15,9 +15,9 @@ __all__ = [
 ]
 
 
-def _scheduled_time_color(scheduled_time: str, now: datetime) -> str:
+def _due_time_color(due_time: str, now: datetime) -> str:
     try:
-        h, m = map(int, scheduled_time.split(":"))
+        h, m = map(int, due_time.split(":"))
         task_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
         delta = (task_dt - now).total_seconds() / 60
         if delta < 0 and delta >= -60:
@@ -153,8 +153,8 @@ def render_dashboard(
     due_tomorrow = [t for t in all_pending if t.due_date and t.due_date.isoformat() == tomorrow_str]
 
     def _today_sort_key(task: Task):
-        if task.scheduled_time:
-            return (0, task.scheduled_time, not task.focus)
+        if task.due_time:
+            return (0, task.due_time, not task.focus)
         return (1, "", not task.focus)
 
     today_task_id_to_content: dict[str, str] = {t.id: t.content for t in all_pending}
@@ -165,9 +165,9 @@ def render_dashboard(
             scheduled_ids.add(task.id)
             tags_str = _fmt_tags(task.tags, tag_colors)
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
-            if task.scheduled_time:
-                tc = _scheduled_time_color(task.scheduled_time, now)
-                time_str = f"{tc}{task.scheduled_time}{ANSI.RESET} "
+            if task.due_time:
+                tc = _due_time_color(task.due_time, now)
+                time_str = f"{tc}{task.due_time}{ANSI.RESET} "
             else:
                 time_str = ""
             if task.blocked_by:

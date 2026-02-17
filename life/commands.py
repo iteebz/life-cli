@@ -355,7 +355,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
         from . import db as _db
 
         with _db.get_db() as conn:
-            conn.execute("UPDATE tasks SET scheduled_time = NULL WHERE id = ?", (task.id,))
+            conn.execute("UPDATE tasks SET due_time = NULL WHERE id = ?", (task.id,))
         echo(format_status("□", task.content))
         return
     time_str = args[0]
@@ -367,5 +367,5 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
     except ValueError as e:
         exit_error(str(e))
     task = resolve_task(ref)
-    update_task(task.id, scheduled_time=parsed)
+    update_task(task.id, due_time=parsed)
     echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content))

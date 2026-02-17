@@ -17,7 +17,7 @@ def _get_pending_tasks() -> list[Task]:
     """Internal: SELECT completed IS NULL, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks WHERE completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -55,7 +55,7 @@ def _get_completed_today() -> list[Task]:
     today_str = clock.today().isoformat()
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks WHERE date(completed_at) = ? AND completed_at IS NOT NULL",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE date(completed_at) = ? AND completed_at IS NOT NULL",
             (today_str,),
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]

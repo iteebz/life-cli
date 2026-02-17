@@ -61,7 +61,7 @@ def get_task(task_id: str) -> Task | None:
     """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks WHERE id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE id = ?",
             (task_id,),
         )
         row = cursor.fetchone()
@@ -77,7 +77,7 @@ def get_tasks() -> list[Task]:
     """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks WHERE completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -91,7 +91,7 @@ def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -105,7 +105,7 @@ def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, scheduled_time, blocked_by FROM tasks WHERE focus = 1 AND completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE focus = 1 AND completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -114,7 +114,7 @@ def get_focus() -> list[Task]:
 
 
 def _record_mutations(conn: sqlite3.Connection, task_id: str, old: Task, updates: dict) -> None:
-    field_map = {"due_date": "due_date", "scheduled_time": "scheduled_time", "content": "content", "focus": "focus"}
+    field_map = {"due_date": "due_date", "due_time": "due_time", "content": "content", "focus": "focus"}
     for field, new_val in updates.items():
         old_val = str(getattr(old, field_map.get(field, field), None))
         new_str = str(new_val)
@@ -130,14 +130,14 @@ def update_task(
     content: str | None = None,
     focus: bool | None = None,
     due: str | None = None,
-    scheduled_time: str | None = None,
+    due_time: str | None = None,
 ) -> Task | None:
     """Partial update, return updated Task."""
     updates = {
         "content": content,
         "focus": focus,
         "due_date": due,
-        "scheduled_time": scheduled_time,
+        "due_time": due_time,
     }
     updates = {k: v for k, v in updates.items() if v is not None}
 
