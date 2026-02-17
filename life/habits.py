@@ -7,6 +7,7 @@ from datetime import date, datetime
 from . import db
 from .lib import clock
 from .lib.converters import row_to_habit
+from .lib.fuzzy import find_in_pool
 from .models import Habit
 from .tags import load_tags_for_habits
 
@@ -174,8 +175,6 @@ def get_streak(habit_id: str) -> int:
 
 
 def find_habit(ref: str) -> Habit | None:
-    from .lib.fuzzy import find_in_pool
-
     return find_in_pool(ref, get_habits())
 
 

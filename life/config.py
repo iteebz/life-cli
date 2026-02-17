@@ -27,7 +27,7 @@ class Config:
             self._data = {}
             return
         try:
-            with open(CONFIG_PATH) as f:
+            with CONFIG_PATH.open() as f:
                 self._data = yaml.safe_load(f) or {}
         except Exception:
             self._data = {}
@@ -35,7 +35,7 @@ class Config:
     def _save(self) -> None:
         """Persist config to disk."""
         LIFE_DIR.mkdir(exist_ok=True)
-        with open(CONFIG_PATH, "w") as f:
+        with CONFIG_PATH.open("w") as f:
             yaml.dump(self._data, f, default_flow_style=False, allow_unicode=True)
 
     def get(self, key: str, default=None):

@@ -1,10 +1,11 @@
 import contextlib
+import shutil
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .. import config
+from life import config
 
 _SKIP_TABLES = {"_migrations"}
 
@@ -70,7 +71,6 @@ def backup() -> dict[str, Any]:
     for suffix in ["-shm", "-wal"]:
         wal = src.parent / f"{src.stem}{suffix}"
         if wal.exists():
-            import shutil
             shutil.copy2(wal, backup_path / wal.name)
 
     try:

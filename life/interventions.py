@@ -19,7 +19,7 @@ def add_intervention(description: str, result: str, note: str | None = None) -> 
             "INSERT INTO interventions (description, result, note) VALUES (?, ?, ?)",
             (description, result, note),
         )
-        return cur.lastrowid
+        return cur.lastrowid or 0
 
 
 def get_interventions(limit: int = 20) -> list[Intervention]:

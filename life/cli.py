@@ -42,7 +42,7 @@ app = typer.Typer(
 @app.callback(invoke_without_command=True)
 def dashboard(
     ctx: typer.Context,
-    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show IDs"),  # noqa: B008
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show IDs"),
 ):
     """Life dashboard"""
     if ctx.invoked_subcommand is None:
@@ -51,7 +51,7 @@ def dashboard(
 
 @app.command(name="dash")
 def dash(
-    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show IDs"),  # noqa: B008
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show IDs"),
 ):
     """Life dashboard"""
     cmd_dashboard(verbose=verbose)
@@ -60,12 +60,12 @@ def dash(
 @app.command()
 def task(
     content_args: list[str] = typer.Argument(..., help="Task content"),  # noqa: B008
-    focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),  # noqa: B008
+    focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),
     due: str = typer.Option(
         None, "--due", "-d", help="Set due date (today, tomorrow, mon, YYYY-MM-DD)"
-    ),  # noqa: B008
+    ),
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),  # noqa: B008
-    under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),  # noqa: B008
+    under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
     cmd_task(content_args, focus=focus, due=due, tags=tags, under=under)
@@ -107,7 +107,7 @@ def focus(
 @app.command()
 def due(
     args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and item content"),  # noqa: B008
-    remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),  # noqa: B008
+    remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),
 ):
     """Set or remove due date on item (fuzzy match)"""
     cmd_due(args, remove=remove)
@@ -118,7 +118,7 @@ def rename(
     from_args: list[str] = typer.Argument(  # noqa: B008
         ..., help="Content to fuzzy match for the item to rename"
     ),
-    to_content: str = typer.Argument(..., help="The exact new content for the item"),  # noqa: B008
+    to_content: str = typer.Argument(..., help="The exact new content for the item"),
 ):
     """Rename an item using fuzzy matching for 'from' and exact match for 'to'"""
     cmd_rename(from_args, to_content)
@@ -126,10 +126,10 @@ def rename(
 
 @app.command()
 def tag(
-    tag_name: str | None = typer.Argument(None, help="Tag name"),  # noqa: B008
+    tag_name: str | None = typer.Argument(None, help="Tag name"),
     args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
-    tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),  # noqa: B008
-    remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),  # noqa: B008
+    tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),
+    remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),
 ):
     """Add or remove tag on item (fuzzy match)"""
     cmd_tag(tag_name, args, tag_opt=tag_opt, remove=remove)
@@ -143,7 +143,7 @@ def habits():
 
 @app.command()
 def profile(
-    profile_text: str = typer.Argument(None, help="Profile to set"),  # noqa: B008
+    profile_text: str = typer.Argument(None, help="Profile to set"),
 ):
     """View or set personal profile"""
     cmd_profile(profile_text)
@@ -151,10 +151,10 @@ def profile(
 
 @app.command()
 def dates(
-    action: str = typer.Argument(None, help="add, remove, or list"),  # noqa: B008
-    name: str = typer.Argument(None, help="Date name"),  # noqa: B008
-    date_str: str = typer.Argument(None, help="Target date (YYYY-MM-DD)"),  # noqa: B008
-    emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for date"),  # noqa: B008
+    action: str = typer.Argument(None, help="add, remove, or list"),
+    name: str = typer.Argument(None, help="Date name"),
+    date_str: str = typer.Argument(None, help="Target date (YYYY-MM-DD)"),
+    emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for date"),
 ):
     """Add, remove, or list dates to track"""
     cmd_dates(action, name, date_str, emoji)
@@ -193,7 +193,7 @@ def momentum():
 @app.command(name="defer")
 def defer_cmd(
     args: list[str] = typer.Argument(..., help="Task to defer (fuzzy)"),  # noqa: B008
-    reason: str = typer.Option(..., "--reason", "--why", help="Why are you deferring this?"),  # noqa: B008
+    reason: str = typer.Option(..., "--reason", "--why", help="Why are you deferring this?"),
 ):
     """Defer a task with a required reason"""
     cmd_defer(args, reason)
@@ -226,7 +226,7 @@ def tomorrow(
 @app.command()
 def schedule(
     args: list[str] = typer.Argument(..., help="HH:MM and task name, or task name with -r"),  # noqa: B008
-    remove: bool = typer.Option(False, "-r", "--remove", help="Clear scheduled time"),  # noqa: B008
+    remove: bool = typer.Option(False, "-r", "--remove", help="Clear scheduled time"),
 ):
     """Set or clear scheduled time on a task (fuzzy match)"""
     cmd_schedule(args, remove=remove)
@@ -258,12 +258,12 @@ def steward():
 @app.command()
 def track(
     description: list[str] = typer.Argument(None, help="Intervention description"),  # noqa: B008
-    won: bool = typer.Option(False, "--won", "-w", help="Mark as won"),  # noqa: B008
-    lost: bool = typer.Option(False, "--lost", "-l", help="Mark as lost"),  # noqa: B008
-    deferred: bool = typer.Option(False, "--deferred", "-d", help="Mark as deferred"),  # noqa: B008
-    note: str = typer.Option(None, "--note", "-n", help="Optional note"),  # noqa: B008
-    stats: bool = typer.Option(False, "--stats", "-s", help="Show intervention stats"),  # noqa: B008
-    log: bool = typer.Option(False, "--log", help="Show recent interventions"),  # noqa: B008
+    won: bool = typer.Option(False, "--won", "-w", help="Mark as won"),
+    lost: bool = typer.Option(False, "--lost", "-l", help="Mark as lost"),
+    deferred: bool = typer.Option(False, "--deferred", "-d", help="Mark as deferred"),
+    note: str = typer.Option(None, "--note", "-n", help="Optional note"),
+    stats: bool = typer.Option(False, "--stats", "-s", help="Show intervention stats"),
+    log: bool = typer.Option(False, "--log", help="Show recent interventions"),
 ):
     """Log intervention results (Steward use)"""
     if stats:

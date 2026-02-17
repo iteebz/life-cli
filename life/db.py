@@ -68,8 +68,10 @@ def load_migrations() -> list[Migration]:
     migrations: list[Migration] = []
 
     if migrations_dir.exists():
-        for sql_file in sorted(migrations_dir.glob("*.sql")):
-            migrations.append((sql_file.stem, sql_file.read_text()))
+        migrations.extend(
+            (sql_file.stem, sql_file.read_text())
+            for sql_file in sorted(migrations_dir.glob("*.sql"))
+        )
 
     try:
         mig_module = import_module("life.migrations")
@@ -92,7 +94,7 @@ def _apply_migrations(conn: sqlite3.Connection, db_path: Path) -> None:
     )
     conn.commit()
 
-    applied = {row[0] for row in conn.execute(f"SELECT name FROM {MIGRATIONS_TABLE}").fetchall()}
+    applied = {row[0] for row in conn.execute(f"SELECT name FROM {MIGRATIONS_TABLE}").fetchall()}  # noqa: S608
     pending = [(n, m) for n, m in load_migrations() if n not in applied]
 
     if not pending:
@@ -120,7 +122,7 @@ def _apply_migrations(conn: sqlite3.Connection, db_path: Path) -> None:
                 conn.executescript(migration)
 
             _check_data_loss(conn, before)
-            conn.execute(f"INSERT OR IGNORE INTO {MIGRATIONS_TABLE} (name) VALUES (?)", (name,))
+            conn.execute(f"INSERT OR IGNORE INTO {MIGRATIONS_TABLE} (name) VALUES (?)", (name,))  # noqa: S608
             conn.commit()
         except Exception:
             conn.rollback()

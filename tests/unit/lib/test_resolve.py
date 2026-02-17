@@ -28,7 +28,7 @@ def test_resolve_item_does_not_find_completed(tmp_life_dir):
 def test_resolve_item_any_finds_completed(tmp_life_dir):
     task_id = add_task("done task", tags=["finance"])
     toggle_completed(task_id)
-    task, habit = resolve_item_any("done task")
+    task, _ = resolve_item_any("done task")
     assert task is not None
     assert task.id == task_id
 

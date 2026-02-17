@@ -1,9 +1,11 @@
 from datetime import timedelta
+from pathlib import Path
 
 from .config import get_profile, set_profile
 from .dash import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import (
     add_habit,
+    delete_habit,
     get_checks,
     get_habits,
     toggle_check,
@@ -42,30 +44,30 @@ from .tasks import (
 )
 
 __all__ = [
+    "cmd_backup",
     "cmd_block",
     "cmd_dashboard",
-    "cmd_list",
-    "cmd_task",
-    "cmd_habit",
-    "cmd_done",
-    "cmd_rm",
-    "cmd_focus",
-    "cmd_due",
-    "cmd_rename",
-    "cmd_tag",
-    "cmd_habits",
-    "cmd_profile",
     "cmd_dates",
-    "cmd_status",
-    "cmd_stats",
-    "cmd_backup",
-    "cmd_momentum",
     "cmd_defer",
+    "cmd_done",
+    "cmd_due",
+    "cmd_focus",
+    "cmd_habit",
+    "cmd_habits",
+    "cmd_list",
+    "cmd_momentum",
     "cmd_now",
+    "cmd_profile",
+    "cmd_rename",
+    "cmd_rm",
+    "cmd_schedule",
+    "cmd_stats",
+    "cmd_status",
+    "cmd_steward",
+    "cmd_tag",
+    "cmd_task",
     "cmd_today",
     "cmd_tomorrow",
-    "cmd_schedule",
-    "cmd_steward",
     "cmd_track",
     "cmd_unblock",
 ]
@@ -91,8 +93,6 @@ def cmd_unblock(args: list[str]) -> None:
 
 
 def cmd_steward() -> None:
-    from pathlib import Path
-
     prompt_path = Path.home() / "life" / "STEWARD.md"
     if not prompt_path.exists():
         exit_error("STEWARD.md not found at ~/life/STEWARD.md")
@@ -141,7 +141,6 @@ def cmd_track(
     add_intervention(description, result, note)
     symbol = {"won": "✓", "lost": "✗", "deferred": "→"}[result]
     echo(f"{symbol} {description}")
-
 
 
 def cmd_dashboard(verbose: bool = False) -> None:
@@ -215,8 +214,6 @@ def cmd_rm(args: list[str]) -> None:
         delete_task(task.id)
         echo(f"{ANSI.DIM}{task.content}{ANSI.RESET}")
     elif habit:
-        from .habits import delete_habit
-
         delete_habit(habit.id)
         echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}")
 
@@ -242,7 +239,11 @@ def cmd_due(args: list[str], remove: bool = False) -> None:
         echo(format_status("□", task.content, task.id))
     elif date_str:
         update_task(task.id, due=date_str)
-        echo(format_status(f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content, task.id))
+        echo(
+            format_status(
+                f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content, task.id
+            )
+        )
     else:
         exit_error(
             "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
@@ -255,6 +256,8 @@ def cmd_rename(from_args: list[str], to_content: str) -> None:
     ref = " ".join(from_args) if from_args else ""
     task, habit = resolve_item(ref)
     item = task or habit
+    if not item:
+        exit_error("Error: Item not found.")
     if item.content == to_content:
         exit_error(f"Error: Cannot rename '{item.content}' to itself.")
     if isinstance(item, Task):
@@ -379,10 +382,8 @@ def cmd_status() -> None:
     else:
         lines.append("  none")
     lines.append("\nHOT LIST:")
-    for t in overdue[:3]:
-        lines.append(f"  ! {t.content}")
-    for t in jaynice[:3]:
-        lines.append(f"  ♥ {t.content}")
+    lines.extend(f"  ! {t.content}" for t in overdue[:3])
+    lines.extend(f"  ♥ {t.content}" for t in jaynice[:3])
 
     if not overdue and not jaynice:
         lines.append("  none")

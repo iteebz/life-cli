@@ -1,3 +1,5 @@
+import pytest
+
 from life.habits import add_habit
 from life.tags import (
     add_tag,
@@ -98,8 +100,6 @@ def test_list_all_tags(tmp_life_dir):
 
 
 def test_add_tag_requires_one_id(tmp_life_dir):
-    import pytest
-
     with pytest.raises(ValueError):
         add_tag(task_id=None, habit_id=None, tag="test")
 
@@ -108,8 +108,6 @@ def test_add_tag_requires_one_id(tmp_life_dir):
 
 
 def test_remove_tag_requires_one_id(tmp_life_dir):
-    import pytest
-
     with pytest.raises(ValueError):
         remove_tag(task_id=None, habit_id=None, tag="test")
 

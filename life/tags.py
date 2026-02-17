@@ -116,7 +116,7 @@ def load_tags_for_tasks(
         return {}
 
     placeholders = ",".join("?" * len(task_ids))
-    query = f"SELECT task_id, tag FROM tags WHERE task_id IN ({placeholders}) ORDER BY tag"
+    query = f"SELECT task_id, tag FROM tags WHERE task_id IN ({placeholders}) ORDER BY tag"  # noqa: S608
 
     def _run(c: sqlite3.Connection) -> dict[str, list[str]]:
         cursor = c.execute(query, task_ids)
@@ -142,7 +142,7 @@ def load_tags_for_habits(
         return {}
 
     placeholders = ",".join("?" * len(habit_ids))
-    query = f"SELECT habit_id, tag FROM tags WHERE habit_id IN ({placeholders}) ORDER BY tag"
+    query = f"SELECT habit_id, tag FROM tags WHERE habit_id IN ({placeholders}) ORDER BY tag"  # noqa: S608
 
     def _run(c: sqlite3.Connection) -> dict[str, list[str]]:
         cursor = c.execute(query, habit_ids)
@@ -157,7 +157,7 @@ def load_tags_for_habits(
         return _run(c)
 
 
-def hydrate_tags(items: list[T], tag_map: dict[str, list[str]]) -> list[T]:
+def hydrate_tags[T: (Task, Habit)](items: list[T], tag_map: dict[str, list[str]]) -> list[T]:
     """Apply tags to a list of items using a pre-loaded tag map.
 
     Args:

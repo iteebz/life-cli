@@ -2,6 +2,7 @@ from datetime import date, datetime, time
 
 import pytest
 
+import life.config
 import life.lib.clock as clock
 from life import db
 
@@ -12,8 +13,6 @@ def tmp_life_dir(monkeypatch, tmp_path):
     cfg_path = tmp_path / "config.yaml"
 
     monkeypatch.setenv("LIFE_DIR", str(tmp_path))
-
-    import life.config
 
     monkeypatch.setattr("life.config.LIFE_DIR", tmp_path)
     monkeypatch.setattr("life.config.DB_PATH", db_path)

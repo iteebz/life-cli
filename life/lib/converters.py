@@ -2,7 +2,7 @@ import dataclasses
 from datetime import date, datetime
 from typing import TypeVar, cast
 
-from ..models import Habit, Task
+from life.models import Habit, Task
 
 T = TypeVar("T", Task, Habit)
 
@@ -73,7 +73,7 @@ def row_to_habit(row: HabitRow) -> Habit:
     )
 
 
-def hydrate_tags_onto(item: T, tags: list[str]) -> T:
+def hydrate_tags_onto[T: (Task, Habit)](item: T, tags: list[str]) -> T:
     """
     Attaches tags list to a Task or Habit object.
     Returns a new frozen dataclass instance with tags populated.

@@ -1,3 +1,6 @@
+from typing import ClassVar
+
+
 class ANSI:
     BOLD = "\033[1m"
     DIM = "\033[2m"
@@ -23,4 +26,14 @@ class ANSI:
     SOFT_PURPLE = "\033[38;5;141m"
     SOFT_TEAL = "\033[38;5;72m"
 
-    POOL = [SOFT_ORANGE, SOFT_BLUE, SOFT_MAGENTA, SOFT_CYAN, SOFT_YELLOW, SOFT_GREEN, SOFT_RED, SOFT_PURPLE, SOFT_TEAL]
+    POOL: ClassVar[list[str]] = [
+        SOFT_ORANGE,
+        SOFT_BLUE,
+        SOFT_MAGENTA,
+        SOFT_CYAN,
+        SOFT_YELLOW,
+        SOFT_GREEN,
+        SOFT_RED,
+        SOFT_PURPLE,
+        SOFT_TEAL,
+    ]

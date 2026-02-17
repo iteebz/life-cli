@@ -26,7 +26,7 @@ ci:
     #!/bin/bash
     set -e
     just lint
-    uv run pytest tests -q --tb=no -n auto
+    uv run pytest tests -q --tb=no
 
 test:
     @uv run pytest tests

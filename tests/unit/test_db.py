@@ -94,14 +94,18 @@ def test_models_match_schema():
             conn.executescript(migration)
 
     for model_cls, (table, model_excludes, db_excludes) in _MODEL_TABLE_MAP.items():
-        db_cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()} - db_excludes
+        db_cols = {
+            r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()
+        } - db_excludes
         model_fields = {f.name for f in dataclasses.fields(model_cls)} - model_excludes
 
         missing_in_db = model_fields - db_cols
         missing_in_model = db_cols - model_fields
 
         assert not missing_in_db, f"{model_cls.__name__} fields not in {table}: {missing_in_db}"
-        assert not missing_in_model, f"{table} columns not in {model_cls.__name__}: {missing_in_model}"
+        assert not missing_in_model, (
+            f"{table} columns not in {model_cls.__name__}: {missing_in_model}"
+        )
 
     conn.close()
 
@@ -123,7 +127,19 @@ def test_no_phantom_table_references():
     }
     conn.close()
 
-    sql_keywords = {"on", "set", "where", "values", "select", "delete", "insert", "replace", "group", "order", "limit"}
+    sql_keywords = {
+        "on",
+        "set",
+        "where",
+        "values",
+        "select",
+        "delete",
+        "insert",
+        "replace",
+        "group",
+        "order",
+        "limit",
+    }
     known_virtual = {"_migrations", "sqlite_master"}
 
     src_dir = Path(__file__).parent.parent.parent / "life"
@@ -134,8 +150,12 @@ def test_no_phantom_table_references():
         content = re.sub(r'""".*?"""', "", raw, flags=re.DOTALL)
         content = re.sub(r"'''.*?'''", "", content, flags=re.DOTALL)
         content = re.sub(r"#.*", "", content)
-        cte_names = {m.group(1) for m in re.finditer(r"WITH\s+([a-z_]\w*)\s+AS", content, re.IGNORECASE)}
-        cte_names |= {m.group(1) for m in re.finditer(r",\s*([a-z_]\w*)\s+AS\s*\(", content, re.IGNORECASE)}
+        cte_names = {
+            m.group(1) for m in re.finditer(r"WITH\s+([a-z_]\w*)\s+AS", content, re.IGNORECASE)
+        }
+        cte_names |= {
+            m.group(1) for m in re.finditer(r",\s*([a-z_]\w*)\s+AS\s*\(", content, re.IGNORECASE)
+        }
 
         for match in re.finditer(r"(?:FROM|JOIN|INTO|UPDATE)\s+([a-z_][a-z0-9_]*)\b", content):
             name = match.group(1)

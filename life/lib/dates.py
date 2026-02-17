@@ -1,8 +1,9 @@
 from datetime import date, timedelta
 
-from ..config import add_date as add_date_config
-from ..config import get_dates
-from ..config import remove_date as remove_date_config
+from life.config import add_date as add_date_config
+from life.config import get_dates
+from life.config import remove_date as remove_date_config
+
 from . import clock
 
 

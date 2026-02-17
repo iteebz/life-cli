@@ -1,7 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from life import db
-from life.dashboard import (
+from life.dash import (
     get_pending_items,
     get_today_breakdown,
     get_today_completed,
@@ -77,7 +77,7 @@ def test_completed_mixed(tmp_life_dir, fixed_today):
 
 
 def test_breakdown_empty(tmp_life_dir, fixed_today):
-    habits_today, tasks_today, added_today = get_today_breakdown()
+    habits_today, tasks_today, _ = get_today_breakdown()
     assert habits_today == 0
     assert tasks_today == 0
 
@@ -88,7 +88,7 @@ def test_breakdown_tasks(tmp_life_dir, fixed_today):
     toggle_completed(task1_id)
     toggle_completed(task2_id)
 
-    habits_today, tasks_today, added_today = get_today_breakdown()
+    habits_today, tasks_today, _ = get_today_breakdown()
     assert habits_today == 0
     assert tasks_today == 2
 
@@ -99,7 +99,7 @@ def test_breakdown_habits(tmp_life_dir, fixed_today):
     toggle_check(habit1_id)
     toggle_check(habit2_id)
 
-    habits_today, tasks_today, added_today = get_today_breakdown()
+    habits_today, tasks_today, _ = get_today_breakdown()
     assert habits_today == 2
     assert tasks_today == 0
 
@@ -112,14 +112,12 @@ def test_breakdown_mixed(tmp_life_dir, fixed_today):
     toggle_check(habit1_id)
     toggle_check(habit2_id)
 
-    habits_today, tasks_today, added_today = get_today_breakdown()
+    habits_today, tasks_today, _ = get_today_breakdown()
     assert habits_today == 2
     assert tasks_today == 1
 
 
 def test_today_completed_exclude_yesterday(tmp_life_dir, fixed_today):
-    from datetime import datetime, time
-
     task_id = add_task("task completed yesterday")
 
     with db.get_db() as conn:

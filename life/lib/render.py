@@ -1,8 +1,9 @@
 from datetime import date, datetime, timedelta
 
-from ..config import get_dates
-from ..models import Habit, Task
-from ..tasks import _task_sort_key
+from life.config import get_dates
+from life.models import Habit, Task
+from life.tasks import _task_sort_key
+
 from . import clock
 from .ansi import ANSI
 from .format import format_habit, format_task
@@ -96,12 +97,7 @@ def render_today_completed(today_items: list[Task | Habit]):
 
 
 def _build_tag_color_map(items) -> dict[str, str]:
-    all_tags = sorted({
-        tag
-        for item in items
-        if isinstance(item, Task)
-        for tag in item.tags
-    })
+    all_tags = sorted({tag for item in items if isinstance(item, Task) for tag in item.tags})
     return {tag: ANSI.POOL[i % len(ANSI.POOL)] for i, tag in enumerate(all_tags)}
 
 
@@ -150,8 +146,16 @@ def render_dashboard(
 
     all_pending = [item for item in items if isinstance(item, Task)]
     all_subtask_ids = {t.id for t in all_pending if t.parent_id}
-    due_today = [t for t in all_pending if t.due_date and t.due_date.isoformat() == today_str and t.id not in all_subtask_ids]
-    due_tomorrow = [t for t in all_pending if t.due_date and t.due_date.isoformat() == tomorrow_str and t.id not in all_subtask_ids]
+    due_today = [
+        t
+        for t in all_pending
+        if t.due_date and t.due_date.isoformat() == today_str and t.id not in all_subtask_ids
+    ]
+    due_tomorrow = [
+        t
+        for t in all_pending
+        if t.due_date and t.due_date.isoformat() == tomorrow_str and t.id not in all_subtask_ids
+    ]
 
     def _today_sort_key(task: Task):
         if task.due_time:
@@ -179,7 +183,9 @@ def render_dashboard(
             if task.blocked_by:
                 blocker_name = today_task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
                 blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
-                lines.append(f"  ⊘ {ANSI.GREY}{time_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}")
+                lines.append(
+                    f"  ⊘ {ANSI.GREY}{time_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"
+                )
             else:
                 fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
                 lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
@@ -274,16 +280,16 @@ def render_dashboard(
             if task.blocked_by:
                 blocker_name = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
                 blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
-                rows = [f"{indent}⊘ {ANSI.GREY}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"]
+                rows = [
+                    f"{indent}⊘ {ANSI.GREY}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"
+                ]
             else:
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
                 rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}{id_str}"]
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
-                rows.append(
-                    f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_id_str}"
-                )
+                rows.append(f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_id_str}")
             return rows
 
         for tag in sorted(tagged_regular.keys()):

@@ -6,6 +6,7 @@ from typing import Any
 
 from life import config
 from life.db import get_db
+from life.lib.errors import echo
 
 
 @dataclass
@@ -19,7 +20,7 @@ def _check_ci() -> CheckResult:
     just_bin = shutil.which("just")
     if not just_bin:
         return CheckResult(ok=False, score=0, detail="just not found")
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [just_bin, "ci"],
         capture_output=True,
         text=True,
@@ -73,10 +74,10 @@ def score() -> dict[str, Any]:
 
 def cli() -> None:
     result = score()
-    print(f"health: {result['score']}/100 {'✓' if result['ok'] else '✗'}")
+    echo(f"health: {result['score']}/100 {'✓' if result['ok'] else '✗'}")
     for name, check in result["checks"].items():
         status = "✓" if check["ok"] else "✗"
-        print(f"  {name}: {status} {check['detail']}")
+        echo(f"  {name}: {status} {check['detail']}")
     if not result["ok"]:
         raise SystemExit(1)
 
