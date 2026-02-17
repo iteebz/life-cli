@@ -26,7 +26,7 @@ ci:
     #!/bin/bash
     set -e
     just lint
-    uv run pytest tests -q --tb=no
+    uv run pytest tests --tb=short
 
 test:
     @uv run pytest tests
