@@ -29,9 +29,16 @@ def _match_uuid_prefix(ref: str, pool: Sequence[T]) -> T | None:
 
 def _match_substring(ref: str, pool: Sequence[T]) -> T | None:
     ref_lower = ref.lower()
-    for item in pool:
-        if ref_lower in item.content.lower():
-            return item
+    exact = next((item for item in pool if item.content.lower() == ref_lower), None)
+    if exact:
+        return exact
+    matches = [item for item in pool if ref_lower in item.content.lower()]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        from .errors import exit_error
+        sample = ", ".join(f'"{item.content}"' for item in matches[:3])
+        exit_error(f"Ambiguous match for '{ref}': {sample}")
     return None
 
 
