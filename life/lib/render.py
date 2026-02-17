@@ -50,7 +50,7 @@ def render_today_completed(today_items: list[Task | Habit]):
     if not tasks_only:
         return ""
 
-    lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}DONE TODAY:{ANSI.RESET}"]
+    lines = [f"\n{ANSI.BOLD}{ANSI.GREEN}DONE:{ANSI.RESET}"]
 
     for task in tasks_only:
         content = task.content
