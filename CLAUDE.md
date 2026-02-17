@@ -11,3 +11,4 @@ Outstanding debt tracked in `~/life/brr/IMPROVEMENTS.md`.
 - `life defer <task> --reason <why>` — explicit deferral, logged to `task_mutations` with `field=defer` and reason. Does not reschedule. Use `life schedule` or `life now` to reschedule separately.
 - `life now <task>` — set due=today, due_time=current time.
 - `life schedule <HH:MM> <task>` — set scheduled time only.
+- `life task <content> --under <parent>` — create subtask (fuzzy match on parent). One level deep only.
