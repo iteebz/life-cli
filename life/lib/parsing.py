@@ -1,3 +1,5 @@
+import re
+
 from .dates import parse_due_date
 
 
@@ -33,3 +35,13 @@ def parse_due_and_item(args: list[str], remove: bool = False) -> tuple[str | Non
 
     item_name = " ".join(item_args)
     return date_str, item_name
+
+
+def parse_time(time_str: str) -> str:
+    time_str = time_str.strip().lower()
+    m = re.match(r"^(\d{1,2}):(\d{2})$", time_str)
+    if m:
+        h, mn = int(m.group(1)), int(m.group(2))
+        if 0 <= h <= 23 and 0 <= mn <= 59:
+            return f"{h:02d}:{mn:02d}"
+    raise ValueError(f"Invalid time '{time_str}' — use HH:MM")

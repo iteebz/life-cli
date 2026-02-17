@@ -17,7 +17,7 @@ from .lib.clock import now, today
 from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.errors import echo, exit_error
 from .lib.format import format_habit, format_status, format_task
-from .lib.parsing import parse_due_and_item, validate_content
+from .lib.parsing import parse_due_and_item, parse_time, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
 from .lib.resolve import resolve_item, resolve_item_any, resolve_task
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
@@ -108,18 +108,6 @@ def cmd_track(
     echo(f"{symbol} {description}")
 
 
-def _parse_time(time_str: str) -> str:
-    import re
-
-    time_str = time_str.strip().lower()
-    m = re.match(r"^(\d{1,2}):(\d{2})$", time_str)
-    if m:
-        h, mn = int(m.group(1)), int(m.group(2))
-        if 0 <= h <= 23 and 0 <= mn <= 59:
-            return f"{h:02d}:{mn:02d}"
-    raise ValueError(f"Invalid time '{time_str}' — use HH:MM")
-
-
 __all__ = [
     "cmd_block",
     "cmd_dashboard",
@@ -146,6 +134,7 @@ __all__ = [
     "cmd_steward",
     "cmd_track",
     "cmd_unblock",
+    "cmd_block",
 ]
 
 
@@ -450,7 +439,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
     if not ref:
         exit_error("Usage: life schedule <HH:MM> <task>")
     try:
-        parsed = _parse_time(time_str)
+        parsed = parse_time(time_str)
     except ValueError as e:
         exit_error(str(e))
     task = resolve_task(ref)
