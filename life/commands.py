@@ -17,7 +17,7 @@ from .lib.errors import echo, exit_error
 from .lib.format import format_habit, format_status, format_task
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
-from .lib.resolve import resolve_item, resolve_task
+from .lib.resolve import resolve_item, resolve_item_any, resolve_task
 from .models import Habit, Task
 from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
@@ -144,7 +144,7 @@ def cmd_done(args: list[str]) -> None:
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life done <item>")
-    task, habit = resolve_item(ref)
+    task, habit = resolve_item_any(ref)
 
     if habit:
         today_date = today()
