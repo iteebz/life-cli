@@ -11,6 +11,7 @@ from .dashboard import get_pending_items, get_today_breakdown, get_today_complet
 from .habits import (
     add_habit,
     delete_habit,
+    find_habit,
     get_checks,
     get_habits,
     toggle_check,
@@ -22,13 +23,21 @@ from .lib.clock import today
 from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.errors import echo, exit_error
 from .lib.format import format_habit, format_status, format_task
-from .lib.fuzzy import find_habit, find_item, find_task, find_task_any
 from .lib.parsing import parse_due_and_item, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
 from .models import Habit, Task
 from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
-from .tasks import add_task, delete_task, get_tasks, toggle_completed, toggle_focus, update_task
+from .tasks import (
+    add_task,
+    delete_task,
+    find_task,
+    find_task_any,
+    get_tasks,
+    toggle_completed,
+    toggle_focus,
+    update_task,
+)
 
 app = typer.Typer(
     name="life",
@@ -47,7 +56,8 @@ def _require_task(partial: str) -> Task:
 
 
 def _require_item(partial: str) -> tuple[Task | None, Habit | None]:
-    task, habit = find_item(partial)
+    task = find_task(partial)
+    habit = find_habit(partial) if not task else None
     if not task and not habit:
         task = find_task_any(partial)
         habit = find_habit(partial) if not task else None
@@ -145,7 +155,8 @@ def rm(
     partial = " ".join(args) if args else ""
     if not partial:
         exit_error("Usage: life rm <item>")
-    task, habit = find_item(partial)
+    task = find_task(partial)
+    habit = find_habit(partial) if not task else None
     if task:
         delete_task(task.id)
         echo(f"{ANSI.DIM}{task.content}{ANSI.RESET}")
@@ -204,7 +215,8 @@ def rename(
     if not to_content:
         exit_error("Error: 'to' content cannot be empty.")
     partial_from = " ".join(from_args) if from_args else ""
-    task, habit = find_item(partial_from)
+    task = find_task(partial_from)
+    habit = find_habit(partial_from) if not task else None
     item_to_rename = task or habit
     if not item_to_rename:
         exit_error(f"No fuzzy match found for: '{partial_from}'")
@@ -236,7 +248,8 @@ def tag(
             )
         tag_name_final = tag_name
         item_partial = " ".join(args)
-    task, habit = find_item(item_partial)
+    task = find_task(item_partial)
+    habit = find_habit(item_partial) if not task else None
     if not task and not habit:
         task = find_task_any(item_partial)
         if not task:

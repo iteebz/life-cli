@@ -6,6 +6,8 @@ from . import db
 __all__ = [
     "add_task",
     "delete_task",
+    "find_task",
+    "find_task_any",
     "get_all_tasks",
     "get_focus",
     "get_task",
@@ -169,3 +171,15 @@ def toggle_focus(task_id: str) -> Task | None:
 
     new_focus = not task.focus
     return update_task(task_id, focus=new_focus)
+
+
+def find_task(partial: str) -> Task | None:
+    from .lib.fuzzy import find_in_pool
+
+    return find_in_pool(partial, get_tasks())
+
+
+def find_task_any(partial: str) -> Task | None:
+    from .lib.fuzzy import find_in_pool
+
+    return find_in_pool(partial, get_all_tasks())

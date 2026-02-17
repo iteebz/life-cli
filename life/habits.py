@@ -13,6 +13,7 @@ from .tags import load_tags_for_habits
 __all__ = [
     "add_habit",
     "delete_habit",
+    "find_habit",
     "get_checks",
     "get_habit",
     "get_habits",
@@ -170,6 +171,12 @@ def get_streak(habit_id: str) -> int:
         return 0
 
     return streak
+
+
+def find_habit(partial: str) -> Habit | None:
+    from .lib.fuzzy import find_in_pool
+
+    return find_in_pool(partial, get_habits())
 
 
 def toggle_check(habit_id: str) -> None:

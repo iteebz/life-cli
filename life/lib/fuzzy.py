@@ -2,16 +2,9 @@ from collections.abc import Sequence
 from difflib import get_close_matches
 from typing import TypeVar
 
-from ..habits import get_habits
 from ..models import Habit, Task
-from ..tasks import get_all_tasks, get_tasks
 
-__all__ = [
-    "find_habit",
-    "find_item",
-    "find_task",
-    "find_task_any",
-]
+__all__ = ["find_in_pool"]
 
 FUZZY_MATCH_CUTOFF = 0.8
 
@@ -62,23 +55,6 @@ def _find_by_partial(partial: str, pool: Sequence[T]) -> T | None:
     )
 
 
-def find_task(partial: str) -> Task | None:
-    """Find task by fuzzy matching partial string or UUID prefix."""
-    return _find_by_partial(partial, get_tasks())
-
-
-def find_habit(partial: str) -> Habit | None:
-    """Find habit by fuzzy matching partial string or UUID prefix."""
-    return _find_by_partial(partial, get_habits())
-
-
-def find_task_any(partial: str) -> Task | None:
-    """Find task among all tasks (including completed)."""
-    return _find_by_partial(partial, get_all_tasks())
-
-
-def find_item(partial: str) -> tuple[Task | None, Habit | None]:
-    """Find task or habit, return both results (one will be None). Useful for commands that work on both."""
-    task = find_task(partial)
-    habit = find_habit(partial) if not task else None
-    return task, habit
+def find_in_pool(partial: str, pool: Sequence[T]) -> T | None:
+    """Public entry point: find item in an arbitrary pool."""
+    return _find_by_partial(partial, pool)
