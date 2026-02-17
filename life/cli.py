@@ -20,6 +20,7 @@ from .commands import (
     cmd_task,
     cmd_today,
     cmd_tomorrow,
+    cmd_steward,
 )
 
 app = typer.Typer(
@@ -185,6 +186,12 @@ def schedule(
 ):
     """Set or clear scheduled time on a task (fuzzy match)"""
     cmd_schedule(args, remove=remove)
+
+
+@app.command()
+def steward():
+    """Print autonomous Steward boot prompt"""
+    cmd_steward()
 
 
 def main():

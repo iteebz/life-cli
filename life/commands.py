@@ -34,6 +34,14 @@ from .tasks import (
 )
 
 
+def cmd_steward() -> None:
+    from pathlib import Path
+    prompt_path = Path.home() / "life" / "STEWARD.md"
+    if not prompt_path.exists():
+        exit_error("STEWARD.md not found at ~/life/STEWARD.md")
+    echo(prompt_path.read_text())
+
+
 def _parse_time(time_str: str) -> str:
     """Parse HH:MM or H:MM, return HH:MM or raise ValueError."""
     import re
@@ -64,6 +72,7 @@ __all__ = [
     "cmd_today",
     "cmd_tomorrow",
     "cmd_schedule",
+    "cmd_steward",
 ]
 
 
