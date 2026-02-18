@@ -1,3 +1,5 @@
+import sys
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -195,6 +197,22 @@ def cmd_habit(content_args: list[str], tags: list[str] | None = None) -> None:
     echo(format_status("□", content, habit_id))
 
 
+def _animate_check(label: str) -> None:
+    sys.stdout.write(f"  □ {label}")
+    sys.stdout.flush()
+    time.sleep(0.18)
+    sys.stdout.write(f"\r  {ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
+    sys.stdout.flush()
+
+
+def _animate_uncheck(label: str) -> None:
+    sys.stdout.write(f"  {ANSI.GREY}✓{ANSI.RESET} {label}")
+    sys.stdout.flush()
+    time.sleep(0.18)
+    sys.stdout.write(f"\r  □ {label}\n")
+    sys.stdout.flush()
+
+
 def cmd_check(args: list[str]) -> None:
     ref = " ".join(args) if args else ""
     if not ref:
@@ -202,12 +220,12 @@ def cmd_check(args: list[str]) -> None:
     task, habit = resolve_item_any(ref)
     if habit:
         check_habit(habit.id)
-        echo(f"{ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{habit.content.lower()}{ANSI.RESET}")
+        _animate_check(habit.content.lower())
     elif task:
         if task.completed_at:
             exit_error(f"'{task.content}' is already done")
         check_task(task.id)
-        echo(f"{ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{task.content.lower()}{ANSI.RESET}")
+        _animate_check(task.content.lower())
 
 
 def cmd_uncheck(args: list[str]) -> None:
@@ -221,12 +239,12 @@ def cmd_uncheck(args: list[str]) -> None:
         if today_date not in checks:
             exit_error(f"'{habit.content}' is not checked today")
         uncheck_habit(habit.id)
-        echo(format_habit(habit, checked=False))
+        _animate_uncheck(habit.content.lower())
     elif task:
         if not task.completed_at:
             exit_error(f"'{task.content}' is not done")
         uncheck_task(task.id)
-        echo(format_task(task))
+        _animate_uncheck(task.content.lower())
 
 
 def cmd_done(args: list[str]) -> None:
