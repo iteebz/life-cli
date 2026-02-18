@@ -219,6 +219,7 @@ def _run_tail_stream(
     stderr_done = False
     stderr_lines: list[str] = []
     timed_out = False
+    last_rendered: str | None = None
 
     while not (stdout_done and stderr_done):
         remaining = deadline - time.monotonic()
@@ -252,7 +253,12 @@ def _run_tail_stream(
         entry = parser.parse_line(text)
         rendered = format_entry(entry, quiet_system=quiet_system) if entry else None
         if rendered:
+            if rendered == last_rendered and (
+                rendered.startswith("usage:") or rendered.startswith("error:")
+            ):
+                continue
             echo(rendered)
+            last_rendered = rendered
 
     if timed_out:
         proc.terminate()

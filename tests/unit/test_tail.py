@@ -52,6 +52,27 @@ def test_tail_parser_malformed_json_falls_back_to_raw():
     assert format_entry(entry) == "raw: {not-json"
 
 
+def test_tail_usage_zero_is_suppressed():
+    parser = StreamParser()
+    entry = parser.parse_line(
+        '{"type":"assistant","message":{"usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}'
+    )
+    assert entry is not None
+    assert format_entry(entry) is None
+
+
+def test_tail_tool_result_structured_content_is_flattened():
+    parser = StreamParser()
+    entry = parser.parse_line(
+        '{"type":"user","message":{"content":[{"type":"tool_result","tool_name":"Read","content":[{"type":"text","text":"line1"},{"type":"text","text":"line2"}]}]}}'
+    )
+    assert entry is not None
+    rendered = format_entry(entry)
+    assert rendered is not None
+    assert rendered.startswith("result: Read")
+    assert "line1 line2" in rendered
+
+
 def test_cmd_tail_streams_pretty_output(monkeypatch, tmp_path):
     home = tmp_path
     life_dir = home / "life"
@@ -123,6 +144,34 @@ def test_cmd_tail_retries_then_succeeds(monkeypatch, tmp_path):
     monkeypatch.setattr("life.commands.subprocess.Popen", fake_popen)
     cmd_tail(cycles=1, retries=2, retry_delay_seconds=0)
     assert calls["n"] == 2
+
+
+def test_cmd_tail_suppresses_duplicate_usage_and_errors(monkeypatch, tmp_path):
+    home = tmp_path
+    life_dir = home / "life"
+    life_dir.mkdir()
+    (life_dir / "STEWARD.md").write_text("test steward prompt")
+    monkeypatch.setenv("ZAI_API_KEY", "test-key")
+    monkeypatch.setattr(Path, "home", lambda: home)
+
+    outputs: list[str] = []
+
+    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):  # noqa: ARG001
+        return _FakePopen(
+            '{"type":"error","message":"permission denied"}\n'
+            '{"type":"error","message":"permission denied"}\n'
+            '{"type":"assistant","message":{"usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":3,"cache_creation_input_tokens":0}}}\n'
+            '{"type":"assistant","message":{"usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":3,"cache_creation_input_tokens":0}}}\n',
+            "",
+            0,
+        )
+
+    monkeypatch.setattr("life.commands.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("life.commands.echo", lambda msg="", err=False: outputs.append(msg))
+
+    cmd_tail(cycles=1)
+    assert outputs.count("error: permission denied") == 1
+    assert outputs.count("usage: in=1 out=2 cache=3") == 1
 
 
 def test_cmd_tail_dry_run_does_not_execute(monkeypatch, tmp_path):

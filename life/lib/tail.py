@@ -9,6 +9,28 @@ def _short(value: object, limit: int = 120) -> str:
     return text[: limit - 3] + "..."
 
 
+def _stringify_content(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        parts: list[str] = []
+        for item in value:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if isinstance(text, str) and text.strip():
+                    parts.append(text)
+                else:
+                    parts.append(json.dumps(item, ensure_ascii=True, separators=(",", ":")))
+            else:
+                parts.append(str(item))
+        return "\n".join(parts)
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=True, separators=(",", ":"))
+    return str(value)
+
+
 class StreamParser:
     def __init__(self) -> None:
         self._tool_map: dict[str, str] = {}
@@ -37,8 +59,10 @@ class StreamParser:
         if event_type == "user":
             return self._parse_user(event)
 
-        if event_type in {"error", "result"} and event.get("subtype") == "error":
+        if event_type == "error" or (event_type == "result" and event.get("subtype") == "error"):
             message = event.get("error") or event.get("message") or event.get("result") or "unknown error"
+            if isinstance(message, dict):
+                message = message.get("message") or message.get("error") or str(message)
             return {"type": "error", "message": _short(message, 240)}
 
         return {"type": "raw", "raw": raw}
@@ -99,8 +123,8 @@ class StreamParser:
             return {
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,
-                "tool_name": self._tool_map.get(tool_use_id, ""),
-                "result": block.get("content", ""),
+                "tool_name": block.get("tool_name") or self._tool_map.get(tool_use_id, ""),
+                "result": _stringify_content(block.get("content", "")),
                 "is_error": bool(block.get("is_error")),
             }
         return None
@@ -124,11 +148,16 @@ def format_entry(entry: dict[str, object], quiet_system: bool = False) -> str | 
         model = _short(entry.get("model", ""), 40)
         return f"session: {session_id or '-'} model={model or '-'}"
     if kind == "usage":
+        in_tokens = int(entry.get("input_tokens", 0))
+        out_tokens = int(entry.get("output_tokens", 0))
+        cache_tokens = int(entry.get("cache_tokens", 0))
+        if in_tokens == 0 and out_tokens == 0 and cache_tokens == 0:
+            return None
         return (
             "usage: "
-            f"in={int(entry.get('input_tokens', 0))} "
-            f"out={int(entry.get('output_tokens', 0))} "
-            f"cache={int(entry.get('cache_tokens', 0))}"
+            f"in={in_tokens} "
+            f"out={out_tokens} "
+            f"cache={cache_tokens}"
         )
     if kind == "error":
         return f"error: {_short(entry.get('message', ''), 240)}"
