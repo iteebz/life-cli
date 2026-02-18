@@ -143,3 +143,10 @@ def init(db_path: Path | None = None) -> None:
         _apply_migrations(conn, db_path)
     finally:
         conn.close()
+
+
+def migrate(db_path: Path | None = None) -> None:
+    db_path = db_path if db_path else config.DB_PATH
+    db_path.parent.mkdir(exist_ok=True)
+    with get_db(db_path) as conn:
+        _apply_migrations(conn, db_path)

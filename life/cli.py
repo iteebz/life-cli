@@ -16,6 +16,7 @@ from .commands import (
     cmd_focus,
     cmd_habit,
     cmd_habits,
+    cmd_migrate,
     cmd_momentum,
     cmd_now,
     cmd_profile,
@@ -379,6 +380,12 @@ def track(
         result = "deferred"
     desc = " ".join(description) if description else None
     cmd_track(description=desc, result=result, note=note)
+
+
+@app.command()
+def migrate():
+    """Run database migrations"""
+    cmd_migrate()
 
 
 def main():

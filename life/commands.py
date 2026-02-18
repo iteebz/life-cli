@@ -66,6 +66,7 @@ __all__ = [
     "cmd_focus",
     "cmd_habit",
     "cmd_habits",
+    "cmd_migrate",
     "cmd_momentum",
     "cmd_now",
     "cmd_profile",
@@ -654,3 +655,9 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
     task = resolve_task(ref)
     update_task(task.id, due_time=parsed)
     echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content, task.id))
+
+
+def cmd_migrate() -> None:
+    from . import db
+    db.migrate()
+    echo("migrations applied")
