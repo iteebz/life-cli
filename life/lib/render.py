@@ -144,8 +144,8 @@ def render_dashboard(
     lines = []
     checked_today = habits_today + tasks_today
 
-    deleted_str = f"  deleted: {ANSI.BOLD}{ANSI.DIM}{deleted_today}{ANSI.RESET}" if deleted_today else ""
-    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\ndone: {ANSI.BOLD}{ANSI.GREEN}{checked_today}{ANSI.RESET}  added: {ANSI.BOLD}{ANSI.SOFT_ORANGE}{added_today}{ANSI.RESET}{deleted_str}")
+    delta_str = f"   {ANSI.BOLD}□{ANSI.RESET} {ANSI.BOLD}{ANSI.GREEN}+{added_today}{ANSI.RESET}{ANSI.WHITE}/{ANSI.RESET}{ANSI.BOLD}{ANSI.RED}−{deleted_today}{ANSI.RESET}" if added_today or deleted_today else ""
+    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\n{ANSI.BOLD}✓{ANSI.RESET} {ANSI.BOLD}{ANSI.WHITE}{checked_today}{ANSI.RESET}{delta_str}")
 
     all_pending = [item for item in items if isinstance(item, Task)]
     done_section = render_today_completed(today_items or [], all_pending, tag_colors)
@@ -294,7 +294,7 @@ def render_dashboard(
             if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
                 label = _short_date(task.due_date)
                 if task.due_time:
-                    date_str = f"{ANSI.DIM}{label}·{task.due_time}{ANSI.RESET} "
+                    date_str = f"{ANSI.DIM}{ANSI.ITALIC}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.BOLD}{task.due_time}{ANSI.RESET}{ANSI.DIM}{ANSI.RESET} "
                 else:
                     date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
             else:
