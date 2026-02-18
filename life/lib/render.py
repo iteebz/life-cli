@@ -5,7 +5,7 @@ from life.models import Habit, Task
 from life.tasks import _task_sort_key, get_all_links
 
 from . import clock
-from .ansi import ANSI
+from .ansi import ANSI, bold, cyan, dim, gold, gray, green, red, white
 from .clusters import build_clusters, cluster_focus, link_distances
 from .format import format_habit, format_task
 
@@ -17,35 +17,37 @@ __all__ = [
     "render_task_detail",
 ]
 
+_R = ANSI.RESET
+_GREY = ANSI.GREY
+
 
 def _fmt_time(t: str) -> str:
-    return f"{ANSI.GREY}{t}{ANSI.RESET}"
+    return f"{_GREY}{t}{_R}"
 
 
 def _fmt_tags(tags: list[str], tag_colors: dict[str, str]) -> str:
     if not tags:
         return ""
-    parts = [f"{tag_colors.get(t, ANSI.GREY)}#{t}{ANSI.RESET}" for t in tags]
+    parts = [f"{tag_colors.get(t, _GREY)}#{t}{_R}" for t in tags]
     return " " + " ".join(parts)
 
 
 def _get_direct_tags(task: Task, all_pending: list[Task]) -> list[str]:
-    """Get only direct tags for a task, excluding inherited parent tags."""
     if not task.parent_id:
         return task.tags
-    
+
     parent = next((t for t in all_pending if t.id == task.parent_id), None)
     if not parent:
         return task.tags
-    
+
     parent_tags = parent.tags
     return [tag for tag in task.tags if tag not in parent_tags]
 
 
 def _build_tag_colors(items: list) -> dict[str, str]:
     tags = sorted({
-        tag for item in items 
-        if isinstance(item, (Task, Habit)) 
+        tag for item in items
+        if isinstance(item, (Task, Habit))
         for tag in item.tags
     })
     return {tag: ANSI.POOL[i % len(ANSI.POOL)] for i, tag in enumerate(tags)}
@@ -85,7 +87,7 @@ def _link_hint(task_id: str, linked_peers: dict[str, list[str]]) -> str:
     peers = list(dict.fromkeys(linked_peers.get(task_id, [])))
     if not peers:
         return ""
-    return f" {ANSI.DIM}~ {', '.join(peers)}{ANSI.RESET}"
+    return f" {dim('~ ' + ', '.join(peers))}"
 
 
 def _build_link_peers(tasks: list[Task], links: list[tuple[str, str]]) -> dict[str, list[str]]:
@@ -99,13 +101,13 @@ def _build_link_peers(tasks: list[Task], links: list[tuple[str, str]]) -> dict[s
 
 
 def _render_header(today: date, tasks_done: int, habits_done: int, total_habits: int, added: int, deleted: int) -> list[str]:
-    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}{today}{ANSI.RESET}"]
-    lines.append(f"{ANSI.GREY}done: {ANSI.GREEN}{tasks_done}{ANSI.RESET}")
-    lines.append(f"{ANSI.GREY}habits: {ANSI.CYAN}{habits_done}{ANSI.GREY}/{total_habits}{ANSI.RESET}")
+    lines = [f"\n{bold(white(str(today)))}"]
+    lines.append(f"{_GREY}done:{_R} {green(str(tasks_done))}")
+    lines.append(f"{_GREY}habits:{_R} {cyan(str(habits_done))}{_GREY}/{total_habits}{_R}")
     if added:
-        lines.append(f"{ANSI.GREY}added: {ANSI.MAGENTA}{added}{ANSI.RESET}")
+        lines.append(f"{_GREY}added:{_R} {gold(str(added))}")
     if deleted:
-        lines.append(f"{ANSI.GREY}deleted: {ANSI.RED}{deleted}{ANSI.RESET}")
+        lines.append(f"{_GREY}deleted:{_R} {red(str(deleted))}")
     return lines
 
 
@@ -127,26 +129,26 @@ def _render_done(
     sorted_items = sorted(today_items, key=_sort_key)
     pending_by_id = {t.id: t for t in all_pending}
 
-    lines = [f"{ANSI.BOLD}{ANSI.GREEN}DONE:{ANSI.RESET}"]
+    lines = [bold(green("DONE:"))]
     for item in sorted_items:
         tags_str = _fmt_tags(item.tags, tag_colors)
         content = item.content.lower()
-        id_str = f" {ANSI.GREY}[{item.id[:8]}]{ANSI.RESET}"
+        id_str = f" {_GREY}[{item.id[:8]}]{_R}"
         if isinstance(item, Habit):
             time_str = ""
             if item.checks:
                 latest_check = max(item.checks)
                 if latest_check.date() == clock.today():
                     time_str = latest_check.strftime("%H:%M")
-            lines.append(f"  {ANSI.GREY}✓{ANSI.RESET} {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}")
+            lines.append(f"  {gray('✓')} {_GREY}{time_str}{_R} {content}{tags_str}{id_str}")
         elif isinstance(item, Task) and item.completed_at:
             time_str = item.completed_at.strftime("%H:%M")
             parent_str = ""
             if item.parent_id:
                 parent = pending_by_id.get(item.parent_id)
                 if parent and not parent.completed_at:
-                    parent_str = f" {ANSI.DIM}→ {parent.content.lower()}{ANSI.RESET}"
-            lines.append(f"  {ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}{parent_str}")
+                    parent_str = f" {dim('→ ' + parent.content.lower())}"
+            lines.append(f"  {green('✓')} {_GREY}{time_str}{_R} {content}{tags_str}{id_str}{parent_str}")
     return lines
 
 
@@ -175,11 +177,11 @@ def _render_today_tasks(
     subtasks_by_parent: dict[str, list[Task]],
     all_pending: list[Task],
 ) -> tuple[list[str], set[str]]:
-    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}TODAY:{ANSI.RESET}"]
+    lines = [f"\n{bold(white('TODAY:'))}"]
     scheduled_ids: set[str] = set()
 
     if not due_today:
-        lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
+        lines.append(f"  {gray('nothing scheduled.')}")
         return lines, scheduled_ids
 
     def _sort_key(task: Task):
@@ -193,30 +195,30 @@ def _render_today_tasks(
     for task in sorted_today:
         if not now_inserted:
             if (task.due_time and task.due_time >= current_time) or not task.due_time:
-                lines.append(f"  {ANSI.BOLD}{ANSI.WHITE}→ {current_time}{ANSI.RESET}")
+                lines.append(f"  {bold(white('→ ' + current_time))}")
                 now_inserted = True
 
         scheduled_ids.add(task.id)
         tags_str = _fmt_tags(task.tags, tag_colors)
-        id_str = f" {ANSI.GREY}[{task.id[:8]}]{ANSI.RESET}"
+        id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         link_str = _link_hint(task.id, linked_peers)
         time_str = f"{_fmt_time(task.due_time)} " if task.due_time else ""
 
         if task.blocked_by:
             blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
-            blocked_str = f" {ANSI.DIM}← {blocker.lower()}{ANSI.RESET}"
-            lines.append(f"  ⊘ {ANSI.GREY}{time_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}{link_str}")
+            blocked_str = f" {dim('← ' + blocker.lower())}"
+            lines.append(f"  ⊘ {_GREY}{time_str}{task.content.lower()}{tags_str}{_R}{blocked_str}{id_str}{link_str}")
         else:
-            fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
+            fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
             lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
-            sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
+            sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-            lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+            lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
 
@@ -231,24 +233,24 @@ def _render_tomorrow_tasks(
     if not due_tomorrow:
         return [], set()
 
-    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}TOMORROW:{ANSI.RESET}"]
+    lines = [f"\n{bold(white('TOMORROW:'))}"]
     scheduled_ids: set[str] = set()
 
     for task in sorted(due_tomorrow, key=_task_sort_key):
         scheduled_ids.add(task.id)
-        fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
+        fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
         tags_str = _fmt_tags(task.tags, tag_colors)
-        id_str = f" {ANSI.GREY}[{task.id[:8]}]{ANSI.RESET}"
+        id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         link_str = _link_hint(task.id, linked_peers)
         lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
-            sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
+            sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-            lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+            lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
 
@@ -258,7 +260,7 @@ def _render_habits(habits: list[Habit], today_habit_ids: set[str], tag_colors: d
         return []
 
     checked_count = len(today_habit_ids)
-    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({checked_count}/{len(habits)}):{ANSI.RESET}"]
+    lines = [f"\n{bold(white(f'HABITS ({checked_count}/{len(habits)}):'))}"]
     sorted_habits = sorted(habits, key=lambda x: x.content.lower())
 
     for habit in sorted_habits:
@@ -266,7 +268,7 @@ def _render_habits(habits: list[Habit], today_habit_ids: set[str], tag_colors: d
             continue
         tags_str = _fmt_tags(habit.tags, tag_colors)
         trend = _get_habit_trend(habit.checks)
-        id_str = f" {ANSI.GREY}[{habit.id[:8]}]{ANSI.RESET}"
+        id_str = f" {_GREY}[{habit.id[:8]}]{_R}"
         lines.append(f"  □ {trend} {habit.content.lower()}{tags_str}{id_str}")
 
     for habit in sorted_habits:
@@ -274,8 +276,8 @@ def _render_habits(habits: list[Habit], today_habit_ids: set[str], tag_colors: d
             continue
         tags_str = _fmt_tags(habit.tags, tag_colors)
         trend = _get_habit_trend(habit.checks)
-        id_str = f" {ANSI.GREY}[{habit.id[:8]}]{ANSI.RESET}"
-        lines.append(f"  {ANSI.GREY}✓ {trend} {habit.content.lower()}{tags_str}{id_str}{ANSI.RESET}")
+        id_str = f" {_GREY}[{habit.id[:8]}]{_R}"
+        lines.append(f"  {gray('✓ ' + trend + ' ' + habit.content.lower())}{tags_str}{id_str}")
 
     return lines
 
@@ -293,37 +295,37 @@ def _render_task_row(
     indent: str = "  ",
 ) -> list[str]:
     tags_str = _fmt_tags(task.tags, tag_colors)
-    id_str = f" {ANSI.GREY}[{task.id[:8]}]{ANSI.RESET}"
+    id_str = f" {_GREY}[{task.id[:8]}]{_R}"
 
     date_str = ""
     if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
         label = _short_date(task.due_date, today)
         if task.due_time:
-            date_str = f"{ANSI.DIM}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(task.due_time)} "
+            date_str = f"{dim(label)}{dim('·')}{_fmt_time(task.due_time)} "
         else:
-            date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
+            date_str = f"{dim(label)} "
 
     if task.blocked_by:
         blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
-        blocked_str = f" {ANSI.DIM}← {blocker.lower()}{ANSI.RESET}"
-        row = f"{indent}⊘ {ANSI.GREY}{date_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"
+        blocked_str = f" {dim('← ' + blocker.lower())}"
+        row = f"{indent}⊘ {_GREY}{date_str}{task.content.lower()}{tags_str}{_R}{blocked_str}{id_str}"
     else:
-        indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
+        indicator = f"{ANSI.BOLD}🔥{_R} " if task.focus else ""
         row = f"{indent}{indicator}{date_str}{task.content.lower()}{tags_str}{id_str}"
 
     rows = [row]
     for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
-        sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
+        sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-        rows.append(f"{indent}  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+        sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+        rows.append(f"{indent}  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
     for sub in completed_subs_by_parent.get(task.id, []):
-        sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
+        sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-        rows.append(f"{indent}  {ANSI.GREY}{sub_time_str}└ ✓ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+        sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+        rows.append(f"{indent}  {gray(sub_time_str + '└ ✓ ' + sub.content.lower())}{sub_tags_str}{id_str}")
     return rows
 
 
@@ -358,55 +360,55 @@ def _render_clusters(
 
         distances = link_distances(focus.id, all_links)
         tags_str = _fmt_tags(focus.tags, tag_colors)
-        id_str = f" {ANSI.GREY}[{focus.id[:8]}]{ANSI.RESET}"
+        id_str = f" {_GREY}[{focus.id[:8]}]{_R}"
         date_str = ""
         if focus.due_date and focus.due_date.isoformat() not in (today_str, tomorrow_str):
             label = _short_date(focus.due_date, today)
             if focus.due_time:
-                date_str = f"{ANSI.DIM}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(focus.due_time)} "
+                date_str = f"{dim(label)}{dim('·')}{_fmt_time(focus.due_time)} "
             else:
-                date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
-        lines.append(f"\n{ANSI.BOLD}⦿{ANSI.RESET} {date_str}{focus.content.lower()}{tags_str}{id_str}")
+                date_str = f"{dim(label)} "
+        lines.append(f"\n{bold('⦿')} {date_str}{focus.content.lower()}{tags_str}{id_str}")
 
         for sub in sorted(subtasks_by_parent.get(focus.id, []), key=_task_sort_key):
-            sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
+            sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-            lines.append(f"  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+            lines.append(f"  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
         peers_close = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) <= 2], key=_task_sort_key)
         peers_far = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) > 2], key=_task_sort_key)
 
         for peer in peers_close:
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)
-            peer_id_str = f" {ANSI.GREY}[{peer.id[:8]}]{ANSI.RESET}"
+            peer_id_str = f" {_GREY}[{peer.id[:8]}]{_R}"
             peer_date_str = ""
             if peer.due_date and peer.due_date.isoformat() not in (today_str, tomorrow_str):
                 label = _short_date(peer.due_date, today)
                 if peer.due_time:
-                    peer_date_str = f"{ANSI.DIM}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(peer.due_time)} "
+                    peer_date_str = f"{dim(label)}{dim('·')}{_fmt_time(peer.due_time)} "
                 else:
-                    peer_date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
-            lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}")
+                    peer_date_str = f"{dim(label)} "
+            lines.append(f"  {_GREY}~{_R} {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}")
             for sub in sorted(subtasks_by_parent.get(peer.id, []), key=_task_sort_key):
-                sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
+                sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
                 sub_direct_tags = _get_direct_tags(sub, all_pending)
                 sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-                sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-                lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+                sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+                lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
         for peer in peers_far:
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)
-            peer_id_str = f" {ANSI.GREY}[{peer.id[:8]}]{ANSI.RESET}"
+            peer_id_str = f" {_GREY}[{peer.id[:8]}]{_R}"
             peer_date_str = ""
             if peer.due_date and peer.due_date.isoformat() not in (today_str, tomorrow_str):
                 label = _short_date(peer.due_date, today)
                 if peer.due_time:
-                    peer_date_str = f"{ANSI.DIM}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(peer.due_time)} "
+                    peer_date_str = f"{dim(label)}{dim('·')}{_fmt_time(peer.due_time)} "
                 else:
-                    peer_date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
-            lines.append(f"  {ANSI.DIM}~ {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}{ANSI.RESET}")
+                    peer_date_str = f"{dim(label)} "
+            lines.append(f"  {dim('~ ' + peer_date_str + peer.content.lower())}{peer_tags_str}{peer_id_str}")
 
     unlinked = [t for t in top_level if t.id not in clustered_ids]
     if unlinked:
@@ -498,7 +500,7 @@ def render_dashboard(
 
 
 def render_momentum(momentum) -> str:
-    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}MOMENTUM:{ANSI.RESET}"]
+    lines = [f"\n{bold(white('MOMENTUM:'))}"]
     for week_name in ["this_week", "last_week", "prior_week"]:
         week_data = momentum[week_name]
         tasks_c = week_data.tasks_completed
@@ -517,7 +519,7 @@ def render_momentum(momentum) -> str:
         this_week = momentum["this_week"]
         last_week = momentum["last_week"]
 
-        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TRENDS (vs. Last Week):{ANSI.RESET}")
+        lines.append(f"\n{bold(white('TRENDS (vs. Last Week):'))}")
 
         tasks_trend = _get_trend(this_week.tasks_completed, last_week.tasks_completed)
         habits_trend = _get_trend(this_week.habits_completed, last_week.habits_completed)
@@ -572,53 +574,52 @@ def render_habit_matrix(habits: list[Habit]) -> str:
             else:
                 status_indicators.append("□")
 
-        lines.append(f"{padded_habit_name} {'   '.join(status_indicators)}   {ANSI.GREY}[{habit.id[:8]}]{ANSI.RESET}")
+        lines.append(f"{padded_habit_name} {'   '.join(status_indicators)}   {_GREY}[{habit.id[:8]}]{_R}")
 
     return "\n".join(lines)
 
 
 def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> str:
-    """Render detailed view of a single task with its subtasks and linked tasks."""
     lines = []
-    
+
     all_tasks = [task] + subtasks + linked
     tag_colors = _build_tag_colors(all_tasks)
     tags_str = _fmt_tags(task.tags, tag_colors)
-    focus_str = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
-    status = f"{ANSI.GREY}✓{ANSI.RESET}" if task.completed_at else "□"
-    id_str = f"{ANSI.DIM}[{task.id}]{ANSI.RESET}"
-    
+    focus_str = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
+    status = gray("✓") if task.completed_at else "□"
+    id_str = f"{dim('[' + task.id + ']')}"
+
     lines.append(f"{status} {id_str}  {task.content.lower()}{tags_str}{focus_str}")
-    
+
     if task.due_date:
         due_str = task.due_date.isoformat()
         if task.due_time:
             due_str += f" {_fmt_time(task.due_time)}"
         lines.append(f"  due: {due_str}")
-    
+
     if task.description:
         lines.append(f"  {task.description}")
-    
+
     if task.blocked_by:
         lines.append(f"  blocked by: {task.blocked_by}")
-    
+
     if subtasks:
         lines.append("  subtasks:")
         for sub in sorted(subtasks, key=_task_sort_key):
-            sub_status = f"{ANSI.GREY}✓{ANSI.RESET}" if sub.completed_at else "□"
-            sub_id_str = f"{ANSI.DIM}[{sub.id}]{ANSI.RESET}"
+            sub_status = gray("✓") if sub.completed_at else "□"
+            sub_id_str = dim(f"[{sub.id}]")
             sub_direct_tags = _get_direct_tags(sub, all_tasks)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
+            sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
             lines.append(f"    {sub_status} {sub_id_str}  {sub_time_str}{sub.content.lower()}{sub_tags_str}")
-    
+
     if linked:
         lines.append("  links:")
         for lt in sorted(linked, key=_task_sort_key):
-            lt_status = f"{ANSI.GREY}✓{ANSI.RESET}" if lt.completed_at else "□"
-            lt_id_str = f"{ANSI.DIM}[{lt.id}]{ANSI.RESET}"
+            lt_status = gray("✓") if lt.completed_at else "□"
+            lt_id_str = dim(f"[{lt.id}]")
             lt_tags_str = _fmt_tags(lt.tags, tag_colors)
-            lt_time_str = f"{ANSI.DIM}{_fmt_time(lt.due_time)}{ANSI.RESET} " if lt.due_time else ""
+            lt_time_str = f"{dim(_fmt_time(lt.due_time))} " if lt.due_time else ""
             lines.append(f"    {lt_status} {lt_id_str}  {lt_time_str}{lt.content.lower()}{lt_tags_str}")
-    
+
     return "\n".join(lines)
