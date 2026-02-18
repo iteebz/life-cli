@@ -8,12 +8,11 @@ from .dashboard import get_pending_items, get_today_breakdown, get_today_complet
 from .habits import (
     add_habit,
     archive_habit,
-    check_habit,
     delete_habit,
     get_archived_habits,
     get_checks,
     get_habits,
-    uncheck_habit,
+    toggle_check,
     update_habit,
 )
 from .interventions import (
@@ -321,8 +320,11 @@ def cmd_check(args: list[str]) -> None:
         exit_error("Usage: life check <item>")
     task, habit = resolve_item_any(ref)
     if habit:
-        check_habit(habit.id)
-        _animate_check(habit.content.lower())
+        updated = toggle_check(habit.id)
+        if updated:
+            checked_today = any(c.date() == today() for c in updated.checks)
+            if checked_today:
+                _animate_check(habit.content.lower())
     elif task:
         if task.completed_at:
             exit_error(f"'{task.content}' is already done")
@@ -340,10 +342,14 @@ def cmd_uncheck(args: list[str]) -> None:
     if habit:
         today_date = today()
         checks = get_checks(habit.id)
-        if today_date not in checks:
+        checked_today = any(c.date() == today_date for c in checks)
+        if not checked_today:
             exit_error(f"'{habit.content}' is not checked today")
-        uncheck_habit(habit.id)
-        _animate_uncheck(habit.content.lower())
+        updated = toggle_check(habit.id)
+        if updated:
+            checked_today = any(c.date() == today() for c in updated.checks)
+            if not checked_today:
+                _animate_uncheck(habit.content.lower())
     elif task:
         if not task.completed_at:
             exit_error(f"'{task.content}' is not done")
