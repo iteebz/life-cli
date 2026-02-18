@@ -64,7 +64,7 @@ def _get_habit_trend(checks: list[date]) -> str:
     return "→"
 
 
-def render_today_completed(today_items: list[Task | Habit]):
+def render_today_completed(today_items: list[Task | Habit], all_pending: list[Task] | None = None):
     """Render today's completed tasks and habits, chronologically."""
     if not today_items:
         return ""
@@ -76,20 +76,64 @@ def render_today_completed(today_items: list[Task | Habit]):
 
     sorted_items = sorted(today_items, key=_sort_key)
 
+    pending_by_id: dict[str, Task] = {t.id: t for t in (all_pending or [])}
+    pending_by_parent: dict[str, list[Task]] = {}
+    for t in (all_pending or []):
+        if t.parent_id:
+            pending_by_parent.setdefault(t.parent_id, []).append(t)
+
+    completed_tasks = [i for i in sorted_items if isinstance(i, Task)]
+    completed_by_id: dict[str, Task] = {t.id: t for t in completed_tasks}
+    completed_by_parent: dict[str, list[Task]] = {}
+    for t in completed_tasks:
+        if t.parent_id:
+            completed_by_parent.setdefault(t.parent_id, []).append(t)
+
     lines = [f"{ANSI.BOLD}{ANSI.GREEN}DONE:{ANSI.RESET}"]
+    rendered_ids: set[str] = set()
 
     for item in sorted_items:
+        if item.id in rendered_ids:
+            continue
         tags = item.tags
         tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
         content = item.content.lower()
-        if isinstance(item, Task) and item.completed_at:
-            time_str = item.completed_at.strftime("%H:%M")
-        else:
-            time_str = "--:--"
         if isinstance(item, Habit):
+            if isinstance(item, Task) and item.completed_at:
+                time_str = item.completed_at.strftime("%H:%M")
+            else:
+                time_str = "--:--"
             lines.append(f"  {ANSI.GREY}✓ {time_str} {content}{tags_str}{ANSI.RESET}")
+            rendered_ids.add(item.id)
+        elif isinstance(item, Task) and item.parent_id:
+            parent_id = item.parent_id
+            if parent_id in rendered_ids:
+                continue
+            parent = pending_by_id.get(parent_id)
+            parent_content = parent.content.lower() if parent else parent_id[:8]
+            parent_tags = parent.tags if parent else []
+            parent_tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in parent_tags) if parent_tags else ""
+            lines.append(f"  {ANSI.GREY}{parent_content}{parent_tags_str}{ANSI.RESET}")
+            rendered_ids.add(parent_id)
+            all_subs = sorted(
+                completed_by_parent.get(parent_id, []) + pending_by_parent.get(parent_id, []),
+                key=lambda t: t.completed_at if t.completed_at else t.created,
+            )
+            for sub in all_subs:
+                rendered_ids.add(sub.id)
+                sub_content = sub.content.lower()
+                if sub.completed_at:
+                    sub_time = sub.completed_at.strftime("%H:%M")
+                    lines.append(f"    {ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub_time} {sub_content}{ANSI.RESET}")
+                else:
+                    lines.append(f"    {ANSI.ITALIC}{ANSI.GREY}└ □ {sub_content}{ANSI.RESET}")
         else:
+            if isinstance(item, Task) and item.completed_at:
+                time_str = item.completed_at.strftime("%H:%M")
+            else:
+                time_str = "--:--"
             lines.append(f"  ✓ {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}")
+            rendered_ids.add(item.id)
 
     return "\n".join(lines)
 
@@ -126,7 +170,8 @@ def render_dashboard(
 
     lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\ndone: {ANSI.BOLD}{ANSI.GREEN}{checked_today}{ANSI.RESET}  added: {ANSI.BOLD}{ANSI.SOFT_ORANGE}{added_today}{ANSI.RESET}")
 
-    done_section = render_today_completed(today_items or [])
+    all_pending = [item for item in items if isinstance(item, Task)]
+    done_section = render_today_completed(today_items or [], all_pending)
     if done_section:
         lines.append(f"\n{done_section}")
     dates_list = get_dates()
@@ -195,7 +240,7 @@ def render_dashboard(
                 scheduled_ids.add(sub.id)
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
-                lines.append(f"    └ {sub_indicator}{sub.content.lower()}{sub_id_str}")
+                lines.append(f"    {ANSI.ITALIC}└ {sub_indicator}{sub.content.lower()}{sub_id_str}{ANSI.RESET}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 
@@ -211,7 +256,7 @@ def render_dashboard(
                 scheduled_ids.add(sub.id)
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
-                lines.append(f"    └ {sub_indicator}{sub.content.lower()}{sub_id_str}")
+                lines.append(f"    {ANSI.ITALIC}└ {sub_indicator}{sub.content.lower()}{sub_id_str}{ANSI.RESET}")
 
     habits = [item for item in items if isinstance(item, Habit)]
     regular_items = [
@@ -305,7 +350,7 @@ def render_dashboard(
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
-                rows.append(f"{indent}  └ {sub_indicator}{sub.content.lower()}{sub_id_str}")
+                rows.append(f"{indent}  {ANSI.ITALIC}└ {sub_indicator}{sub.content.lower()}{sub_id_str}{ANSI.RESET}")
             return rows
 
         for tag in sorted(tagged_regular.keys()):
