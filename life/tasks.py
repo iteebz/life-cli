@@ -150,6 +150,7 @@ def update_task(
     focus: bool | None = None,
     due: str | object = _UNSET,
     due_time: str | object = _UNSET,
+    parent_id: str | object = _UNSET,
 ) -> Task | None:
     """Partial update, return updated Task. Pass None to clear a nullable field."""
     updates = {}
@@ -161,6 +162,8 @@ def update_task(
         updates["due_date"] = due
     if due_time is not _UNSET:
         updates["due_time"] = due_time
+    if parent_id is not _UNSET:
+        updates["parent_id"] = parent_id
 
     if updates:
         old = get_task(task_id)

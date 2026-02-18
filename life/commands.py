@@ -79,8 +79,38 @@ __all__ = [
     "cmd_today",
     "cmd_tomorrow",
     "cmd_track",
+    "cmd_set",
     "cmd_unblock",
 ]
+
+
+def cmd_set(
+    args: list[str],
+    parent: str | None = None,
+    content: str | None = None,
+) -> None:
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life set <task> [-p parent] [-c content]")
+    task = resolve_task(ref)
+    updates: dict = {}
+    if parent is not None:
+        parent_task = resolve_task(parent)
+        if parent_task.parent_id:
+            exit_error("Error: subtasks cannot have subtasks")
+        if parent_task.id == task.id:
+            exit_error("Error: a task cannot be its own parent")
+        updates["parent_id"] = parent_task.id
+    if content is not None:
+        if not content.strip():
+            exit_error("Error: content cannot be empty")
+        updates["content"] = content
+    if not updates:
+        exit_error("Nothing to set. Use -p for parent or -c for content.")
+    update_task(task.id, **updates)
+    updated = resolve_task(content or ref)
+    prefix = "  └ " if updated.parent_id else ""
+    echo(f"{prefix}{format_status('□', updated.content, updated.id)}")
 
 
 def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:

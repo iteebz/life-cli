@@ -31,6 +31,7 @@ from .commands import (
     cmd_today,
     cmd_tomorrow,
     cmd_track,
+    cmd_set,
     cmd_unblock,
 )
 
@@ -271,6 +272,16 @@ def schedule(
 ):
     """Set or clear scheduled time on a task (fuzzy match)"""
     cmd_schedule(args, remove=remove)
+
+
+@app.command(name="set")
+def set_cmd(
+    args: list[str] = typer.Argument(..., help="Task to modify (fuzzy match)"),
+    parent: str = typer.Option(None, "--parent", "-p", help="Set parent task (fuzzy match)"),
+    content: str = typer.Option(None, "--content", "-c", help="Rename task"),
+):
+    """Set parent or content on an existing task"""
+    cmd_set(args, parent=parent, content=content)
 
 
 @app.command()
