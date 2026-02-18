@@ -39,6 +39,12 @@ from .lib.tail import StreamParser, format_entry
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
+from .loop import (
+    load_loop_state,
+    require_real_world_closure,
+    save_loop_state,
+    update_loop_state,
+)
 from .tags import add_tag, remove_tag
 from .tasks import (
     add_link,
@@ -105,6 +111,21 @@ def _steward_prompt() -> str:
         prompt_path.read_text().strip()
         + "\n\nRun exactly one autonomous loop for ~/life. Make concrete progress, then stop."
     )
+
+
+def _select_required_real_world_task(tasks: list[Task]) -> Task | None:
+    discomfort = {"finance", "legal", "jaynice"}
+    candidates = [t for t in tasks if set(t.tags or []).intersection(discomfort)]
+    if not candidates:
+        return None
+
+    overdue = [t for t in candidates if t.due_date and t.due_date < today()]
+    ranked = overdue or candidates
+    return sorted(ranked, key=lambda t: t.created)[0]
+
+
+def _task_map(tasks: list[Task]) -> dict[str, Task]:
+    return {t.id: t for t in tasks}
 
 
 def cmd_tail(
@@ -363,7 +384,79 @@ def cmd_steward() -> None:
     prompt_path = Path.home() / "life" / "STEWARD.md"
     if not prompt_path.exists():
         exit_error("STEWARD.md not found at ~/life/STEWARD.md")
-    echo(prompt_path.read_text())
+    tasks_before = get_tasks()
+    all_before = get_all_tasks()
+    today_date = today()
+    snapshot_before = build_feedback_snapshot(
+        all_tasks=all_before, pending_tasks=tasks_before, today=today_date
+    )
+    echo("\n".join(render_feedback_snapshot(snapshot_before)))
+
+    state = load_loop_state()
+    gate_required = require_real_world_closure(state)
+    required_task = _select_required_real_world_task(tasks_before) if gate_required else None
+
+    prompt = _steward_prompt()
+    if required_task:
+        prompt += (
+            "\n\nHARD GATE: Before any meta/refactor work, close this real-world task in this run: "
+            f"{required_task.content} ({required_task.id})."
+        )
+        echo(f"steward gate: close real-world loop first -> {required_task.content}")
+
+    cmd = glm.build_command(prompt=prompt)
+    env = glm.build_env()
+    rc = _run_tail_stream(
+        cmd,
+        cwd=Path.home() / "life",
+        env=env,
+        timeout=1200,
+        raw=False,
+        quiet_system=False,
+    )
+    if rc != 0:
+        update_loop_state(
+            state,
+            shipped_code=False,
+            shipped_life=False,
+            flags=snapshot_before.flags,
+            required_task_id=required_task.id if required_task else None,
+            outcome=f"tail_failed_{rc}",
+        )
+        save_loop_state(state)
+        exit_error(f"steward loop failed (exit {rc})")
+
+    all_after = get_all_tasks()
+    tasks_after = get_tasks()
+    snapshot_after = build_feedback_snapshot(
+        all_tasks=all_after, pending_tasks=tasks_after, today=today_date
+    )
+
+    before_map = _task_map(all_before)
+    after_map = _task_map(all_after)
+    newly_completed = [
+        tid
+        for tid, before_task in before_map.items()
+        if before_task.completed_at is None
+        and tid in after_map
+        and after_map[tid].completed_at is not None
+    ]
+    shipped_life = bool(newly_completed)
+    shipped_code = True
+
+    update_loop_state(
+        state,
+        shipped_code=shipped_code,
+        shipped_life=shipped_life,
+        flags=snapshot_after.flags,
+        required_task_id=required_task.id if required_task else None,
+        outcome="ok" if shipped_life else "code_only",
+    )
+    save_loop_state(state)
+
+    echo("\n".join(render_feedback_snapshot(snapshot_after)))
+    if gate_required and not shipped_life:
+        exit_error("steward gate failed: no real-world task was closed")
 
 
 def cmd_track(
