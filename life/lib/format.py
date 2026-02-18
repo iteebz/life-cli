@@ -11,7 +11,12 @@ __all__ = [
 ]
 
 
-def format_due(due_date, colorize=True):
+def _format_tags(tags: list[str]) -> str:
+    """Format a list of tags for display."""
+    return " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags)
+
+
+def format_due(due_date: date | str, colorize: bool = True) -> str:
     if not due_date:
         return ""
 
@@ -43,8 +48,7 @@ def format_task(task, tags: list[str] | None = None, show_id: bool = False) -> s
     parts.append(task.content.lower())
 
     if tags:
-        tags_str = " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags)
-        parts.append(tags_str)
+        parts.append(_format_tags(tags))
 
     if show_id:
         parts.append(f"{ANSI.GREY}[{task.id[:8]}]{ANSI.RESET}")
@@ -66,8 +70,7 @@ def format_habit(
     parts.append(habit.content.lower())
 
     if tags:
-        tags_str = " ".join(f"{ANSI.GREY}#{tag}{ANSI.RESET}" for tag in tags)
-        parts.append(tags_str)
+        parts.append(_format_tags(tags))
 
     if show_id:
         parts.append(f"{ANSI.GREY}[{habit.id[:8]}]{ANSI.RESET}")

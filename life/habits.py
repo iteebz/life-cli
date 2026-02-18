@@ -38,15 +38,6 @@ def _get_habit_checks(conn, habit_id: str) -> list[date]:
     return [datetime.fromisoformat(row[0]).date() for row in cursor.fetchall()]
 
 
-def _get_habit_tags(conn, habit_id: str) -> list[str]:
-    """Get all tags for a habit."""
-    cursor = conn.execute(
-        "SELECT tag FROM tags WHERE habit_id = ? ORDER BY tag",
-        (habit_id,),
-    )
-    return [row[0] for row in cursor.fetchall()]
-
-
 def add_habit(content: str, tags: list[str] | None = None) -> str:
     """Insert a habit and optionally add tags. Returns habit_id."""
     habit_id = str(uuid.uuid4())
