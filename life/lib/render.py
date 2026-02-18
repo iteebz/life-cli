@@ -203,7 +203,7 @@ def _render_today_tasks(
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
             sub_tags_str = _fmt_tags(sub.tags, tag_colors)
             sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-            lines.append(f"    {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
     return lines, scheduled_ids
 
@@ -233,7 +233,7 @@ def _render_tomorrow_tasks(
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
             sub_tags_str = _fmt_tags(sub.tags, tag_colors)
             sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-            lines.append(f"    {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
     return lines, scheduled_ids
 
@@ -283,7 +283,7 @@ def _render_task_row(
     if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
         label = _short_date(task.due_date, today)
         if task.due_time:
-            date_str = f"{ANSI.DIM}{ANSI.ITALIC}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(task.due_time)} "
+            date_str = f"{ANSI.DIM}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(task.due_time)} "
         else:
             date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
 
@@ -300,12 +300,12 @@ def _render_task_row(
         sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
         sub_tags_str = _fmt_tags(sub.tags, tag_colors)
         sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-        rows.append(f"{indent}  {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+        rows.append(f"{indent}  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
     for sub in completed_subs_by_parent.get(task.id, []):
         sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
         sub_tags_str = _fmt_tags(sub.tags, tag_colors)
         sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-        rows.append(f"{indent}  {ANSI.ITALIC}{ANSI.GREY}{sub_time_str}└ ✓ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+        rows.append(f"{indent}  {ANSI.GREY}{sub_time_str}└ ✓ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
     return rows
 
 
@@ -346,7 +346,7 @@ def _render_clusters(
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
             sub_tags_str = _fmt_tags(sub.tags, tag_colors)
             sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-            lines.append(f"  {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            lines.append(f"  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
         peers_close = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) <= 2], key=_task_sort_key)
         peers_far = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) > 2], key=_task_sort_key)
@@ -359,7 +359,7 @@ def _render_clusters(
                 sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
                 sub_tags_str = _fmt_tags(sub.tags, tag_colors)
                 sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
-                lines.append(f"    {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+                lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
         for peer in peers_far:
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)

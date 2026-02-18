@@ -4,7 +4,6 @@ from typing import ClassVar
 class ANSI:
     BOLD = "\033[1m"
     DIM = "\033[2m"
-    ITALIC = "\033[3m"
     UNDERLINE = "\033[4m"
     RED = "\033[91m"
     GREEN = "\033[92m"
