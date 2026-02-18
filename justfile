@@ -1,8 +1,19 @@
 default:
     @just --list
 
-install:
+install: bin
     @uv sync
+
+bin:
+    #!/bin/sh
+    set -e
+    mkdir -p ~/bin
+    REPO=$(pwd)
+    UV=$(which uv)
+    SCRIPT=~/bin/life
+    printf '#!/bin/sh\n# managed by space launch\ncd %s || exit 1\nexec %s run "$(basename "$0")" "$@"\n' "$REPO" "$UV" > "$SCRIPT"
+    chmod 755 "$SCRIPT"
+    echo "installed ~/bin/life"
 
 lint:
     #!/bin/bash
