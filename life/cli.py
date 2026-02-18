@@ -12,7 +12,6 @@ from .commands import (
     cmd_focus,
     cmd_habit,
     cmd_habits,
-    cmd_list,
     cmd_momentum,
     cmd_now,
     cmd_profile,
@@ -158,12 +157,6 @@ def dates(
 ):
     """Add, remove, or list dates to track"""
     cmd_dates(action, name, date_str, emoji)
-
-
-@app.command(name="list")
-def list_cmd():
-    """List all pending tasks and habits"""
-    cmd_list()
 
 
 @app.command()

@@ -14,8 +14,6 @@ from .habits import (
 from .interventions import (
     add_intervention,
     get_interventions,
-)
-from .interventions import (
     get_stats as get_intervention_stats,
 )
 from .lib.ansi import ANSI
@@ -54,7 +52,6 @@ __all__ = [
     "cmd_focus",
     "cmd_habit",
     "cmd_habits",
-    "cmd_list",
     "cmd_momentum",
     "cmd_now",
     "cmd_profile",
@@ -343,18 +340,6 @@ def cmd_dates(
         exit_error(
             f"Error: unknown action '{action}'. Use 'add', 'remove', or no argument to list."
         )
-
-
-def cmd_list() -> None:
-    tasks = get_tasks()
-    habits = get_habits()
-    for task in tasks:
-        tag_str = f"  {ANSI.GREY}#{' #'.join(task.tags)}{ANSI.RESET}" if task.tags else ""
-        symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if task.focus else "□"
-        echo(f"{symbol} {task.content}{tag_str}")
-    for habit in habits:
-        tag_str = f"  {ANSI.GREY}#{' #'.join(habit.tags)}{ANSI.RESET}" if habit.tags else ""
-        echo(f"↻ {habit.content}{tag_str}")
 
 
 def cmd_status() -> None:
