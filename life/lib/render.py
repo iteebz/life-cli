@@ -195,9 +195,13 @@ def render_dashboard(
         sorted_today = sorted(due_today, key=_today_sort_key)
         now_marker_inserted = False
         for task in sorted_today:
-            if not now_marker_inserted and task.due_time and task.due_time >= current_time:
-                lines.append(f"  {ANSI.BOLD}{ANSI.WHITE}→ {current_time}{ANSI.RESET}")
-                now_marker_inserted = True
+            if not now_marker_inserted:
+                if task.due_time and task.due_time >= current_time:
+                    lines.append(f"  {ANSI.BOLD}{ANSI.WHITE}→ {current_time}{ANSI.RESET}")
+                    now_marker_inserted = True
+                elif not task.due_time:
+                    lines.append(f"  {ANSI.BOLD}{ANSI.WHITE}→ {current_time}{ANSI.RESET}")
+                    now_marker_inserted = True
             scheduled_ids.add(task.id)
             tags_str = _fmt_tags(task.tags, tag_colors)
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}"
