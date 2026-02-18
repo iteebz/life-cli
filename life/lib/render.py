@@ -79,9 +79,7 @@ def _get_habit_trend(checks: list[datetime]) -> str:
 
 def _short_date(due: date, today: date) -> str:
     delta = (due - today).days
-    if delta <= 7:
-        return f"{delta}d"
-    return due.strftime("%b %-d")
+    return f"{delta}d"
 
 
 def _link_hint(task_id: str, linked_peers: dict[str, list[str]]) -> str:
@@ -141,7 +139,7 @@ def _render_done(
                 latest_check = max(item.checks)
                 if latest_check.date() == clock.today():
                     time_str = latest_check.strftime("%H:%M")
-            lines.append(f"  ✓ {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}")
+            lines.append(f"  {ANSI.MAGENTA}✓{ANSI.RESET} {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}")
         elif isinstance(item, Task) and item.completed_at:
             time_str = item.completed_at.strftime("%H:%M")
             parent_str = ""
@@ -149,7 +147,7 @@ def _render_done(
                 parent = pending_by_id.get(item.parent_id)
                 if parent and not parent.completed_at:
                     parent_str = f" {ANSI.DIM}→ {parent.content.lower()}{ANSI.RESET}"
-            lines.append(f"  ✓ {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}{parent_str}")
+            lines.append(f"  {ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}{parent_str}")
     return lines
 
 
@@ -362,7 +360,14 @@ def _render_clusters(
         distances = link_distances(focus.id, all_links)
         tags_str = _fmt_tags(focus.tags, tag_colors)
         id_str = f" {ANSI.GREY}[{focus.id[:8]}]{ANSI.RESET}"
-        lines.append(f"\n{ANSI.BOLD}⦿{ANSI.RESET} {focus.content.lower()}{tags_str}{id_str}")
+        date_str = ""
+        if focus.due_date and focus.due_date.isoformat() not in (today_str, tomorrow_str):
+            label = _short_date(focus.due_date, today)
+            if focus.due_time:
+                date_str = f"{ANSI.DIM}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(focus.due_time)} "
+            else:
+                date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
+        lines.append(f"\n{ANSI.BOLD}⦿{ANSI.RESET} {date_str}{focus.content.lower()}{tags_str}{id_str}")
 
         for sub in sorted(subtasks_by_parent.get(focus.id, []), key=_task_sort_key):
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
@@ -377,7 +382,14 @@ def _render_clusters(
         for peer in peers_close:
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)
             peer_id_str = f" {ANSI.GREY}[{peer.id[:8]}]{ANSI.RESET}"
-            lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer.content.lower()}{peer_tags_str}{peer_id_str}")
+            peer_date_str = ""
+            if peer.due_date and peer.due_date.isoformat() not in (today_str, tomorrow_str):
+                label = _short_date(peer.due_date, today)
+                if peer.due_time:
+                    peer_date_str = f"{ANSI.DIM}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(peer.due_time)} "
+                else:
+                    peer_date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
+            lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}")
             for sub in sorted(subtasks_by_parent.get(peer.id, []), key=_task_sort_key):
                 sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
                 sub_direct_tags = _get_direct_tags(sub, all_pending)
@@ -388,7 +400,14 @@ def _render_clusters(
         for peer in peers_far:
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)
             peer_id_str = f" {ANSI.GREY}[{peer.id[:8]}]{ANSI.RESET}"
-            lines.append(f"  {ANSI.DIM}~ {peer.content.lower()}{peer_tags_str}{peer_id_str}{ANSI.RESET}")
+            peer_date_str = ""
+            if peer.due_date and peer.due_date.isoformat() not in (today_str, tomorrow_str):
+                label = _short_date(peer.due_date, today)
+                if peer.due_time:
+                    peer_date_str = f"{ANSI.DIM}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(peer.due_time)} "
+                else:
+                    peer_date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
+            lines.append(f"  {ANSI.DIM}~ {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}{ANSI.RESET}")
 
     unlinked = [t for t in top_level if t.id not in clustered_ids]
     if unlinked:
