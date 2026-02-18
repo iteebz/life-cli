@@ -124,7 +124,7 @@ def render_dashboard(
     lines = []
     checked_today = habits_today + tasks_today
 
-    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\ndone: {ANSI.BOLD}{checked_today}{ANSI.RESET}  added: {ANSI.BOLD}{added_today}{ANSI.RESET}")
+    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\ndone: {ANSI.BOLD}{ANSI.GREEN}{checked_today}{ANSI.RESET}  added: {ANSI.BOLD}{ANSI.SOFT_ORANGE}{added_today}{ANSI.RESET}")
 
     done_section = render_today_completed(today_items or [])
     if done_section:
