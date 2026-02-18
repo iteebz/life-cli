@@ -13,7 +13,6 @@ class ANSI:
     CYAN = "\033[96m"
     WHITE = "\033[97m"
     GREY = "\033[90m"
-    CREAM = "\033[38;5;248m"
     RESET = "\033[0m"
 
     SOFT_BLUE = "\033[38;5;110m"
