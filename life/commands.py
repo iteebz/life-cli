@@ -201,10 +201,17 @@ def cmd_done(args: list[str]) -> None:
         is_undo_action = today_date in checks
         updated_habit = toggle_check(habit.id)
         checked = not is_undo_action
-        echo(format_habit(updated_habit or habit, checked=checked))
+        if checked:
+            echo(f"{ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{habit.content.lower()}{ANSI.RESET}")
+        else:
+            echo(format_habit(updated_habit or habit, checked=False))
     elif task:
         updated = toggle_completed(task.id)
-        echo(format_task(updated or task))
+        completing = not task.completed_at
+        if completing:
+            echo(f"{ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{task.content.lower()}{ANSI.RESET}")
+        else:
+            echo(format_task(updated or task))
 
 
 def cmd_rm(args: list[str]) -> None:
