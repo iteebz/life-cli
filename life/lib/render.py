@@ -29,6 +29,19 @@ def _fmt_tags(tags: list[str], tag_colors: dict[str, str]) -> str:
     return " " + " ".join(parts)
 
 
+def _get_direct_tags(task: Task, all_pending: list[Task]) -> list[str]:
+    """Get only direct tags for a task, excluding inherited parent tags."""
+    if not task.parent_id:
+        return task.tags
+    
+    parent = next((t for t in all_pending if t.id == task.parent_id), None)
+    if not parent:
+        return task.tags
+    
+    parent_tags = parent.tags
+    return [tag for tag in task.tags if tag not in parent_tags]
+
+
 def _build_tag_colors(items: list) -> dict[str, str]:
     tags = sorted({
         tag for item in items 
@@ -163,6 +176,7 @@ def _render_today_tasks(
     linked_peers: dict[str, list[str]],
     task_id_to_content: dict[str, str],
     subtasks_by_parent: dict[str, list[Task]],
+    all_pending: list[Task],
 ) -> tuple[list[str], set[str]]:
     lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}TODAY:{ANSI.RESET}"]
     scheduled_ids: set[str] = set()
@@ -202,7 +216,8 @@ def _render_today_tasks(
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-            sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+            sub_direct_tags = _get_direct_tags(sub, all_pending)
+            sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
             sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
             lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
@@ -214,6 +229,7 @@ def _render_tomorrow_tasks(
     tag_colors: dict[str, str],
     linked_peers: dict[str, list[str]],
     subtasks_by_parent: dict[str, list[Task]],
+    all_pending: list[Task],
 ) -> tuple[list[str], set[str]]:
     if not due_tomorrow:
         return [], set()
@@ -232,7 +248,8 @@ def _render_tomorrow_tasks(
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-            sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+            sub_direct_tags = _get_direct_tags(sub, all_pending)
+            sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
             sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
             lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
@@ -275,6 +292,7 @@ def _render_task_row(
     task_id_to_content: dict[str, str],
     subtasks_by_parent: dict[str, list[Task]],
     completed_subs_by_parent: dict[str, list[Task]],
+    all_pending: list[Task],
     indent: str = "  ",
 ) -> list[str]:
     tags_str = _fmt_tags(task.tags, tag_colors)
@@ -299,12 +317,14 @@ def _render_task_row(
     rows = [row]
     for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
         sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-        sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+        sub_direct_tags = _get_direct_tags(sub, all_pending)
+        sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
         sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
         rows.append(f"{indent}  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
     for sub in completed_subs_by_parent.get(task.id, []):
         sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-        sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+        sub_direct_tags = _get_direct_tags(sub, all_pending)
+        sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
         sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
         rows.append(f"{indent}  {ANSI.GREY}{sub_time_str}└ ✓ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
     return rows
@@ -320,6 +340,7 @@ def _render_clusters(
     task_id_to_content: dict[str, str],
     subtasks_by_parent: dict[str, list[Task]],
     completed_subs_by_parent: dict[str, list[Task]],
+    all_pending: list[Task],
 ) -> list[str]:
     if not regular_items:
         return []
@@ -345,7 +366,8 @@ def _render_clusters(
 
         for sub in sorted(subtasks_by_parent.get(focus.id, []), key=_task_sort_key):
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-            sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+            sub_direct_tags = _get_direct_tags(sub, all_pending)
+            sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
             sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
             lines.append(f"  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
@@ -358,7 +380,8 @@ def _render_clusters(
             lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer.content.lower()}{peer_tags_str}{peer_id_str}")
             for sub in sorted(subtasks_by_parent.get(peer.id, []), key=_task_sort_key):
                 sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-                sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+                sub_direct_tags = _get_direct_tags(sub, all_pending)
+                sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
                 sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
                 lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
@@ -377,7 +400,7 @@ def _render_clusters(
             seen.add(task.id)
             lines.extend(_render_task_row(
                 task, today, today_str, tomorrow_str, tag_colors,
-                task_id_to_content, subtasks_by_parent, completed_subs_by_parent,
+                task_id_to_content, subtasks_by_parent, completed_subs_by_parent, all_pending,
             ))
 
     return lines
@@ -426,12 +449,12 @@ def render_dashboard(
     due_tomorrow = [t for t in all_pending if t.due_date and t.due_date.isoformat() == tomorrow_str and t.id not in all_subtask_ids]
 
     today_lines, scheduled_ids = _render_today_tasks(
-        due_today, current_time, tag_colors, linked_peers, task_id_to_content, subtasks_by_parent,
+        due_today, current_time, tag_colors, linked_peers, task_id_to_content, subtasks_by_parent, all_pending,
     )
     lines.extend(today_lines)
 
     tomorrow_lines, tomorrow_scheduled = _render_tomorrow_tasks(
-        due_tomorrow, tag_colors, linked_peers, subtasks_by_parent,
+        due_tomorrow, tag_colors, linked_peers, subtasks_by_parent, all_pending,
     )
     scheduled_ids.update(tomorrow_scheduled)
     lines.extend(tomorrow_lines)
@@ -450,7 +473,7 @@ def render_dashboard(
 
     lines.extend(_render_clusters(
         regular_items, all_links, today, today_str, tomorrow_str,
-        tag_colors, task_id_to_content, subtasks_by_parent, completed_subs_by_parent,
+        tag_colors, task_id_to_content, subtasks_by_parent, completed_subs_by_parent, all_pending,
     ))
 
     return "\n".join(lines) + "\n"
@@ -540,7 +563,8 @@ def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> 
     """Render detailed view of a single task with its subtasks and linked tasks."""
     lines = []
     
-    tag_colors = _build_tag_colors([task] + subtasks + linked)
+    all_tasks = [task] + subtasks + linked
+    tag_colors = _build_tag_colors(all_tasks)
     tags_str = _fmt_tags(task.tags, tag_colors)
     focus_str = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
     status = f"{ANSI.GREY}✓{ANSI.RESET}" if task.completed_at else "□"
@@ -565,7 +589,8 @@ def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> 
         for sub in sorted(subtasks, key=_task_sort_key):
             sub_status = f"{ANSI.GREY}✓{ANSI.RESET}" if sub.completed_at else "□"
             sub_id_str = f"{ANSI.GREY}[{sub.id}]{ANSI.RESET}"
-            sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+            sub_direct_tags = _get_direct_tags(sub, all_tasks)
+            sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
             sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
             lines.append(f"    {sub_status} {sub_id_str}  {sub_time_str}{sub.content.lower()}{sub_tags_str}")
     
