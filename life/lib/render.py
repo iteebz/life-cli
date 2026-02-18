@@ -310,7 +310,7 @@ def render_dashboard(
             if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
                 label = _short_date(task.due_date)
                 if task.due_time:
-                    date_str = f"{ANSI.DIM}{task.due_time} {label}{ANSI.RESET} "
+                    date_str = f"{ANSI.DIM}{label}·{task.due_time}{ANSI.RESET} "
                 else:
                     date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
             else:

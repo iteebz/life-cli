@@ -31,8 +31,8 @@ def format_due(due_date: date | str, colorize: bool = True) -> str:
     diff = (due - today).days
 
     if colorize:
-        return f"{ANSI.GREY}{diff}d:{ANSI.RESET}"
-    return f"{diff}d:"
+        return f"{ANSI.GREY}{diff}d·{ANSI.RESET}"
+    return f"{diff}d·"
 
 
 def format_task(task, tags: list[str] | None = None, show_id: bool = False) -> str:
