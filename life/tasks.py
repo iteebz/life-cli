@@ -239,6 +239,10 @@ def toggle_completed(task_id: str) -> Task | None:
                 (completed, task_id),
             )
             _record_mutation(conn, task_id, "completed_at", None, completed)
+            conn.execute(
+                "UPDATE tasks SET blocked_by = NULL WHERE blocked_by = ?",
+                (task_id,),
+            )
 
     return get_task(task_id)
 
