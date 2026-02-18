@@ -2,10 +2,11 @@ from datetime import date, datetime, timedelta
 
 from life.config import get_dates
 from life.models import Habit, Task
-from life.tasks import _task_sort_key
+from life.tasks import _task_sort_key, get_all_links
 
 from . import clock
 from .ansi import ANSI
+from .clusters import build_clusters, cluster_focus, link_distances
 from .format import format_habit, format_task
 
 __all__ = [
@@ -267,19 +268,6 @@ def render_dashboard(
             )
 
     if regular_items:
-        tagged_regular = {}
-        untagged = []
-
-        for task in regular_items:
-            tags = task.tags
-            if tags:
-                for tag in tags:
-                    if tag not in tagged_regular:
-                        tagged_regular[tag] = []
-                    tagged_regular[tag].append(task)
-            else:
-                untagged.append(task)
-
         def sort_items(task_list: list[Task]):
             return sorted(task_list, key=_task_sort_key)
 
@@ -301,7 +289,7 @@ def render_dashboard(
             return due.strftime("%b %-d")
 
         def _render_task_with_subtasks(
-            task: Task, indent: str = "  ", tag: str | None = None
+            task: Task, indent: str = "  ", tag: str | None = None, dim: bool = False
         ) -> list[str]:
             other_tags = [t for t in task.tags if t != tag] if tag else task.tags
             tags_str = _fmt_tags(other_tags, tag_colors)
@@ -317,12 +305,13 @@ def render_dashboard(
             if task.blocked_by:
                 blocker_name = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
                 blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
-                rows = [
-                    f"{indent}⊘ {ANSI.GREY}{date_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"
-                ]
+                row = f"{indent}⊘ {ANSI.GREY}{date_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"
             else:
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
-                rows = [f"{indent}{indicator}{date_str}{task.content.lower()}{tags_str}{id_str}"]
+                row = f"{indent}{indicator}{date_str}{task.content.lower()}{tags_str}{id_str}"
+            if dim:
+                row = f"{ANSI.DIM}{row}{ANSI.RESET}"
+            rows = [row]
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
                 rows.append(f"{indent}  {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
@@ -331,20 +320,76 @@ def render_dashboard(
                 rows.append(f"{indent}  {ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
             return rows
 
-        for tag in sorted(tagged_regular.keys()):
-            tag_tasks = [t for t in sort_items(tagged_regular[tag]) if t.id not in subtask_ids]
-            if not tag_tasks:
-                continue
-            tag_color = tag_colors.get(tag, ANSI.GREY)
-            lines.append(f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}")
-            for task in tag_tasks:
-                lines.extend(_render_task_with_subtasks(task, tag=tag))
+        all_links = get_all_links()
+        top_level_regular = [t for t in regular_items if t.id not in subtask_ids]
+        clusters = build_clusters(top_level_regular, all_links)
+        clustered_ids: set[str] = {t.id for cluster in clusters for t in cluster}
 
-        top_untagged = [t for t in sort_items(untagged) if t.id not in subtask_ids]
-        if top_untagged:
-            lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(top_untagged)}):{ANSI.RESET}")
-            for task in top_untagged:
-                lines.extend(_render_task_with_subtasks(task))
+        for cluster in sorted(clusters, key=lambda c: (not any(t.focus for t in c), min((t.due_date or date.max) for t in c))):
+            focus = cluster_focus(cluster)
+            if focus:
+                distances = link_distances(focus.id, all_links)
+                tags_str = _fmt_tags(focus.tags, tag_colors)
+                id_str = f" {ANSI.DIM}[{focus.id[:8]}]{ANSI.RESET}" if verbose else ""
+                lines.append(f"\n{ANSI.BOLD}⦿{ANSI.RESET} {focus.content.lower()}{tags_str}{id_str}")
+                for sub in sort_items(subtasks_by_parent.get(focus.id, [])):
+                    sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                    lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+                peers_1 = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) == 1], key=_task_sort_key)
+                peers_2 = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) == 2], key=_task_sort_key)
+                for peer in peers_1:
+                    peer_tags_str = _fmt_tags(peer.tags, tag_colors)
+                    peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}" if verbose else ""
+                    lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer.content.lower()}{peer_tags_str}{peer_id_str}")
+                    for sub in sort_items(subtasks_by_parent.get(peer.id, [])):
+                        sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                        lines.append(f"      {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+                for peer in peers_2:
+                    peer_tags_str = _fmt_tags(peer.tags, tag_colors)
+                    peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}" if verbose else ""
+                    lines.append(f"  {ANSI.DIM}~ {peer.content.lower()}{peer_tags_str}{peer_id_str}{ANSI.RESET}")
+            else:
+                sorted_cluster = sort_items(cluster)
+                first = sorted_cluster[0]
+                tags_str = _fmt_tags(first.tags, tag_colors)
+                id_str = f" {ANSI.DIM}[{first.id[:8]}]{ANSI.RESET}" if verbose else ""
+                lines.append(f"\n  {first.content.lower()}{tags_str}{id_str}")
+                for sub in sort_items(subtasks_by_parent.get(first.id, [])):
+                    sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                    lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+                for peer in sorted_cluster[1:]:
+                    peer_tags_str = _fmt_tags(peer.tags, tag_colors)
+                    peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}" if verbose else ""
+                    lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer.content.lower()}{peer_tags_str}{peer_id_str}")
+                    for sub in sort_items(subtasks_by_parent.get(peer.id, [])):
+                        sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                        lines.append(f"      {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+
+        unlinked = [t for t in top_level_regular if t.id not in clustered_ids]
+        if unlinked:
+            tagged_regular: dict[str, list[Task]] = {}
+            untagged: list[Task] = []
+            for task in unlinked:
+                if task.tags:
+                    for tag in task.tags:
+                        tagged_regular.setdefault(tag, []).append(task)
+                else:
+                    untagged.append(task)
+
+            for tag in sorted(tagged_regular.keys()):
+                tag_tasks = sort_items(tagged_regular[tag])
+                if not tag_tasks:
+                    continue
+                tag_color = tag_colors.get(tag, ANSI.GREY)
+                lines.append(f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}")
+                for task in tag_tasks:
+                    lines.extend(_render_task_with_subtasks(task, tag=tag))
+
+            top_untagged = sort_items(untagged)
+            if top_untagged:
+                lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(top_untagged)}):{ANSI.RESET}")
+                for task in top_untagged:
+                    lines.extend(_render_task_with_subtasks(task))
 
     return "\n".join(lines) + "\n"
 

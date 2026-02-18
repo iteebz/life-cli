@@ -25,6 +25,7 @@ __all__ = [
     "add_link",
     "remove_link",
     "get_links",
+    "get_all_links",
     "set_blocked_by",
     "toggle_completed",
     "toggle_focus",
@@ -332,6 +333,13 @@ def find_task(ref: str) -> Task | None:
 
 def find_task_any(ref: str) -> Task | None:
     return find_in_pool(ref, get_all_tasks())
+
+
+def get_all_links() -> list[tuple[str, str]]:
+    """Return all (from_id, to_id) pairs from task_links."""
+    with db.get_db() as conn:
+        rows = conn.execute("SELECT from_id, to_id FROM task_links").fetchall()
+    return [(r[0], r[1]) for r in rows]
 
 
 def add_link(from_id: str, to_id: str) -> None:
