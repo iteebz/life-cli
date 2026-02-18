@@ -1,3 +1,4 @@
+import re
 import sqlite3
 import uuid
 from datetime import datetime
@@ -45,6 +46,26 @@ def _task_sort_key(task: Task) -> tuple[bool, bool, object, object]:
     )
 
 
+_AUTOTAG_PATTERNS = {
+    "comms": re.compile(r"\b(call|message|whatsapp|email|voicemail|reply|text|telegram|signal)\b", re.I),
+    "finance": re.compile(r"\b(invoice|pay|transfer|liquidate|buy|order|purchase|refund|deposit)\b", re.I),
+    "health": re.compile(r"\b(dentist|doctor|physio|health|medical|pharmacy|chemist)\b", re.I),
+}
+
+
+def _autotag(content: str, existing_tags: list[str] | None) -> list[str]:
+    """Auto-add tags based on content patterns. Returns new tags to add."""
+    if existing_tags is None:
+        existing_tags = []
+    existing_normalized = [t.lstrip('#') for t in existing_tags]
+    content_lower = content.lower()
+    new_tags = []
+    for tag, pattern in _AUTOTAG_PATTERNS.items():
+        if tag not in existing_normalized and pattern.search(content_lower):
+            new_tags.append(tag)
+    return new_tags
+
+
 def add_task(
     content: str,
     focus: bool = False,
@@ -63,9 +84,12 @@ def add_task(
             )
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Failed to add task: {e}") from e
-        if tags:
-            for tag in tags:
-                add_tag(task_id, None, tag, conn=conn)
+        
+        all_tags = list(tags or [])
+        all_tags.extend(_autotag(content, all_tags))
+        
+        for tag in all_tags:
+            add_tag(task_id, None, tag, conn=conn)
     return task_id
 
 
