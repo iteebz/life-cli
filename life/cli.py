@@ -20,19 +20,19 @@ from .commands import (
     cmd_rename,
     cmd_rm,
     cmd_schedule,
+    cmd_set,
     cmd_stats,
     cmd_status,
     cmd_steward,
     cmd_tag,
-    cmd_uncheck,
-    cmd_unfocus,
-    cmd_untag,
     cmd_task,
     cmd_today,
     cmd_tomorrow,
     cmd_track,
-    cmd_set,
     cmd_unblock,
+    cmd_uncheck,
+    cmd_unfocus,
+    cmd_untag,
 )
 
 app = typer.Typer(

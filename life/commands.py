@@ -100,6 +100,8 @@ def cmd_set(
             exit_error("Error: subtasks cannot have subtasks")
         if parent_task.id == task.id:
             exit_error("Error: a task cannot be its own parent")
+        if task.focus:
+            exit_error("Error: cannot parent a focused task — unfocus first")
         updates["parent_id"] = parent_task.id
     if content is not None:
         if not content.strip():
