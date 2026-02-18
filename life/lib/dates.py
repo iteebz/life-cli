@@ -1,10 +1,22 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from life.config import add_date as add_date_config
 from life.config import get_dates
 from life.config import remove_date as remove_date_config
 
 from . import clock
+
+
+def parse_created_date(created_val: int | float | str) -> date:
+    """Parse created date from various formats (timestamp, numeric string, ISO string).
+    
+    Handles legacy formats: int/float timestamps, numeric strings, ISO date strings.
+    """
+    if isinstance(created_val, (int, float)):
+        return datetime.fromtimestamp(created_val).date()
+    if isinstance(created_val, str) and created_val.replace(".", "").isdigit():
+        return datetime.fromtimestamp(float(created_val)).date()
+    return date.fromisoformat(created_val.split("T")[0])
 
 
 def parse_due_date(due_str: str) -> str | None:

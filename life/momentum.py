@@ -1,7 +1,8 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from . import db
 from .lib import clock
+from .lib.dates import parse_created_date
 from .models import Weekly
 
 __all__ = ["weekly_momentum"]
@@ -9,13 +10,8 @@ __all__ = ["weekly_momentum"]
 
 def _calculate_total_possible(active_items_data, week_start_date, week_end_date):
     total_possible = 0
-    for _item_id, created_iso_str in active_items_data:
-        if isinstance(created_iso_str, (int, float)):
-            created_date = datetime.fromtimestamp(created_iso_str).date()
-        elif isinstance(created_iso_str, str) and created_iso_str.replace(".", "").isdigit():
-            created_date = datetime.fromtimestamp(float(created_iso_str)).date()
-        else:
-            created_date = date.fromisoformat(created_iso_str.split("T")[0])
+    for _item_id, created_val in active_items_data:
+        created_date = parse_created_date(created_val)
 
         if created_date > week_end_date:
             continue
