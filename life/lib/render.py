@@ -21,10 +21,8 @@ def _due_time_color(due_time: str, now: datetime) -> str:
         h, m = map(int, due_time.split(":"))
         task_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
         delta = (task_dt - now).total_seconds() / 60
-        if delta < -30:
-            return ANSI.GREY
         if delta < 0:
-            return ANSI.BOLD + ANSI.RED
+            return ANSI.BOLD + ANSI.SOFT_ORANGE
         if delta <= 15:
             return ANSI.SOFT_ORANGE
         if delta <= 60:
@@ -126,7 +124,7 @@ def render_dashboard(
     lines = []
     checked_today = habits_today + tasks_today
 
-    lines.append(f"\n{today} {current_time}\ndone: {checked_today}  added: {added_today}")
+    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\ndone: {ANSI.BOLD}{checked_today}{ANSI.RESET}  added: {ANSI.BOLD}{added_today}{ANSI.RESET}")
 
     done_section = render_today_completed(today_items or [])
     if done_section:
@@ -275,21 +273,35 @@ def render_dashboard(
 
         task_id_to_content: dict[str, str] = {t.id: t.content for t in items if isinstance(t, Task)}
 
+        def _short_date(due: date) -> str:
+            delta = (due - today).days
+            if delta <= 7:
+                return f"{delta}d"
+            return due.strftime("%b %-d")
+
         def _render_task_with_subtasks(
             task: Task, indent: str = "  ", tag: str | None = None
         ) -> list[str]:
             other_tags = [t for t in task.tags if t != tag] if tag else task.tags
             tags_str = _fmt_tags(other_tags, tag_colors)
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
+            if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
+                label = _short_date(task.due_date)
+                if task.due_time:
+                    date_str = f"{ANSI.DIM}{task.due_time} {label}{ANSI.RESET} "
+                else:
+                    date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
+            else:
+                date_str = ""
             if task.blocked_by:
                 blocker_name = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
                 blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
                 rows = [
-                    f"{indent}⊘ {ANSI.GREY}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"
+                    f"{indent}⊘ {ANSI.GREY}{date_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"
                 ]
             else:
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
-                rows = [f"{indent}{indicator}{task.content.lower()}{tags_str}{id_str}"]
+                rows = [f"{indent}{indicator}{date_str}{task.content.lower()}{tags_str}{id_str}"]
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
