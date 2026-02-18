@@ -250,9 +250,11 @@ def _run_tail_stream(
             echo(text)
             continue
 
-        entry = parser.parse_line(text)
-        rendered = format_entry(entry, quiet_system=quiet_system) if entry else None
-        if rendered:
+        entries = parser.parse_line(text)
+        for entry in entries:
+            rendered = format_entry(entry, quiet_system=quiet_system)
+            if not rendered:
+                continue
             if rendered == last_rendered and (
                 rendered.startswith("usage:") or rendered.startswith("error:")
             ):

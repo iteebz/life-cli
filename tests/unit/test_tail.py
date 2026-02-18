@@ -26,11 +26,11 @@ class _FakePopen:
 
 def test_tail_parser_text_block_formats_ai_line():
     parser = StreamParser()
-    entry = parser.parse_line(
+    entries = parser.parse_line(
         '{"type":"assistant","message":{"content":[{"type":"text","text":"hello world"}]}}'
     )
-    assert entry is not None
-    assert format_entry(entry) == "ai: hello world"
+    assert entries
+    assert format_entry(entries[-1]) == "ai: hello world"
 
 
 def test_tail_parser_tool_result_correlates_tool_name():
@@ -38,39 +38,49 @@ def test_tail_parser_tool_result_correlates_tool_name():
     parser.parse_line(
         '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{"file":"a.txt"}}]}}'
     )
-    entry = parser.parse_line(
+    entries = parser.parse_line(
         '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"ok"}]}}'
     )
-    assert entry is not None
-    assert format_entry(entry) == "result: Read ok"
+    assert entries
+    assert format_entry(entries[-1]) == "result: Read ok"
 
 
 def test_tail_parser_malformed_json_falls_back_to_raw():
     parser = StreamParser()
-    entry = parser.parse_line("{not-json")
-    assert entry is not None
-    assert format_entry(entry) == "raw: {not-json"
+    entries = parser.parse_line("{not-json")
+    assert entries
+    assert format_entry(entries[0]) == "raw: {not-json"
 
 
 def test_tail_usage_zero_is_suppressed():
     parser = StreamParser()
-    entry = parser.parse_line(
+    entries = parser.parse_line(
         '{"type":"assistant","message":{"usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}'
     )
-    assert entry is not None
-    assert format_entry(entry) is None
+    assert entries
+    assert format_entry(entries[0]) is None
 
 
 def test_tail_tool_result_structured_content_is_flattened():
     parser = StreamParser()
-    entry = parser.parse_line(
+    entries = parser.parse_line(
         '{"type":"user","message":{"content":[{"type":"tool_result","tool_name":"Read","content":[{"type":"text","text":"line1"},{"type":"text","text":"line2"}]}]}}'
     )
-    assert entry is not None
-    rendered = format_entry(entry)
+    assert entries
+    rendered = format_entry(entries[0])
     assert rendered is not None
     assert rendered.startswith("result: Read")
     assert "line1 line2" in rendered
+
+
+def test_tail_parser_assistant_usage_and_tool_use_both_emitted():
+    parser = StreamParser()
+    entries = parser.parse_line(
+        '{"type":"assistant","message":{"usage":{"input_tokens":12,"output_tokens":3,"cache_read_input_tokens":4},"content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{"file":"x.md"}}]}}'
+    )
+    rendered = [format_entry(e) for e in entries]
+    assert "usage: in=12 out=3 cache=4" in rendered
+    assert any(r and r.startswith("tool: Read(") for r in rendered)
 
 
 def test_cmd_tail_streams_pretty_output(monkeypatch, tmp_path):

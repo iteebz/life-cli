@@ -1,5 +1,7 @@
 import json
 
+from .providers import glm
+
 
 def _short(value: object, limit: int = 120) -> str:
     text = str(value).strip().replace("\r", "")
@@ -35,99 +37,20 @@ class StreamParser:
     def __init__(self) -> None:
         self._tool_map: dict[str, str] = {}
 
-    def parse_line(self, line: str) -> dict[str, object] | None:
+    def parse_line(self, line: str) -> list[dict[str, object]]:
         raw = line.strip()
         if not raw:
-            return None
+            return []
         try:
             event = json.loads(raw)
         except json.JSONDecodeError:
-            return {"type": "raw", "raw": raw}
+            return [{"type": "raw", "raw": raw}]
         if not isinstance(event, dict):
-            return {"type": "raw", "raw": raw}
-
-        event_type = event.get("type")
-
-        if event_type in {"system", "context_init"}:
-            session_id = event.get("session_id") or event.get("sessionId") or ""
-            model = event.get("model") or ""
-            return {"type": "system", "session_id": session_id, "model": model}
-
-        if event_type == "assistant":
-            return self._parse_assistant(event)
-
-        if event_type == "user":
-            return self._parse_user(event)
-
-        if event_type == "error" or (event_type == "result" and event.get("subtype") == "error"):
-            message = event.get("error") or event.get("message") or event.get("result") or "unknown error"
-            if isinstance(message, dict):
-                message = message.get("message") or message.get("error") or str(message)
-            return {"type": "error", "message": _short(message, 240)}
-
-        return {"type": "raw", "raw": raw}
-
-    def _parse_assistant(self, event: dict[str, object]) -> dict[str, object] | None:
-        msg = event.get("message")
-        if not isinstance(msg, dict):
-            return {"type": "raw", "raw": json.dumps(event, ensure_ascii=True)}
-
-        usage = msg.get("usage")
-        if isinstance(usage, dict):
-            return {
-                "type": "usage",
-                "input_tokens": int(usage.get("input_tokens", 0)),
-                "output_tokens": int(usage.get("output_tokens", 0)),
-                "cache_tokens": int(usage.get("cache_read_input_tokens", 0))
-                + int(usage.get("cache_creation_input_tokens", 0)),
-            }
-
-        blocks = msg.get("content")
-        if not isinstance(blocks, list):
-            return None
-
-        for block in blocks:
-            if not isinstance(block, dict):
-                continue
-            block_type = block.get("type")
-            if block_type == "text":
-                text = block.get("text")
-                if isinstance(text, str) and text.strip():
-                    return {"type": "assistant_text", "text": text.strip()}
-            if block_type == "tool_use":
-                tool_use_id = str(block.get("id", ""))
-                tool_name = str(block.get("name", ""))
-                if tool_use_id and tool_name:
-                    self._tool_map[tool_use_id] = tool_name
-                return {
-                    "type": "tool_call",
-                    "tool_use_id": tool_use_id,
-                    "tool_name": tool_name,
-                    "args": block.get("input", {}),
-                }
-        return None
-
-    def _parse_user(self, event: dict[str, object]) -> dict[str, object] | None:
-        msg = event.get("message")
-        if not isinstance(msg, dict):
-            return None
-        content = msg.get("content")
-        if not isinstance(content, list):
-            return None
-        for block in content:
-            if not isinstance(block, dict):
-                continue
-            if block.get("type") != "tool_result":
-                continue
-            tool_use_id = str(block.get("tool_use_id", ""))
-            return {
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "tool_name": block.get("tool_name") or self._tool_map.get(tool_use_id, ""),
-                "result": _stringify_content(block.get("content", "")),
-                "is_error": bool(block.get("is_error")),
-            }
-        return None
+            return [{"type": "raw", "raw": raw}]
+        normalized = glm.normalize_event(event, tool_map=self._tool_map)
+        if normalized:
+            return normalized
+        return [{"type": "raw", "raw": raw}]
 
 
 def format_entry(entry: dict[str, object], quiet_system: bool = False) -> str | None:
