@@ -83,14 +83,15 @@ def _build_link_peers(tasks: list[Task], links: list[tuple[str, str]]) -> dict[s
     return peers
 
 
-def _render_header(today: date, checked: int, added: int, deleted: int) -> list[str]:
-    delta = ""
-    if added or deleted:
-        delta = f"   {ANSI.BOLD}□{ANSI.RESET} {ANSI.BOLD}{ANSI.GREEN}+{added}{ANSI.RESET}{ANSI.WHITE}/{ANSI.RESET}{ANSI.BOLD}{ANSI.RED}−{deleted}{ANSI.RESET}"
-    return [
-        f"\n{ANSI.BOLD}{today}{ANSI.RESET}",
-        f"{ANSI.BOLD}✓{ANSI.RESET} {ANSI.BOLD}{ANSI.WHITE}{checked}{ANSI.RESET}{delta}",
-    ]
+def _render_header(today: date, tasks_done: int, habits_done: int, total_habits: int, added: int, deleted: int) -> list[str]:
+    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}{today}{ANSI.RESET}"]
+    lines.append(f"tasks: {tasks_done}")
+    lines.append(f"habits: {habits_done}/{total_habits}")
+    if added:
+        lines.append(f"added: {added}")
+    if deleted:
+        lines.append(f"deleted: {deleted}")
+    return lines
 
 
 def _render_done(
@@ -115,7 +116,12 @@ def _render_done(
         content = item.content.lower()
         id_str = f" {ANSI.GREY}[{item.id[:8]}]{ANSI.RESET}"
         if isinstance(item, Habit):
-            lines.append(f"  {ANSI.GREY}✓ --:-- {content}{tags_str}{id_str}{ANSI.RESET}")
+            time_str = ""
+            if item.checks:
+                latest_check = max(item.checks)
+                if latest_check.date() == clock.today():
+                    time_str = latest_check.strftime("%H:%M")
+            lines.append(f"  {ANSI.GREY}✓ {time_str} {content}{tags_str}{id_str}{ANSI.RESET}")
         elif isinstance(item, Task) and item.completed_at:
             time_str = item.completed_at.strftime("%H:%M")
             parent_str = ""
@@ -377,7 +383,9 @@ def render_dashboard(
 
     lines: list[str] = []
 
-    lines.extend(_render_header(today, habits_today + tasks_today, added_today, deleted_today))
+    habits = [item for item in items if isinstance(item, Habit)]
+    total_habits = len(set(h.id for h in habits))
+    lines.extend(_render_header(today, tasks_today, habits_today, total_habits, added_today, deleted_today))
 
     done_lines = _render_done(today_items or [], all_pending, tag_colors)
     if done_lines:
@@ -408,7 +416,6 @@ def render_dashboard(
     scheduled_ids.update(tomorrow_scheduled)
     lines.extend(tomorrow_lines)
 
-    habits = [item for item in items if isinstance(item, Habit)]
     today_habit_items = [item for item in (today_items or []) if isinstance(item, Habit)]
     today_habit_ids = {item.id for item in today_habit_items}
     all_habits = list(set(habits + today_habit_items))
