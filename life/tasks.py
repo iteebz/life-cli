@@ -333,7 +333,10 @@ def toggle_focus(task_id: str) -> Task | None:
 
 
 def find_task(ref: str) -> Task | None:
-    return find_in_pool(ref, get_tasks())
+    from .dashboard import _get_completed_today
+    pending = get_tasks()
+    completed_today = _get_completed_today()
+    return find_in_pool(ref, pending + completed_today)
 
 
 def find_task_any(ref: str) -> Task | None:
@@ -341,7 +344,10 @@ def find_task_any(ref: str) -> Task | None:
 
 
 def find_task_exact(ref: str) -> Task | None:
-    return find_in_pool_exact(ref, get_tasks())
+    from .dashboard import _get_completed_today
+    pending = get_tasks()
+    completed_today = _get_completed_today()
+    return find_in_pool_exact(ref, pending + completed_today)
 
 
 def get_all_links() -> list[tuple[str, str]]:
