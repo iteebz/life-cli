@@ -105,6 +105,8 @@ def _render_done(
     def _sort_key(item):
         if isinstance(item, Task) and item.completed_at:
             return item.completed_at
+        if isinstance(item, Habit) and item.checks:
+            return max(item.checks)
         return item.created
 
     sorted_items = sorted(today_items, key=_sort_key)
@@ -243,14 +245,6 @@ def _render_habits(habits: list[Habit], today_habit_ids: set[str]) -> list[str]:
         trend = _get_habit_trend(habit.checks)
         id_str = f" {ANSI.GREY}[{habit.id[:8]}]{ANSI.RESET}"
         lines.append(f"  □ {trend} {habit.content.lower()}{tags_str}{id_str}")
-
-    for habit in sorted_habits:
-        if habit.id not in today_habit_ids:
-            continue
-        tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in habit.tags) if habit.tags else ""
-        trend = _get_habit_trend(habit.checks)
-        id_str = f" {ANSI.GREY}[{habit.id[:8]}]{ANSI.RESET}"
-        lines.append(f"  {ANSI.GREY}✓ {trend} {habit.content.lower()}{tags_str}{id_str}{ANSI.RESET}")
 
     return lines
 
