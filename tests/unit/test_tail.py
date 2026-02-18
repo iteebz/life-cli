@@ -80,7 +80,40 @@ def test_tail_parser_assistant_usage_and_tool_use_both_emitted():
     )
     rendered = [format_entry(e) for e in entries]
     assert "usage: in=12 out=3 cache=4" in rendered
-    assert any(r and r.startswith("tool: Read(") for r in rendered)
+    assert any(r and r.startswith("tool: Read(") and "x.md" in r for r in rendered)
+
+
+def test_tail_tool_result_diff_is_summarized():
+    rendered = format_entry(
+        {
+            "type": "tool_result",
+            "tool_name": "Edit",
+            "is_error": False,
+            "result": (
+                "diff --git a/life/commands.py b/life/commands.py\n"
+                "--- a/life/commands.py\n"
+                "+++ b/life/commands.py\n"
+                "@@\n"
+                "-old\n"
+                "+new\n"
+                "+line2\n"
+            ),
+        }
+    )
+    assert rendered is not None
+    assert rendered == "result: Edit diff: files=1 +2 -1 life/commands.py"
+
+
+def test_tail_tool_call_formats_key_args():
+    rendered = format_entry(
+        {
+            "type": "tool_call",
+            "tool_name": "Bash",
+            "args": {"command": "uv run pytest tests/unit/test_tail.py -q", "description": "run tests"},
+        }
+    )
+    assert rendered is not None
+    assert rendered.startswith("tool: Bash(cmd=uv run pytest")
 
 
 def test_cmd_tail_streams_pretty_output(monkeypatch, tmp_path):
