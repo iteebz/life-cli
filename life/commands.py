@@ -360,7 +360,7 @@ def cmd_rm(args: list[str]) -> None:
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life rm <item>")
-    task, habit = resolve_item(ref)
+    task, habit = resolve_item_any(ref)
     if task:
         delete_task(task.id)
         echo(f"{ANSI.DIM}{task.content}{ANSI.RESET}")
