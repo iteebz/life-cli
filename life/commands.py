@@ -37,12 +37,14 @@ from .models import Task
 from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
 from .tasks import (
+    add_link,
     add_task,
     check_task,
     defer_task,
     delete_task,
     get_all_tasks,
     get_tasks,
+    remove_link,
     set_blocked_by,
     toggle_focus,
     uncheck_task,
@@ -68,6 +70,8 @@ __all__ = [
     "cmd_rename",
     "cmd_rm",
     "cmd_schedule",
+    "cmd_link",
+    "cmd_unlink",
     "cmd_set",
     "cmd_stats",
     "cmd_status",
@@ -113,6 +117,22 @@ def cmd_set(
     updated = resolve_task(content or ref)
     prefix = "  └ " if updated.parent_id else ""
     echo(f"{prefix}{format_status('□', updated.content, updated.id)}")
+
+
+def cmd_link(a_args: list[str], b_args: list[str]) -> None:
+    a = resolve_task(" ".join(a_args))
+    b = resolve_task(" ".join(b_args))
+    if a.id == b.id:
+        exit_error("Cannot link a task to itself")
+    add_link(a.id, b.id)
+    echo(f"{a.content.lower()} {ANSI.GREY}~ {b.content.lower()}{ANSI.RESET}")
+
+
+def cmd_unlink(a_args: list[str], b_args: list[str]) -> None:
+    a = resolve_task(" ".join(a_args))
+    b = resolve_task(" ".join(b_args))
+    remove_link(a.id, b.id)
+    echo(f"{a.content.lower()} {ANSI.GREY}✗ {b.content.lower()}{ANSI.RESET}")
 
 
 def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:

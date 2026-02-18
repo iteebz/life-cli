@@ -6,6 +6,8 @@ from .commands import (
     cmd_backup,
     cmd_block,
     cmd_check,
+    cmd_link,
+    cmd_unlink,
     cmd_dashboard,
     cmd_dates,
     cmd_defer,
@@ -299,6 +301,24 @@ def unblock(
 ):
     """Clear blocked_by on a task"""
     cmd_unblock(args)
+
+
+@app.command()
+def link(
+    a: list[str] = typer.Argument(..., help="First task (fuzzy)"),
+    b: list[str] = typer.Option(..., "--to", "-t", help="Second task (fuzzy)"),
+):
+    """Link two tasks together"""
+    cmd_link(a, b)
+
+
+@app.command()
+def unlink(
+    a: list[str] = typer.Argument(..., help="First task (fuzzy)"),
+    b: list[str] = typer.Option(..., "--to", "-t", help="Second task (fuzzy)"),
+):
+    """Remove link between two tasks"""
+    cmd_unlink(a, b)
 
 
 @app.command()

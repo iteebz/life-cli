@@ -22,6 +22,9 @@ __all__ = [
     "get_subtasks",
     "get_task",
     "get_tasks",
+    "add_link",
+    "remove_link",
+    "get_links",
     "set_blocked_by",
     "toggle_completed",
     "toggle_focus",
@@ -329,6 +332,35 @@ def find_task(ref: str) -> Task | None:
 
 def find_task_any(ref: str) -> Task | None:
     return find_in_pool(ref, get_all_tasks())
+
+
+def add_link(from_id: str, to_id: str) -> None:
+    with db.get_db() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO task_links (from_id, to_id) VALUES (?, ?)",
+            (from_id, to_id),
+        )
+
+
+def remove_link(from_id: str, to_id: str) -> None:
+    with db.get_db() as conn:
+        conn.execute(
+            "DELETE FROM task_links WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)",
+            (from_id, to_id, to_id, from_id),
+        )
+
+
+def get_links(task_id: str) -> list[Task]:
+    """Return all tasks linked to/from task_id."""
+    with db.get_db() as conn:
+        cursor = conn.execute(
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE id IN (SELECT to_id FROM task_links WHERE from_id = ? UNION SELECT from_id FROM task_links WHERE to_id = ?)",
+            (task_id, task_id),
+        )
+        tasks = [row_to_task(row) for row in cursor.fetchall()]
+        task_ids = [t.id for t in tasks]
+        tags_map = load_tags_for_tasks(task_ids, conn=conn)
+        return hydrate_tags(tasks, tags_map)
 
 
 def set_blocked_by(task_id: str, blocker_id: str | None) -> Task | None:
