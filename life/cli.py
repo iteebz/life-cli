@@ -28,6 +28,7 @@ from .commands import (
     cmd_stats,
     cmd_status,
     cmd_steward,
+    cmd_tail,
     cmd_tag,
     cmd_task,
     cmd_today,
@@ -352,6 +353,26 @@ def unlink(
 def steward():
     """Print autonomous Steward boot prompt"""
     cmd_steward()
+
+
+@app.command()
+def tail(
+    cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
+    every: int = typer.Option(0, "--every", min=0, help="Sleep between cycles (seconds)"),
+    model: str = typer.Option("glm-5", "--model", "-m", help="Model passed to glm"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print command without executing"),
+    continue_on_error: bool = typer.Option(
+        False, "--continue-on-error", help="Continue remaining cycles after command failures"
+    ),
+):
+    """Run unattended Steward loop through the glm connector"""
+    cmd_tail(
+        cycles=cycles,
+        interval_seconds=every,
+        model=model,
+        dry_run=dry_run,
+        continue_on_error=continue_on_error,
+    )
 
 
 @app.command()
