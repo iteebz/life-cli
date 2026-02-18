@@ -28,6 +28,13 @@ life = "life.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["life"]
 
+[tool.pyright]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
