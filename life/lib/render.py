@@ -65,7 +65,7 @@ def _get_habit_trend(checks: list[date]) -> str:
     return "→"
 
 
-def render_today_completed(today_items: list[Task | Habit], all_pending: list[Task] | None = None):
+def render_today_completed(today_items: list[Task | Habit], all_pending: list[Task] | None = None, tag_colors: dict[str, str] | None = None):
     """Render today's completed tasks and habits, chronologically."""
     if not today_items:
         return ""
@@ -91,9 +91,11 @@ def render_today_completed(today_items: list[Task | Habit], all_pending: list[Ta
 
     lines = [f"{ANSI.BOLD}{ANSI.GREEN}DONE:{ANSI.RESET}"]
 
+    _tag_colors = tag_colors or {}
+
     for item in sorted_items:
         tags = item.tags
-        tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+        tags_str = _fmt_tags(tags, _tag_colors)
         content = item.content.lower()
         if isinstance(item, Habit):
             lines.append(f"  {ANSI.GREY}✓ --:-- {content}{tags_str}{ANSI.RESET}")
@@ -146,7 +148,7 @@ def render_dashboard(
     lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\ndone: {ANSI.BOLD}{ANSI.GREEN}{checked_today}{ANSI.RESET}  added: {ANSI.BOLD}{ANSI.SOFT_ORANGE}{added_today}{ANSI.RESET}{deleted_str}")
 
     all_pending = [item for item in items if isinstance(item, Task)]
-    done_section = render_today_completed(today_items or [], all_pending)
+    done_section = render_today_completed(today_items or [], all_pending, tag_colors)
     if done_section:
         lines.append(f"\n{done_section}")
     dates_list = get_dates()
