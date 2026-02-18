@@ -126,10 +126,10 @@ def cmd_track(
         if not interventions:
             echo("no interventions logged")
             return
-        for i in interventions:
-            ts = i.timestamp.strftime("%m-%d %H:%M")
-            note_str = f"  ({i.note})" if i.note else ""
-            echo(f"{ts}  {i.result:<8}  {i.description}{note_str}")
+        for intervention in interventions:
+            ts = intervention.timestamp.strftime("%m-%d %H:%M")
+            note_str = f"  ({intervention.note})" if intervention.note else ""
+            echo(f"{ts}  {intervention.result:<8}  {intervention.description}{note_str}")
         return
 
     if not description or not result:
@@ -324,8 +324,8 @@ def cmd_dates(
     if not action:
         dates_list = list_dates()
         if dates_list:
-            for d in dates_list:
-                echo(f"{d.get('emoji', '📌')} {d['name']} - {d['date']}")
+            for date_item in dates_list:
+                echo(f"{date_item.get('emoji', '📌')} {date_item['name']} - {date_item['date']}")
         else:
             echo("No dates set")
         return

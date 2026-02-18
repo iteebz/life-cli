@@ -63,7 +63,7 @@ def score() -> dict[str, Any]:
         weighted_score += (result.score / 100) * weight
 
     final_score = int((weighted_score / total_weight) * 100)
-    all_ok = all(r.ok for r in results.values())
+    all_ok = all(result.ok for result in results.values())
 
     return {
         "ok": all_ok,

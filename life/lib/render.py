@@ -56,8 +56,8 @@ def _get_habit_trend(checks: list[date]) -> str:
     period2_start = today - timedelta(days=13)
     period2_end = period1_start - timedelta(days=1)
 
-    check_count_p1 = sum(1 for d in checks if period1_start <= d <= today)
-    check_count_p2 = sum(1 for d in checks if period2_start <= d <= period2_end)
+    check_count_p1 = sum(1 for check_date in checks if period1_start <= check_date <= today)
+    check_count_p2 = sum(1 for check_date in checks if period2_start <= check_date <= period2_end)
 
     if check_count_p1 > check_count_p2:
         return "↗"
@@ -134,7 +134,11 @@ def render_dashboard(
     dates_list = get_dates()
     if dates_list:
         upcoming = sorted(
-            [d for d in dates_list if date.fromisoformat(d["date"]) >= today],
+            [
+                date_item
+                for date_item in dates_list
+                if date.fromisoformat(date_item["date"]) >= today
+            ],
             key=lambda x: x["date"],
         )
         if upcoming:
@@ -382,8 +386,8 @@ def render_habit_matrix(habits: list[Habit]) -> str:
         check_dates = set(habit.checks)
 
         status_indicators = []
-        for d in dates:
-            if d in check_dates:
+        for date_item in dates:
+            if date_item in check_dates:
                 status_indicators.append("✓")
             else:
                 status_indicators.append("□")

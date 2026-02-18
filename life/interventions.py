@@ -15,11 +15,11 @@ class Intervention:
 
 def add_intervention(description: str, result: str, note: str | None = None) -> int:
     with get_db() as conn:
-        cur = conn.execute(
+        cursor = conn.execute(
             "INSERT INTO interventions (description, result, note) VALUES (?, ?, ?)",
             (description, result, note),
         )
-        return cur.lastrowid or 0
+        return cursor.lastrowid or 0
 
 
 def get_interventions(limit: int = 20) -> list[Intervention]:
@@ -30,17 +30,17 @@ def get_interventions(limit: int = 20) -> list[Intervention]:
         ).fetchall()
         return [
             Intervention(
-                id=r[0],
-                timestamp=datetime.fromisoformat(r[1]),
-                description=r[2],
-                result=r[3],
-                note=r[4],
+                id=row[0],
+                timestamp=datetime.fromisoformat(row[1]),
+                description=row[2],
+                result=row[3],
+                note=row[4],
             )
-            for r in rows
+            for row in rows
         ]
 
 
 def get_stats() -> dict[str, int]:
     with get_db() as conn:
         rows = conn.execute("SELECT result, COUNT(*) FROM interventions GROUP BY result").fetchall()
-        return {r[0]: r[1] for r in rows}
+        return {row[0]: row[1] for row in rows}

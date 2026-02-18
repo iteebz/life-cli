@@ -29,11 +29,11 @@ def _row_counts(db_path: Path) -> dict[str, int]:
         conn = sqlite3.connect(str(db_path), timeout=2)
         try:
             tables = [
-                r[0]
-                for r in conn.execute(
+                row[0]
+                for row in conn.execute(
                     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
                 )
-                if _is_core_table(r[0])
+                if _is_core_table(row[0])
             ]
             counts = {}
             for table in tables:
