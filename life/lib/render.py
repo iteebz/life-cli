@@ -19,7 +19,7 @@ __all__ = [
 
 
 def _fmt_time(t: str) -> str:
-    return f"{ANSI.WHITE}{t}{ANSI.RESET}"
+    return f"{ANSI.GREY}{t}{ANSI.RESET}"
 
 
 def _fmt_tags(tags: list[str], tag_colors: dict[str, str]) -> str:
@@ -587,7 +587,7 @@ def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> 
     tags_str = _fmt_tags(task.tags, tag_colors)
     focus_str = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
     status = f"{ANSI.GREY}✓{ANSI.RESET}" if task.completed_at else "□"
-    id_str = f"{ANSI.GREY}[{task.id}]{ANSI.RESET}"
+    id_str = f"{ANSI.DIM}[{task.id}]{ANSI.RESET}"
     
     lines.append(f"{status} {id_str}  {task.content.lower()}{tags_str}{focus_str}")
     
@@ -607,7 +607,7 @@ def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> 
         lines.append("  subtasks:")
         for sub in sorted(subtasks, key=_task_sort_key):
             sub_status = f"{ANSI.GREY}✓{ANSI.RESET}" if sub.completed_at else "□"
-            sub_id_str = f"{ANSI.GREY}[{sub.id}]{ANSI.RESET}"
+            sub_id_str = f"{ANSI.DIM}[{sub.id}]{ANSI.RESET}"
             sub_direct_tags = _get_direct_tags(sub, all_tasks)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
             sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
@@ -617,7 +617,7 @@ def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> 
         lines.append("  links:")
         for lt in sorted(linked, key=_task_sort_key):
             lt_status = f"{ANSI.GREY}✓{ANSI.RESET}" if lt.completed_at else "□"
-            lt_id_str = f"{ANSI.GREY}[{lt.id}]{ANSI.RESET}"
+            lt_id_str = f"{ANSI.DIM}[{lt.id}]{ANSI.RESET}"
             lt_tags_str = _fmt_tags(lt.tags, tag_colors)
             lt_time_str = f"{ANSI.DIM}{_fmt_time(lt.due_time)}{ANSI.RESET} " if lt.due_time else ""
             lines.append(f"    {lt_status} {lt_id_str}  {lt_time_str}{lt.content.lower()}{lt_tags_str}")
