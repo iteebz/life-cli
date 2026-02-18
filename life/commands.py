@@ -6,11 +6,13 @@ from .dashboard import get_pending_items, get_today_breakdown, get_today_complet
 from .habits import (
     add_habit,
     archive_habit,
+    check_habit,
     delete_habit,
     get_archived_habits,
     get_checks,
     get_habits,
     toggle_check,
+    uncheck_habit,
     update_habit,
 )
 from .interventions import (
@@ -33,6 +35,7 @@ from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
 from .tasks import (
     add_task,
+    check_task,
     defer_task,
     delete_task,
     get_all_tasks,
@@ -40,6 +43,7 @@ from .tasks import (
     set_blocked_by,
     toggle_completed,
     toggle_focus,
+    uncheck_task,
     update_task,
 )
 
@@ -50,6 +54,7 @@ __all__ = [
     "cmd_dashboard",
     "cmd_dates",
     "cmd_defer",
+    "cmd_check",
     "cmd_done",
     "cmd_due",
     "cmd_focus",
@@ -66,6 +71,7 @@ __all__ = [
     "cmd_status",
     "cmd_steward",
     "cmd_tag",
+    "cmd_uncheck",
     "cmd_untag",
     "cmd_task",
     "cmd_today",
@@ -189,29 +195,42 @@ def cmd_habit(content_args: list[str], tags: list[str] | None = None) -> None:
     echo(format_status("□", content, habit_id))
 
 
-def cmd_done(args: list[str]) -> None:
+def cmd_check(args: list[str]) -> None:
     ref = " ".join(args) if args else ""
     if not ref:
-        exit_error("Usage: life done <item>")
+        exit_error("Usage: life check <item>")
     task, habit = resolve_item_any(ref)
+    if habit:
+        check_habit(habit.id)
+        echo(f"{ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{habit.content.lower()}{ANSI.RESET}")
+    elif task:
+        if task.completed_at:
+            exit_error(f"'{task.content}' is already done")
+        check_task(task.id)
+        echo(f"{ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{task.content.lower()}{ANSI.RESET}")
 
+
+def cmd_uncheck(args: list[str]) -> None:
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life uncheck <item>")
+    task, habit = resolve_item_any(ref)
     if habit:
         today_date = today()
         checks = get_checks(habit.id)
-        is_undo_action = today_date in checks
-        updated_habit = toggle_check(habit.id)
-        checked = not is_undo_action
-        if checked:
-            echo(f"{ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{habit.content.lower()}{ANSI.RESET}")
-        else:
-            echo(format_habit(updated_habit or habit, checked=False))
+        if today_date not in checks:
+            exit_error(f"'{habit.content}' is not checked today")
+        uncheck_habit(habit.id)
+        echo(format_habit(habit, checked=False))
     elif task:
-        updated = toggle_completed(task.id)
-        completing = not task.completed_at
-        if completing:
-            echo(f"{ANSI.GREEN}✓{ANSI.RESET} {ANSI.GREY}{task.content.lower()}{ANSI.RESET}")
-        else:
-            echo(format_task(updated or task))
+        if not task.completed_at:
+            exit_error(f"'{task.content}' is not done")
+        uncheck_task(task.id)
+        echo(format_task(task))
+
+
+def cmd_done(args: list[str]) -> None:
+    cmd_check(args)
 
 
 def cmd_rm(args: list[str]) -> None:

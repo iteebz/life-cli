@@ -5,6 +5,7 @@ from .commands import (
     cmd_archive,
     cmd_backup,
     cmd_block,
+    cmd_check,
     cmd_dashboard,
     cmd_dates,
     cmd_defer,
@@ -23,6 +24,7 @@ from .commands import (
     cmd_status,
     cmd_steward,
     cmd_tag,
+    cmd_uncheck,
     cmd_unfocus,
     cmd_untag,
     cmd_task,
@@ -83,10 +85,26 @@ def habit(
 
 
 @app.command()
-def done(
-    args: list[str] = typer.Argument(..., help="Partial match for the item to mark done/undone"),
+def check(
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),
 ):
-    """Mark task/habit as done or undone."""
+    """Mark task/habit as done"""
+    cmd_check(args)
+
+
+@app.command()
+def uncheck(
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),
+):
+    """Unmark task/habit as done"""
+    cmd_uncheck(args)
+
+
+@app.command(hidden=True)
+def done(
+    args: list[str] = typer.Argument(..., help="Partial match for the item to mark done"),
+):
+    """Alias for check"""
     cmd_done(args)
 
 

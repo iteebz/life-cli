@@ -20,8 +20,10 @@ __all__ = [
     "get_checks",
     "get_habit",
     "get_habits",
+    "check_habit",
     "get_streak",
     "toggle_check",
+    "uncheck_habit",
     "update_habit",
 ]
 
@@ -206,6 +208,35 @@ def find_habit(ref: str) -> Habit | None:
     return find_in_pool(ref, get_habits())
 
 
+def check_habit(habit_id: str) -> Habit | None:
+    """Check habit for today. No-op if already checked."""
+    habit = get_habit(habit_id)
+    if not habit:
+        return None
+    today_str = clock.today().isoformat()
+    with db.get_db() as conn:
+        with contextlib.suppress(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
+                (habit_id, today_str),
+            )
+    return get_habit(habit_id)
+
+
+def uncheck_habit(habit_id: str) -> Habit | None:
+    """Uncheck habit for today. No-op if not checked."""
+    habit = get_habit(habit_id)
+    if not habit:
+        return None
+    today_str = clock.today().isoformat()
+    with db.get_db() as conn:
+        conn.execute(
+            "DELETE FROM checks WHERE habit_id = ? AND check_date = ?",
+            (habit_id, today_str),
+        )
+    return get_habit(habit_id)
+
+
 def toggle_check(habit_id: str) -> Habit | None:
     """Toggle check for today. Returns updated Habit or None if not found."""
     habit = get_habit(habit_id)
@@ -218,14 +249,5 @@ def toggle_check(habit_id: str) -> Habit | None:
             (habit_id, today_str),
         )
         if cursor.fetchone():
-            conn.execute(
-                "DELETE FROM checks WHERE habit_id = ? AND check_date = ?",
-                (habit_id, today_str),
-            )
-        else:
-            with contextlib.suppress(sqlite3.IntegrityError):
-                conn.execute(
-                    "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
-                    (habit_id, today_str),
-                )
-    return get_habit(habit_id)
+            return uncheck_habit(habit_id)
+    return check_habit(habit_id)

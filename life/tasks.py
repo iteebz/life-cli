@@ -21,8 +21,10 @@ __all__ = [
     "get_task",
     "get_tasks",
     "set_blocked_by",
+    "check_task",
     "toggle_completed",
     "toggle_focus",
+    "uncheck_task",
     "update_task",
 ]
 
@@ -221,30 +223,44 @@ def delete_task(task_id: str) -> None:
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
 
 
+def check_task(task_id: str) -> Task | None:
+    """Mark task as complete. No-op if already completed."""
+    task = get_task(task_id)
+    if not task or task.completed_at:
+        return task
+    completed = clock.now().strftime("%Y-%m-%dT%H:%M:%S")
+    with db.get_db() as conn:
+        conn.execute(
+            "UPDATE tasks SET completed_at = ? WHERE id = ?",
+            (completed, task_id),
+        )
+        _record_mutation(conn, task_id, "completed_at", None, completed)
+        conn.execute(
+            "UPDATE tasks SET blocked_by = NULL WHERE blocked_by = ?",
+            (task_id,),
+        )
+    return get_task(task_id)
+
+
+def uncheck_task(task_id: str) -> Task | None:
+    """Mark task as pending. No-op if already pending."""
+    task = get_task(task_id)
+    if not task or not task.completed_at:
+        return task
+    with db.get_db() as conn:
+        conn.execute("UPDATE tasks SET completed_at = NULL WHERE id = ?", (task_id,))
+        _record_mutation(conn, task_id, "completed_at", task.completed_at, None)
+    return get_task(task_id)
+
+
 def toggle_completed(task_id: str) -> Task | None:
     """Toggle task completion. If completed, mark as pending. If pending, mark as complete."""
     task = get_task(task_id)
     if not task:
         return None
-
     if task.completed_at:
-        with db.get_db() as conn:
-            conn.execute("UPDATE tasks SET completed_at = NULL WHERE id = ?", (task_id,))
-            _record_mutation(conn, task_id, "completed_at", task.completed_at, None)
-    else:
-        completed = clock.now().strftime("%Y-%m-%dT%H:%M:%S")
-        with db.get_db() as conn:
-            conn.execute(
-                "UPDATE tasks SET completed_at = ? WHERE id = ?",
-                (completed, task_id),
-            )
-            _record_mutation(conn, task_id, "completed_at", None, completed)
-            conn.execute(
-                "UPDATE tasks SET blocked_by = NULL WHERE blocked_by = ?",
-                (task_id,),
-            )
-
-    return get_task(task_id)
+        return uncheck_task(task_id)
+    return check_task(task_id)
 
 
 def toggle_focus(task_id: str) -> Task | None:
