@@ -375,6 +375,26 @@ def tail(
     )
 
 
+@app.command(name="auto", hidden=True)
+def auto(
+    cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
+    every: int = typer.Option(0, "--every", min=0, help="Sleep between cycles (seconds)"),
+    model: str = typer.Option("glm-5", "--model", "-m", help="Model passed to glm"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print command without executing"),
+    continue_on_error: bool = typer.Option(
+        False, "--continue-on-error", help="Continue remaining cycles after command failures"
+    ),
+):
+    """Alias for tail"""
+    cmd_tail(
+        cycles=cycles,
+        interval_seconds=every,
+        model=model,
+        dry_run=dry_run,
+        continue_on_error=continue_on_error,
+    )
+
+
 @app.command()
 def track(
     description: list[str] = typer.Argument(None, help="Intervention description"),
