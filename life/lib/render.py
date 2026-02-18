@@ -323,9 +323,10 @@ def render_dashboard(
         all_links = get_all_links()
         top_level_regular = [t for t in regular_items if t.id not in subtask_ids]
         clusters = build_clusters(top_level_regular, all_links)
-        clustered_ids: set[str] = {t.id for cluster in clusters for t in cluster}
+        focused_clusters = [c for c in clusters if cluster_focus(c)]
+        clustered_ids: set[str] = {t.id for cluster in focused_clusters for t in cluster}
 
-        for cluster in sorted(clusters, key=lambda c: (not any(t.focus for t in c), min((t.due_date or date.max) for t in c))):
+        for cluster in sorted(focused_clusters, key=lambda c: min((t.due_date or date.max) for t in c)):
             focus = cluster_focus(cluster)
             if focus:
                 distances = link_distances(focus.id, all_links)
@@ -348,22 +349,6 @@ def render_dashboard(
                     peer_tags_str = _fmt_tags(peer.tags, tag_colors)
                     peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}" if verbose else ""
                     lines.append(f"  {ANSI.DIM}~ {peer.content.lower()}{peer_tags_str}{peer_id_str}{ANSI.RESET}")
-            else:
-                sorted_cluster = sort_items(cluster)
-                first = sorted_cluster[0]
-                tags_str = _fmt_tags(first.tags, tag_colors)
-                id_str = f" {ANSI.DIM}[{first.id[:8]}]{ANSI.RESET}" if verbose else ""
-                lines.append(f"\n  {first.content.lower()}{tags_str}{id_str}")
-                for sub in sort_items(subtasks_by_parent.get(first.id, [])):
-                    sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
-                    lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
-                for peer in sorted_cluster[1:]:
-                    peer_tags_str = _fmt_tags(peer.tags, tag_colors)
-                    peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}" if verbose else ""
-                    lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer.content.lower()}{peer_tags_str}{peer_id_str}")
-                    for sub in sort_items(subtasks_by_parent.get(peer.id, [])):
-                        sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
-                        lines.append(f"      {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
 
         unlinked = [t for t in top_level_regular if t.id not in clustered_ids]
         if unlinked:
