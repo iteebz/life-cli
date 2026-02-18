@@ -133,7 +133,7 @@ def render_dashboard(
     checked_today = habits_today + tasks_today
 
     delta_str = f"   {ANSI.BOLD}□{ANSI.RESET} {ANSI.BOLD}{ANSI.GREEN}+{added_today}{ANSI.RESET}{ANSI.WHITE}/{ANSI.RESET}{ANSI.BOLD}{ANSI.RED}−{deleted_today}{ANSI.RESET}" if added_today or deleted_today else ""
-    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.BOLD}{ANSI.WHITE}{current_time}{ANSI.RESET}\n{ANSI.BOLD}✓{ANSI.RESET} {ANSI.BOLD}{ANSI.WHITE}{checked_today}{ANSI.RESET}{delta_str}")
+    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET}\n{ANSI.BOLD}✓{ANSI.RESET} {ANSI.BOLD}{ANSI.WHITE}{checked_today}{ANSI.RESET}{delta_str}")
 
     all_pending = [item for item in items if isinstance(item, Task)]
     done_section = render_today_completed(today_items or [], all_pending, tag_colors)
