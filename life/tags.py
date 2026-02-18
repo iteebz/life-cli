@@ -29,17 +29,15 @@ def add_tag(task_id: str | None, habit_id: str | None, tag: str, conn=None) -> N
 
     if conn is None:
         with db.get_db() as conn:
-            with contextlib.suppress(sqlite3.IntegrityError):
-                conn.execute(
-                    "INSERT INTO tags (task_id, habit_id, tag) VALUES (?, ?, ?)",
-                    (task_id, habit_id, tag.lower()),
-                )
-    else:
-        with contextlib.suppress(sqlite3.IntegrityError):
             conn.execute(
-                "INSERT INTO tags (task_id, habit_id, tag) VALUES (?, ?, ?)",
+                "INSERT INTO tags (task_id, habit_id, tag) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
                 (task_id, habit_id, tag.lower()),
             )
+    else:
+        conn.execute(
+            "INSERT INTO tags (task_id, habit_id, tag) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+            (task_id, habit_id, tag.lower()),
+        )
 
 
 def get_tags_for_task(task_id: str) -> list[str]:
