@@ -23,6 +23,7 @@ from .commands import (
     cmd_rm,
     cmd_schedule,
     cmd_set,
+    cmd_show,
     cmd_stats,
     cmd_status,
     cmd_steward,
@@ -76,6 +77,28 @@ def task(
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
     cmd_task(content_args, focus=focus, due=due, tags=tags, under=under)
+
+
+@app.command(name="add", hidden=True)
+def add(
+    content_args: list[str] = typer.Argument(..., help="Task content"),
+    focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),
+    due: str = typer.Option(
+        None, "--due", "-d", help="Set due date (today, tomorrow, mon, YYYY-MM-DD)"
+    ),
+    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),
+    under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
+):
+    """Alias for task"""
+    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under)
+
+
+@app.command()
+def show(
+    args: list[str] = typer.Argument(..., help="Task to inspect (fuzzy or UUID prefix)"),
+):
+    """Show full task detail: ID, tags, due, subtasks, links"""
+    cmd_show(args)
 
 
 @app.command()

@@ -43,6 +43,8 @@ from .tasks import (
     defer_task,
     delete_task,
     get_all_tasks,
+    get_links,
+    get_subtasks,
     get_tasks,
     remove_link,
     set_blocked_by,
@@ -73,6 +75,7 @@ __all__ = [
     "cmd_link",
     "cmd_unlink",
     "cmd_set",
+    "cmd_show",
     "cmd_stats",
     "cmd_status",
     "cmd_steward",
@@ -117,6 +120,41 @@ def cmd_set(
     updated = resolve_task(content or ref)
     prefix = "  └ " if updated.parent_id else ""
     echo(f"{prefix}{format_status('□', updated.content, updated.id)}")
+
+
+def cmd_show(args: list[str]) -> None:
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life show <task>")
+    task = resolve_task(ref)
+    tags_str = " ".join(f"#{t}" for t in task.tags) if task.tags else ""
+    focus_str = " 🔥" if task.focus else ""
+    status = f"{ANSI.GREY}✓{ANSI.RESET}" if task.completed_at else "□"
+    echo(f"{status} {task.id}  {task.content.lower()}{(' ' + tags_str) if tags_str else ''}{focus_str}")
+    if task.due_date:
+        due_str = task.due_date.isoformat()
+        if task.due_time:
+            due_str += f" {task.due_time}"
+        echo(f"  due: {due_str}")
+    if task.blocked_by:
+        echo(f"  blocked by: {task.blocked_by}")
+    subtasks = get_subtasks(task.id)
+    if subtasks:
+        echo("  subtasks:")
+        for sub in subtasks:
+            sub_status = f"{ANSI.GREY}✓{ANSI.RESET}" if sub.completed_at else "□"
+            echo(f"    {sub_status} {sub.id}  {sub.content.lower()}")
+    linked = get_links(task.id)
+    if linked:
+        echo("  links:")
+        for lt in linked:
+            lt_status = f"{ANSI.GREY}✓{ANSI.RESET}" if lt.completed_at else "□"
+            lt_tags = " ".join(f"#{t}" for t in lt.tags) if lt.tags else ""
+            echo(f"    {lt_status} {lt.id}  {lt.content.lower()}{(' ' + lt_tags) if lt_tags else ''}")
+            lt_subs = get_subtasks(lt.id)
+            for sub in lt_subs:
+                sub_status = f"{ANSI.GREY}✓{ANSI.RESET}" if sub.completed_at else "□"
+                echo(f"      {sub_status} {sub.id}  {sub.content.lower()}")
 
 
 def cmd_link(a_args: list[str], b_args: list[str]) -> None:
