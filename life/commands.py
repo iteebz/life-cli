@@ -276,8 +276,6 @@ def cmd_task(
         parent_task = resolve_task(under)
         if parent_task.parent_id:
             exit_error("Error: subtasks cannot have subtasks")
-        if tags:
-            exit_error("Error: subtasks cannot have tags — they inherit from parent")
         parent_id = parent_task.id
     if focus and parent_id:
         exit_error("Error: cannot focus a subtask — set focus on the parent")
@@ -453,8 +451,6 @@ def cmd_tag(
         item_ref = " ".join(positionals[:-1])
     task, habit = resolve_item_exact(item_ref)
     if task:
-        if task.parent_id:
-            exit_error("Error: subtasks cannot have tags — they inherit from parent")
         if remove:
             remove_tag(task.id, None, tag_name_final)
             echo(f"{task.content} ← {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
