@@ -95,6 +95,7 @@ def cmd_set(
     args: list[str],
     parent: str | None = None,
     content: str | None = None,
+    description: str | object = None,
 ) -> None:
     ref = " ".join(args) if args else ""
     if not ref:
@@ -114,8 +115,10 @@ def cmd_set(
         if not content.strip():
             exit_error("Error: content cannot be empty")
         updates["content"] = content
+    if description is not None:
+        updates["description"] = description if description != "" else None
     if not updates:
-        exit_error("Nothing to set. Use -p for parent or -c for content.")
+        exit_error("Nothing to set. Use -p for parent, -c for content, or -d for description.")
     update_task(task.id, **updates)
     updated = resolve_task(content or ref)
     prefix = "  └ " if updated.parent_id else ""
@@ -136,6 +139,8 @@ def cmd_show(args: list[str]) -> None:
         if task.due_time:
             due_str += f" {task.due_time}"
         echo(f"  due: {due_str}")
+    if task.description:
+        echo(f"  {task.description}")
     if task.blocked_by:
         echo(f"  blocked by: {task.blocked_by}")
     subtasks = get_subtasks(task.id)
@@ -256,6 +261,7 @@ def cmd_task(
     due: str | None = None,
     tags: list[str] | None = None,
     under: str | None = None,
+    description: str | None = None,
 ) -> None:
     content = " ".join(content_args) if content_args else ""
     try:
@@ -273,7 +279,7 @@ def cmd_task(
         parent_id = parent_task.id
     if focus and parent_id:
         exit_error("Error: cannot focus a subtask — set focus on the parent")
-    task_id = add_task(content, focus=focus, due=resolved_due, tags=tags, parent_id=parent_id)
+    task_id = add_task(content, focus=focus, due=resolved_due, tags=tags, parent_id=parent_id, description=description)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
     prefix = "  └ " if parent_id else ""
     echo(f"{prefix}{format_status(symbol, content, task_id)}")

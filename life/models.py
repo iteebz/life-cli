@@ -13,6 +13,7 @@ class Task:
     parent_id: str | None = None
     due_time: str | None = None
     blocked_by: str | None = None
+    description: str | None = None
     tags: list[str] = dataclasses.field(default_factory=list, hash=False)
 
 

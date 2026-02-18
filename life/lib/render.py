@@ -151,14 +151,11 @@ def render_dashboard(
     done_section = render_today_completed(today_items or [], all_pending, tag_colors)
     if done_section:
         lines.append(f"\n{done_section}")
+
     dates_list = get_dates()
     if dates_list:
         upcoming = sorted(
-            [
-                date_item
-                for date_item in dates_list
-                if date.fromisoformat(date_item["date"]) >= today
-            ],
+            [date_item for date_item in dates_list if date.fromisoformat(date_item["date"]) >= today],
             key=lambda x: x["date"],
         )
         if upcoming:
@@ -167,15 +164,29 @@ def render_dashboard(
             emoji = next_date.get("emoji", "📌")
             name = next_date.get("name", "event")
             lines.append(f"{emoji} {days} days until {name}!")
+
     all_subtask_ids = {t.id for t in all_pending if t.parent_id}
+
+    all_links = get_all_links()
+    task_map = {t.id: t for t in all_pending}
+    linked_peers: dict[str, list[str]] = {}
+    for from_id, to_id in all_links:
+        if from_id in task_map and to_id in task_map:
+            linked_peers.setdefault(from_id, []).append(task_map[to_id].content.lower())
+            linked_peers.setdefault(to_id, []).append(task_map[from_id].content.lower())
+
+    def _link_hint(task_id: str) -> str:
+        peers = list(dict.fromkeys(linked_peers.get(task_id, [])))
+        if not peers:
+            return ""
+        return f" {ANSI.DIM}~ {', '.join(peers)}{ANSI.RESET}"
+
     due_today = [
-        t
-        for t in all_pending
+        t for t in all_pending
         if t.due_date and t.due_date.isoformat() == today_str and t.id not in all_subtask_ids
     ]
     due_tomorrow = [
-        t
-        for t in all_pending
+        t for t in all_pending
         if t.due_date and t.due_date.isoformat() == tomorrow_str and t.id not in all_subtask_ids
     ]
 
@@ -196,7 +207,8 @@ def render_dashboard(
         for task in sorted(due_today, key=_today_sort_key):
             scheduled_ids.add(task.id)
             tags_str = _fmt_tags(task.tags, tag_colors)
-            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
+            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}"
+            link_str = _link_hint(task.id)
             if task.due_time:
                 tc = _due_time_color(task.due_time, now)
                 time_str = f"{tc}{task.due_time}{ANSI.RESET} "
@@ -205,15 +217,13 @@ def render_dashboard(
             if task.blocked_by:
                 blocker_name = today_task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
                 blocked_str = f" {ANSI.DIM}← {blocker_name.lower()}{ANSI.RESET}"
-                lines.append(
-                    f"  ⊘ {ANSI.GREY}{time_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}"
-                )
+                lines.append(f"  ⊘ {ANSI.GREY}{time_str}{task.content.lower()}{tags_str}{ANSI.RESET}{blocked_str}{id_str}{link_str}")
             else:
                 fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
-                lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
+                lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
             for sub in sorted(all_subtasks_by_parent.get(task.id, []), key=_task_sort_key):
                 scheduled_ids.add(sub.id)
-                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}"
                 lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
@@ -224,11 +234,12 @@ def render_dashboard(
             scheduled_ids.add(task.id)
             fire = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
             tags_str = _fmt_tags(task.tags, tag_colors)
-            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
-            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}")
+            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}"
+            link_str = _link_hint(task.id)
+            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
             for sub in sorted(all_subtasks_by_parent.get(task.id, []), key=_task_sort_key):
                 scheduled_ids.add(sub.id)
-                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}"
                 lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
 
     habits = [item for item in items if isinstance(item, Habit)]
@@ -243,31 +254,18 @@ def render_dashboard(
 
     if all_habits_for_display:
         checked_today_count = len(today_habit_ids)
-        lines.append(
-            f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({checked_today_count}/{len(all_habits_for_display)}):{ANSI.RESET}"
-        )
-
+        lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}HABITS ({checked_today_count}/{len(all_habits_for_display)}):{ANSI.RESET}")
         sorted_habits = sorted(all_habits_for_display, key=lambda x: x.content.lower())
-
         incomplete_habits = [h for h in sorted_habits if h.id not in today_habit_ids]
         completed_habits = [h for h in sorted_habits if h.id in today_habit_ids]
-
         for habit in incomplete_habits:
-            content = habit.content
-            tags = habit.tags
-            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
+            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in habit.tags) if habit.tags else ""
             trend_indicator = _get_habit_trend(habit.checks)
-            lines.append(f"  □ {trend_indicator} {content.lower()}{tags_str}")
-
+            lines.append(f"  □ {trend_indicator} {habit.content.lower()}{tags_str}")
         for habit in completed_habits:
-            content = habit.content
-            tags = habit.tags
-            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
-
+            tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in habit.tags) if habit.tags else ""
             trend_indicator = _get_habit_trend(habit.checks)
-            lines.append(
-                f"  {ANSI.GREY}✓ {trend_indicator} {content.lower()}{tags_str}{ANSI.RESET}"
-            )
+            lines.append(f"  {ANSI.GREY}✓ {trend_indicator} {habit.content.lower()}{tags_str}{ANSI.RESET}")
 
     if regular_items:
         def sort_items(task_list: list[Task]):
@@ -290,12 +288,9 @@ def render_dashboard(
                 return f"{delta}d"
             return due.strftime("%b %-d")
 
-        def _render_task_with_subtasks(
-            task: Task, indent: str = "  ", tag: str | None = None, dim: bool = False
-        ) -> list[str]:
-            other_tags = [t for t in task.tags if t != tag] if tag else task.tags
-            tags_str = _fmt_tags(other_tags, tag_colors)
-            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}" if verbose else ""
+        def _render_task_with_subtasks(task: Task, indent: str = "  ") -> list[str]:
+            tags_str = _fmt_tags(task.tags, tag_colors)
+            id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}"
             if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
                 label = _short_date(task.due_date)
                 if task.due_time:
@@ -311,18 +306,15 @@ def render_dashboard(
             else:
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
                 row = f"{indent}{indicator}{date_str}{task.content.lower()}{tags_str}{id_str}"
-            if dim:
-                row = f"{ANSI.DIM}{row}{ANSI.RESET}"
             rows = [row]
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
-                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}"
                 rows.append(f"{indent}  {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
             for sub in completed_subs_by_parent.get(task.id, []):
-                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}"
                 rows.append(f"{indent}  {ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
             return rows
 
-        all_links = get_all_links()
         top_level_regular = [t for t in regular_items if t.id not in subtask_ids]
         clusters = build_clusters(top_level_regular, all_links)
         focused_clusters = [c for c in clusters if cluster_focus(c)]
@@ -333,50 +325,34 @@ def render_dashboard(
             if focus:
                 distances = link_distances(focus.id, all_links)
                 tags_str = _fmt_tags(focus.tags, tag_colors)
-                id_str = f" {ANSI.DIM}[{focus.id[:8]}]{ANSI.RESET}" if verbose else ""
+                id_str = f" {ANSI.DIM}[{focus.id[:8]}]{ANSI.RESET}"
                 lines.append(f"\n{ANSI.BOLD}⦿{ANSI.RESET} {focus.content.lower()}{tags_str}{id_str}")
                 for sub in sort_items(subtasks_by_parent.get(focus.id, [])):
-                    sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                    sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}"
                     lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
-                peers_1 = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) == 1], key=_task_sort_key)
-                peers_2 = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) == 2], key=_task_sort_key)
-                for peer in peers_1:
+                peers_close = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) <= 2], key=_task_sort_key)
+                peers_far = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) > 2], key=_task_sort_key)
+                for peer in peers_close:
                     peer_tags_str = _fmt_tags(peer.tags, tag_colors)
-                    peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}" if verbose else ""
+                    peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}"
                     lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer.content.lower()}{peer_tags_str}{peer_id_str}")
                     for sub in sort_items(subtasks_by_parent.get(peer.id, [])):
-                        sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                        sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}"
                         lines.append(f"      {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
-                for peer in peers_2:
+                for peer in peers_far:
                     peer_tags_str = _fmt_tags(peer.tags, tag_colors)
-                    peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}" if verbose else ""
+                    peer_id_str = f" {ANSI.DIM}[{peer.id[:8]}]{ANSI.RESET}"
                     lines.append(f"  {ANSI.DIM}~ {peer.content.lower()}{peer_tags_str}{peer_id_str}{ANSI.RESET}")
 
         unlinked = [t for t in top_level_regular if t.id not in clustered_ids]
         if unlinked:
-            tagged_regular: dict[str, list[Task]] = {}
-            untagged: list[Task] = []
-            for task in unlinked:
-                if task.tags:
-                    for tag in task.tags:
-                        tagged_regular.setdefault(tag, []).append(task)
-                else:
-                    untagged.append(task)
-
-            for tag in sorted(tagged_regular.keys()):
-                tag_tasks = sort_items(tagged_regular[tag])
-                if not tag_tasks:
+            seen_ids: set[str] = set()
+            lines.append("")
+            for task in sort_items(unlinked):
+                if task.id in seen_ids:
                     continue
-                tag_color = tag_colors.get(tag, ANSI.GREY)
-                lines.append(f"\n{ANSI.BOLD}{tag_color}{tag.upper()} ({len(tag_tasks)}):{ANSI.RESET}")
-                for task in tag_tasks:
-                    lines.extend(_render_task_with_subtasks(task, tag=tag))
-
-            top_untagged = sort_items(untagged)
-            if top_untagged:
-                lines.append(f"\n{ANSI.BOLD}{ANSI.DIM}BACKLOG ({len(top_untagged)}):{ANSI.RESET}")
-                for task in top_untagged:
-                    lines.extend(_render_task_with_subtasks(task))
+                seen_ids.add(task.id)
+                lines.extend(_render_task_with_subtasks(task))
 
     return "\n".join(lines) + "\n"
 

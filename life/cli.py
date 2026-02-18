@@ -74,9 +74,10 @@ def task(
     ),
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
+    description: str = typer.Option(None, "--desc", help="Optional description"),
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
-    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under)
+    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under, description=description)
 
 
 @app.command(name="add", hidden=True)
@@ -88,9 +89,10 @@ def add(
     ),
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
+    description: str = typer.Option(None, "--desc", help="Optional description"),
 ):
     """Alias for task"""
-    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under)
+    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under, description=description)
 
 
 @app.command()
@@ -304,9 +306,10 @@ def set_cmd(
     args: list[str] = typer.Argument(..., help="Task to modify (fuzzy match)"),
     parent: str = typer.Option(None, "--parent", "-p", help="Set parent task (fuzzy match)"),
     content: str = typer.Option(None, "--content", "-c", help="Rename task"),
+    description: str = typer.Option(None, "--desc", "-d", help="Set or clear description (pass empty string to clear)"),
 ):
     """Set parent or content on an existing task"""
-    cmd_set(args, parent=parent, content=content)
+    cmd_set(args, parent=parent, content=content, description=description)
 
 
 @app.command()

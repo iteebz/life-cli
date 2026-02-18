@@ -50,14 +50,15 @@ def add_task(
     due: str | None = None,
     tags: list[str] | None = None,
     parent_id: str | None = None,
+    description: str | None = None,
 ) -> str:
     """Adds a new task. Returns task_id."""
     task_id = str(uuid.uuid4())
     with db.get_db() as conn:
         try:
             conn.execute(
-                "INSERT INTO tasks (id, content, focus, due_date, created, parent_id) VALUES (?, ?, ?, ?, ?, ?)",
-                (task_id, content, focus, due, clock.today().isoformat(), parent_id),
+                "INSERT INTO tasks (id, content, focus, due_date, created, parent_id, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (task_id, content, focus, due, clock.today().isoformat(), parent_id, description),
             )
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Failed to add task: {e}") from e
@@ -71,7 +72,7 @@ def get_task(task_id: str) -> Task | None:
     """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE id = ?",
             (task_id,),
         )
         row = cursor.fetchone()
@@ -87,7 +88,7 @@ def get_tasks() -> list[Task]:
     """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -101,7 +102,7 @@ def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -115,7 +116,7 @@ def get_subtasks(parent_id: str) -> list[Task]:
     """Return all tasks with the given parent_id."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE parent_id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE parent_id = ?",
             (parent_id,),
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
@@ -128,7 +129,7 @@ def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE focus = 1 AND completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE focus = 1 AND completed_at IS NULL"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -169,6 +170,7 @@ def update_task(
     due: str | object = _UNSET,
     due_time: str | object = _UNSET,
     parent_id: str | object = _UNSET,
+    description: str | object = _UNSET,
 ) -> Task | None:
     """Partial update, return updated Task. Pass None to clear a nullable field."""
     updates = {}
@@ -182,6 +184,8 @@ def update_task(
         updates["due_time"] = due_time
     if parent_id is not _UNSET:
         updates["parent_id"] = parent_id
+    if description is not _UNSET:
+        updates["description"] = description
 
     if updates:
         old = get_task(task_id)
@@ -362,7 +366,7 @@ def get_links(task_id: str) -> list[Task]:
     """Return all tasks linked to/from task_id."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE id IN (SELECT to_id FROM task_links WHERE from_id = ? UNION SELECT from_id FROM task_links WHERE to_id = ?)",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE id IN (SELECT to_id FROM task_links WHERE from_id = ? UNION SELECT from_id FROM task_links WHERE to_id = ?)",
             (task_id, task_id),
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
