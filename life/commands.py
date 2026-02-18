@@ -401,9 +401,6 @@ def cmd_unblock(args: list[str]) -> None:
 
 
 def cmd_steward() -> None:
-    prompt_path = Path.home() / "life" / "STEWARD.md"
-    if not prompt_path.exists():
-        exit_error("STEWARD.md not found at ~/life/STEWARD.md")
     tasks_before = get_tasks()
     all_before = get_all_tasks()
     today_date = today()
