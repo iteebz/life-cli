@@ -1,7 +1,7 @@
 from datetime import datetime, time, timedelta
 
 from life import db
-from life.dash import (
+from life.dashboard import (
     get_pending_items,
     get_today_breakdown,
     get_today_completed,

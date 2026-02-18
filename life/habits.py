@@ -9,7 +9,7 @@ from .lib import clock
 from .lib.converters import row_to_habit
 from .lib.fuzzy import find_in_pool
 from .models import Habit
-from .tags import load_tags_for_habits
+from .tags import get_tags_for_habit, load_tags_for_habits
 
 __all__ = [
     "add_habit",
@@ -73,7 +73,7 @@ def get_habit(habit_id: str) -> Habit | None:
 
         habit = row_to_habit(row)
         checks = _get_habit_checks(conn, habit_id)
-        tags = _get_habit_tags(conn, habit_id)
+        tags = get_tags_for_habit(habit_id)
         return _hydrate_habit(habit, checks, tags)
 
 

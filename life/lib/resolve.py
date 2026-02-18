@@ -21,9 +21,15 @@ def resolve_habit(ref: str) -> Habit:
     return habit
 
 
-def resolve_item(ref: str) -> tuple[Task | None, Habit | None]:
-    task = find_task(ref)
+def _find_item(ref: str, find_task_fn) -> tuple[Task | None, Habit | None]:
+    """Common logic for finding a task/habit pair."""
+    task = find_task_fn(ref)
     habit = find_habit(ref) if not task else None
+    return task, habit
+
+
+def resolve_item(ref: str) -> tuple[Task | None, Habit | None]:
+    task, habit = _find_item(ref, find_task)
     if not task and not habit:
         exit_error(f"No item found: '{ref}'")
     return task, habit
@@ -31,10 +37,9 @@ def resolve_item(ref: str) -> tuple[Task | None, Habit | None]:
 
 def resolve_item_any(ref: str) -> tuple[Task | None, Habit | None]:
     """Like resolve_item but falls back to completed tasks. Only for toggling done."""
-    task = find_task(ref)
-    habit = find_habit(ref) if not task else None
+    task, habit = _find_item(ref, find_task)
     if not task and not habit:
-        task = find_task_any(ref)
+        task, _ = _find_item(ref, find_task_any)
     if not task and not habit:
         exit_error(f"No item found: '{ref}'")
     return task, habit

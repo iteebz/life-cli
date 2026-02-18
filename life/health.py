@@ -8,6 +8,8 @@ from life import config
 from life.db import get_db
 from life.lib.errors import echo
 
+__all__ = ["CheckResult", "cli", "score"]
+
 
 @dataclass
 class CheckResult:

@@ -1,5 +1,4 @@
-import datetime
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 from . import db
 from .lib import clock
@@ -12,11 +11,11 @@ def _calculate_total_possible(active_items_data, week_start_date, week_end_date)
     total_possible = 0
     for _item_id, created_iso_str in active_items_data:
         if isinstance(created_iso_str, (int, float)):
-            created_date = datetime.datetime.fromtimestamp(created_iso_str).date()
+            created_date = datetime.fromtimestamp(created_iso_str).date()
         elif isinstance(created_iso_str, str) and created_iso_str.replace(".", "").isdigit():
-            created_date = datetime.datetime.fromtimestamp(float(created_iso_str)).date()
+            created_date = datetime.fromtimestamp(float(created_iso_str)).date()
         else:
-            created_date = datetime.date.fromisoformat(created_iso_str.split("T")[0])
+            created_date = date.fromisoformat(created_iso_str.split("T")[0])
 
         if created_date > week_end_date:
             continue
@@ -101,8 +100,8 @@ def weekly_momentum():
 
             habits_total_possible = _calculate_total_possible(
                 active_habits_data,
-                datetime.date.fromisoformat(start_str),
-                datetime.date.fromisoformat(end_str),
+                date.fromisoformat(start_str),
+                date.fromisoformat(end_str),
             )
 
             weeks[week_name] = Weekly(

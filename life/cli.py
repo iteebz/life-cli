@@ -59,12 +59,12 @@ def dash(
 
 @app.command()
 def task(
-    content_args: list[str] = typer.Argument(..., help="Task content"),  # noqa: B008
+    content_args: list[str] = typer.Argument(..., help="Task content"),
     focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),
     due: str = typer.Option(
         None, "--due", "-d", help="Set due date (today, tomorrow, mon, YYYY-MM-DD)"
     ),
-    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),  # noqa: B008
+    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
@@ -73,8 +73,8 @@ def task(
 
 @app.command()
 def habit(
-    content_args: list[str] = typer.Argument(..., help="Habit content"),  # noqa: B008
-    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to habit"),  # noqa: B008
+    content_args: list[str] = typer.Argument(..., help="Habit content"),
+    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to habit"),
 ):
     """Add daily habit (auto-resets on completion)"""
     cmd_habit(content_args, tags=tags)
@@ -82,7 +82,7 @@ def habit(
 
 @app.command()
 def done(
-    args: list[str] = typer.Argument(..., help="Partial match for the item to mark done/undone"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Partial match for the item to mark done/undone"),
 ):
     """Mark task/habit as done or undone."""
     cmd_done(args)
@@ -90,7 +90,7 @@ def done(
 
 @app.command()
 def rm(
-    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
+    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),
 ):
     """Delete item or completed task (fuzzy match)"""
     cmd_rm(args)
@@ -98,7 +98,7 @@ def rm(
 
 @app.command()
 def focus(
-    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),
 ):
     """Toggle focus status on task (fuzzy match)"""
     cmd_focus(args)
@@ -106,7 +106,7 @@ def focus(
 
 @app.command()
 def due(
-    args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and item content"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and item content"),
     remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),
 ):
     """Set or remove due date on item (fuzzy match)"""
@@ -115,7 +115,7 @@ def due(
 
 @app.command()
 def rename(
-    from_args: list[str] = typer.Argument(  # noqa: B008
+    from_args: list[str] = typer.Argument(
         ..., help="Content to fuzzy match for the item to rename"
     ),
     to_content: str = typer.Argument(..., help="The exact new content for the item"),
@@ -127,7 +127,7 @@ def rename(
 @app.command()
 def tag(
     tag_name: str | None = typer.Argument(None, help="Tag name"),
-    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),  # noqa: B008
+    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),
     tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),
     remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),
 ):
@@ -192,7 +192,7 @@ def momentum():
 
 @app.command(name="defer")
 def defer_cmd(
-    args: list[str] = typer.Argument(..., help="Task to defer (fuzzy)"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Task to defer (fuzzy)"),
     reason: str = typer.Option(..., "--reason", "--why", help="Why are you deferring this?"),
 ):
     """Defer a task with a required reason"""
@@ -201,7 +201,7 @@ def defer_cmd(
 
 @app.command(name="now")
 def now_cmd(
-    args: list[str] = typer.Argument(..., help="Task to schedule for right now"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Task to schedule for right now"),
 ):
     """Set a task due today at the current time"""
     cmd_now(args)
@@ -209,7 +209,7 @@ def now_cmd(
 
 @app.command(name="today")
 def today_cmd(
-    args: list[str] = typer.Argument(None, help="Partial task name to set due today"),  # noqa: B008
+    args: list[str] = typer.Argument(None, help="Partial task name to set due today"),
 ):
     """Set due date to today on a task (fuzzy match)"""
     cmd_today(args)
@@ -217,7 +217,7 @@ def today_cmd(
 
 @app.command()
 def tomorrow(
-    args: list[str] = typer.Argument(None, help="Partial task name to set due tomorrow"),  # noqa: B008
+    args: list[str] = typer.Argument(None, help="Partial task name to set due tomorrow"),
 ):
     """Set due date to tomorrow on a task (fuzzy match)"""
     cmd_tomorrow(args)
@@ -225,7 +225,7 @@ def tomorrow(
 
 @app.command()
 def schedule(
-    args: list[str] = typer.Argument(..., help="HH:MM and task name, or task name with -r"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="HH:MM and task name, or task name with -r"),
     remove: bool = typer.Option(False, "-r", "--remove", help="Clear scheduled time"),
 ):
     """Set or clear scheduled time on a task (fuzzy match)"""
@@ -234,8 +234,8 @@ def schedule(
 
 @app.command()
 def block(
-    blocked: list[str] = typer.Argument(..., help="Task to mark as blocked (fuzzy)"),  # noqa: B008
-    blocker: list[str] = typer.Option(..., "--by", "-b", help="Task that is blocking (fuzzy)"),  # noqa: B008
+    blocked: list[str] = typer.Argument(..., help="Task to mark as blocked (fuzzy)"),
+    blocker: list[str] = typer.Option(..., "--by", "-b", help="Task that is blocking (fuzzy)"),
 ):
     """Mark a task as blocked by another task"""
     cmd_block(blocked, blocker)
@@ -243,7 +243,7 @@ def block(
 
 @app.command()
 def unblock(
-    args: list[str] = typer.Argument(..., help="Task to unblock (fuzzy)"),  # noqa: B008
+    args: list[str] = typer.Argument(..., help="Task to unblock (fuzzy)"),
 ):
     """Clear blocked_by on a task"""
     cmd_unblock(args)
@@ -257,7 +257,7 @@ def steward():
 
 @app.command()
 def track(
-    description: list[str] = typer.Argument(None, help="Intervention description"),  # noqa: B008
+    description: list[str] = typer.Argument(None, help="Intervention description"),
     won: bool = typer.Option(False, "--won", "-w", help="Mark as won"),
     lost: bool = typer.Option(False, "--lost", "-l", help="Mark as lost"),
     deferred: bool = typer.Option(False, "--deferred", "-d", help="Mark as deferred"),

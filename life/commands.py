@@ -2,7 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from .config import get_profile, set_profile
-from .dash import get_pending_items, get_today_breakdown, get_today_completed
+from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import (
     add_habit,
     delete_habit,
@@ -348,13 +348,13 @@ def cmd_dates(
 def cmd_list() -> None:
     tasks = get_tasks()
     habits = get_habits()
-    for t in tasks:
-        tag_str = f"  {ANSI.GREY}#{' #'.join(t.tags)}{ANSI.RESET}" if t.tags else ""
-        symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if t.focus else "□"
-        echo(f"{symbol} {t.content}{tag_str}")
-    for h in habits:
-        tag_str = f"  {ANSI.GREY}#{' #'.join(h.tags)}{ANSI.RESET}" if h.tags else ""
-        echo(f"↻ {h.content}{tag_str}")
+    for task in tasks:
+        tag_str = f"  {ANSI.GREY}#{' #'.join(task.tags)}{ANSI.RESET}" if task.tags else ""
+        symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if task.focus else "□"
+        echo(f"{symbol} {task.content}{tag_str}")
+    for habit in habits:
+        tag_str = f"  {ANSI.GREY}#{' #'.join(habit.tags)}{ANSI.RESET}" if habit.tags else ""
+        echo(f"↻ {habit.content}{tag_str}")
 
 
 def cmd_status() -> None:
@@ -413,7 +413,7 @@ def cmd_backup() -> None:
     echo(str(path))
     echo(f"  {rows} rows{delta_str}")
 
-    for table, delta in sorted(delta_by_table.items(), key=lambda x: -abs(x[1])):
+    for table, delta in sorted(delta_by_table.items(), key=lambda x: abs(x[1]), reverse=True):
         sign = "+" if delta > 0 else ""
         echo(f"    {table} {sign}{delta}")
 

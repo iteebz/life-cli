@@ -4,27 +4,13 @@ from .lib import clock
 from .lib.converters import row_to_task
 from .models import Habit, Task
 from .tags import hydrate_tags, load_tags_for_tasks
-from .tasks import _task_sort_key
+from .tasks import _task_sort_key, get_tasks
 
 __all__ = [
     "get_pending_items",
     "get_today_breakdown",
     "get_today_completed",
 ]
-
-
-def _get_pending_tasks() -> list[Task]:
-    """Internal: SELECT completed IS NULL, sorted by (focus DESC, due_date ASC, created ASC)."""
-    with db.get_db() as conn:
-        cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE completed_at IS NULL"
-        )
-        tasks = [row_to_task(row) for row in cursor.fetchall()]
-        task_ids = [t.id for t in tasks]
-        tags_map = load_tags_for_tasks(task_ids, conn=conn)
-        result = hydrate_tags(tasks, tags_map)
-
-    return sorted(result, key=_task_sort_key)
 
 
 def _get_checked_today() -> list[Habit]:
@@ -66,7 +52,7 @@ def _get_completed_today() -> list[Task]:
 
 def get_pending_items(asc: bool = True) -> list[Task]:
     """Get pending tasks for display. asc=True returns sorted ascending."""
-    tasks = _get_pending_tasks()
+    tasks = get_tasks()
     return sorted(tasks, key=_task_sort_key, reverse=not asc)
 
 
