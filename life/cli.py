@@ -355,7 +355,7 @@ def steward():
     cmd_steward()
 
 
-@app.command()
+@app.command(name="tail", hidden=True)
 def tail(
     cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
     every: int = typer.Option(0, "--every", min=0, help="Sleep between cycles (seconds)"),
@@ -365,7 +365,7 @@ def tail(
         False, "--continue-on-error", help="Continue remaining cycles after command failures"
     ),
 ):
-    """Run unattended Steward loop through the glm connector"""
+    """Compatibility alias for auto"""
     cmd_tail(
         cycles=cycles,
         interval_seconds=every,
@@ -375,7 +375,7 @@ def tail(
     )
 
 
-@app.command(name="auto", hidden=True)
+@app.command(name="auto")
 def auto(
     cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
     every: int = typer.Option(0, "--every", min=0, help="Sleep between cycles (seconds)"),
@@ -385,7 +385,7 @@ def auto(
         False, "--continue-on-error", help="Continue remaining cycles after command failures"
     ),
 ):
-    """Alias for tail"""
+    """Run unattended Steward loop through the glm connector"""
     cmd_tail(
         cycles=cycles,
         interval_seconds=every,
