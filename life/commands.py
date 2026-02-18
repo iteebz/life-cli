@@ -211,6 +211,8 @@ def cmd_task(
         if tags:
             exit_error("Error: subtasks cannot have tags — they inherit from parent")
         parent_id = parent_task.id
+    if focus and parent_id:
+        exit_error("Error: cannot focus a subtask — set focus on the parent")
     task_id = add_task(content, focus=focus, due=resolved_due, tags=tags, parent_id=parent_id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
     prefix = "  └ " if parent_id else ""
@@ -301,6 +303,8 @@ def cmd_focus(args: list[str]) -> None:
     if not ref:
         exit_error("Usage: life focus <item>")
     task = resolve_task(ref)
+    if task.parent_id:
+        exit_error("Focus must be set on a parent task, not a subtask")
     toggle_focus(task.id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if not task.focus else "□"
     echo(format_status(symbol, task.content, task.id))
@@ -311,6 +315,8 @@ def cmd_unfocus(args: list[str]) -> None:
     if not ref:
         exit_error("Usage: life unfocus <item>")
     task = resolve_task(ref)
+    if task.parent_id:
+        exit_error("Focus must be set on a parent task, not a subtask")
     if not task.focus:
         exit_error(f"'{task.content}' is not focused")
     toggle_focus(task.id)
