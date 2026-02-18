@@ -88,7 +88,7 @@ def _build_link_peers(tasks: list[Task], links: list[tuple[str, str]]) -> dict[s
 
 
 def _render_header(today: date, tasks_done: int, habits_done: int, total_habits: int, added: int, deleted: int) -> list[str]:
-    lines = [f"\n{ANSI.GREY}{today}{ANSI.RESET}"]
+    lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}{today}{ANSI.RESET}"]
     lines.append(f"{ANSI.GREY}done: {ANSI.GREEN}{tasks_done}{ANSI.RESET}")
     lines.append(f"{ANSI.GREY}habits: {ANSI.CYAN}{habits_done}{ANSI.GREY}/{total_habits}{ANSI.RESET}")
     if added:
@@ -127,7 +127,7 @@ def _render_done(
                 latest_check = max(item.checks)
                 if latest_check.date() == clock.today():
                     time_str = latest_check.strftime("%H:%M")
-            lines.append(f"  {ANSI.GREY}✓ {time_str} {content}{tags_str}{id_str}{ANSI.RESET}")
+            lines.append(f"  ✓ {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}")
         elif isinstance(item, Task) and item.completed_at:
             time_str = item.completed_at.strftime("%H:%M")
             parent_str = ""
