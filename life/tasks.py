@@ -5,7 +5,7 @@ from datetime import datetime
 from . import db
 from .lib import clock
 from .lib.converters import row_to_task
-from .lib.fuzzy import find_in_pool
+from .lib.fuzzy import find_in_pool, find_in_pool_exact
 from .models import Task, TaskMutation
 from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
@@ -16,6 +16,7 @@ __all__ = [
     "delete_task",
     "find_task",
     "find_task_any",
+    "find_task_exact",
     "get_all_tasks",
     "get_focus",
     "get_mutations",
@@ -337,6 +338,10 @@ def find_task(ref: str) -> Task | None:
 
 def find_task_any(ref: str) -> Task | None:
     return find_in_pool(ref, get_all_tasks())
+
+
+def find_task_exact(ref: str) -> Task | None:
+    return find_in_pool_exact(ref, get_tasks())
 
 
 def get_all_links() -> list[tuple[str, str]]:

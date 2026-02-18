@@ -182,23 +182,21 @@ def rename(
 
 @app.command()
 def tag(
-    tag_name: str | None = typer.Argument(None, help="Tag name"),
-    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),
+    args: list[str] = typer.Argument(None, help="Item content then tag name: \"ITEM\" TAG"),
     tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),
     remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),
 ):
-    """Add or remove tag on item (fuzzy match)"""
-    cmd_tag(tag_name, args, tag_opt=tag_opt, remove=remove)
+    """Add tag: life tag \"ITEM\" TAG"""
+    cmd_tag(None, args, tag_opt=tag_opt, remove=remove)
 
 
 @app.command()
 def untag(
-    tag_name: str | None = typer.Argument(None, help="Tag name"),
-    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),
+    args: list[str] = typer.Argument(None, help="Item content then tag name: \"ITEM\" TAG"),
     tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),
 ):
-    """Remove tag from item (fuzzy match)"""
-    cmd_untag(tag_name, args, tag_opt=tag_opt)
+    """Remove tag: life untag \"ITEM\" TAG"""
+    cmd_untag(None, args, tag_opt=tag_opt)
 
 
 @app.command()

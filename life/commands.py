@@ -31,7 +31,7 @@ from .lib.errors import echo, exit_error
 from .lib.format import format_status
 from .lib.parsing import parse_due_and_item, parse_time, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
-from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_task
+from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_item_exact, resolve_task
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
@@ -438,18 +438,18 @@ def cmd_tag(
     tag_opt: str | None = None,
     remove: bool = False,
 ) -> None:
+    positionals = (args or [])
     if tag_opt:
         tag_name_final = tag_opt
-        positionals = ([tag_name] if tag_name else []) + (args or [])
         item_ref = " ".join(positionals)
     else:
-        if not tag_name or not args:
+        if not positionals or len(positionals) < 2:
             exit_error(
-                "Error: Missing arguments. Use `life tag TAG ITEM...` or `life tag ITEM... --tag TAG`."
+                'Usage: life tag "ITEM" TAG  or  life tag "ITEM" --tag TAG'
             )
-        tag_name_final = tag_name
-        item_ref = " ".join(args)
-    task, habit = resolve_item(item_ref)
+        tag_name_final = positionals[-1]
+        item_ref = " ".join(positionals[:-1])
+    task, habit = resolve_item_exact(item_ref)
     if task:
         if task.parent_id:
             exit_error("Error: subtasks cannot have tags — they inherit from parent")

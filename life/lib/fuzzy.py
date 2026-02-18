@@ -5,7 +5,7 @@ from typing import TypeVar
 from life.lib.errors import exit_error
 from life.models import Habit, Task
 
-__all__ = ["find_in_pool"]
+__all__ = ["find_in_pool", "find_in_pool_exact"]
 
 FUZZY_MATCH_CUTOFF = 0.8
 
@@ -59,3 +59,9 @@ def find_in_pool[T: (Task, Habit)](ref: str, pool: Sequence[T]) -> T | None:
     if not pool:
         return None
     return _match_uuid_prefix(ref, pool) or _match_substring(ref, pool) or _match_fuzzy(ref, pool)
+
+
+def find_in_pool_exact[T: (Task, Habit)](ref: str, pool: Sequence[T]) -> T | None:
+    if not pool:
+        return None
+    return _match_uuid_prefix(ref, pool) or _match_substring(ref, pool)

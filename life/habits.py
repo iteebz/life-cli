@@ -7,7 +7,7 @@ from datetime import date, datetime
 from . import db
 from .lib import clock
 from .lib.converters import row_to_habit
-from .lib.fuzzy import find_in_pool
+from .lib.fuzzy import find_in_pool, find_in_pool_exact
 from .models import Habit
 from .tags import get_tags_for_habit, load_tags_for_habits
 
@@ -206,6 +206,10 @@ def archive_habit(habit_id: str) -> Habit | None:
 
 def find_habit(ref: str) -> Habit | None:
     return find_in_pool(ref, get_habits())
+
+
+def find_habit_exact(ref: str) -> Habit | None:
+    return find_in_pool_exact(ref, get_habits())
 
 
 def check_habit(habit_id: str) -> Habit | None:
