@@ -366,6 +366,10 @@ def tail(
         2, "--retry-delay", min=0, help="Sleep between retries (seconds)"
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print command without executing"),
+    raw: bool = typer.Option(False, "--raw", "--json", help="Emit raw stream JSON lines"),
+    quiet_system: bool = typer.Option(
+        False, "--quiet-system", help="Suppress session/init system lines"
+    ),
     continue_on_error: bool = typer.Option(
         False, "--continue-on-error", help="Continue remaining cycles after command failures"
     ),
@@ -379,6 +383,8 @@ def tail(
         retries=retries,
         retry_delay_seconds=retry_delay,
         dry_run=dry_run,
+        raw=raw,
+        quiet_system=quiet_system,
         continue_on_error=continue_on_error,
     )
 
@@ -394,6 +400,10 @@ def auto(
         2, "--retry-delay", min=0, help="Sleep between retries (seconds)"
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print command without executing"),
+    raw: bool = typer.Option(False, "--raw", "--json", help="Emit raw stream JSON lines"),
+    quiet_system: bool = typer.Option(
+        False, "--quiet-system", help="Suppress session/init system lines"
+    ),
     continue_on_error: bool = typer.Option(
         False, "--continue-on-error", help="Continue remaining cycles after command failures"
     ),
@@ -407,6 +417,8 @@ def auto(
         retries=retries,
         retry_delay_seconds=retry_delay,
         dry_run=dry_run,
+        raw=raw,
+        quiet_system=quiet_system,
         continue_on_error=continue_on_error,
     )
 

@@ -1,6 +1,8 @@
 import sys
 import time
 import subprocess
+import threading
+from queue import Empty, Queue
 from datetime import timedelta
 from pathlib import Path
 
@@ -33,6 +35,7 @@ from .lib.parsing import parse_due_and_item, parse_time, validate_content
 from .lib.providers import glm
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum, render_task_detail
 from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_item_exact, resolve_task
+from .lib.tail import StreamParser, format_entry
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
@@ -113,6 +116,8 @@ def cmd_tail(
     timeout_seconds: int = 1200,
     retries: int = 2,
     retry_delay_seconds: int = 2,
+    raw: bool = False,
+    quiet_system: bool = False,
 ) -> None:
     if cycles < 1:
         exit_error("--cycles must be >= 1")
@@ -142,16 +147,17 @@ def cmd_tail(
                 if attempt > 1:
                     echo(f"[tail] retry {attempt - 1}/{retries} after failure")
                 try:
-                    result = subprocess.run(
+                    last_rc = _run_tail_stream(
                         cmd,
                         cwd=life_dir,
                         env=env,
-                        check=False,
                         timeout=timeout_seconds,
+                        raw=raw,
+                        quiet_system=quiet_system,
                     )
-                    last_rc = result.returncode
-                except subprocess.TimeoutExpired:
-                    last_rc = 124
+                except Exception as exc:
+                    echo(f"[tail] execution error: {exc}", err=True)
+                    last_rc = 1
 
                 if last_rc == 0:
                     ok = True
@@ -167,6 +173,103 @@ def cmd_tail(
         if i < cycles and interval_seconds > 0:
             echo(f"[tail] sleeping {interval_seconds}s")
             time.sleep(interval_seconds)
+
+
+def _read_stream_lines(stream_name: str, stream, out_q: Queue[tuple[str, str | None]]) -> None:
+    try:
+        for line in iter(stream.readline, ""):
+            out_q.put((stream_name, line))
+    finally:
+        out_q.put((stream_name, None))
+
+
+def _run_tail_stream(
+    cmd: list[str],
+    cwd: Path,
+    env: dict[str, str],
+    timeout: int,
+    raw: bool,
+    quiet_system: bool,
+) -> int:
+    parser = StreamParser()
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+    assert proc.stdout is not None
+    assert proc.stderr is not None
+
+    out_q: Queue[tuple[str, str | None]] = Queue()
+    stdout_thread = threading.Thread(
+        target=_read_stream_lines, args=("stdout", proc.stdout, out_q), daemon=True
+    )
+    stderr_thread = threading.Thread(
+        target=_read_stream_lines, args=("stderr", proc.stderr, out_q), daemon=True
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+
+    deadline = time.monotonic() + timeout
+    stdout_done = False
+    stderr_done = False
+    stderr_lines: list[str] = []
+    timed_out = False
+
+    while not (stdout_done and stderr_done):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            timed_out = True
+            break
+        try:
+            stream_name, line = out_q.get(timeout=min(0.2, remaining))
+        except Empty:
+            if proc.poll() is not None and stdout_done and stderr_done:
+                break
+            continue
+
+        if line is None:
+            if stream_name == "stdout":
+                stdout_done = True
+            else:
+                stderr_done = True
+            continue
+
+        text = line.rstrip("\n")
+        if stream_name == "stderr":
+            if text.strip():
+                stderr_lines.append(text.strip())
+            continue
+
+        if raw:
+            echo(text)
+            continue
+
+        entry = parser.parse_line(text)
+        rendered = format_entry(entry, quiet_system=quiet_system) if entry else None
+        if rendered:
+            echo(rendered)
+
+    if timed_out:
+        proc.terminate()
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+        echo(f"[tail] timed out after {timeout}s", err=True)
+        return 124
+
+    rc = proc.wait()
+    stdout_thread.join(timeout=0.2)
+    stderr_thread.join(timeout=0.2)
+    if rc != 0 and stderr_lines:
+        echo(f"[tail] stderr: {stderr_lines[-1]}", err=True)
+    return rc
 
 
 def cmd_set(

@@ -120,8 +120,18 @@ Ephemeral Claude agents with different behavioral constitutions. See [docs/perso
 | `profile` | `life profile ["text"]` | View/set personal profile |
 | `context` | `life context ["text"]` | View/set operational context |
 | `countdown` | `life countdown [add NAME DATE \| remove NAME \| list]` | Manage countdowns |
-| `auto` | `life auto [--cycles N] [--every SEC] [--model glm-5] [--dry-run]` | Run unattended Steward loop via `glm` connector |
+| `auto` | `life auto [--cycles N] [--every SEC] [--model glm-5] [--raw] [--dry-run]` | Run unattended Steward loop via `glm` connector (pretty tail by default) |
 | `backup` | `life backup` | Create database backup |
 | `personas` | `life personas [NAME] [--set] [--prompt]` | Manage personas |
 | `chat` | `life chat "message"` | Chat with set persona |
 | `items` | `life items` | List all items |
+
+### Unattended Auto Loop
+
+```bash
+# Pretty parsed tail output (default)
+life auto --cycles 1 --timeout 1200 --retries 2
+
+# Debug raw stream-json lines
+life auto --cycles 1 --raw
+```
