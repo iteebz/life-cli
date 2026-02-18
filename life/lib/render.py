@@ -43,14 +43,14 @@ def _get_trend(current: int, previous: int) -> str:
     return "→"
 
 
-def _get_habit_trend(checks: list[date]) -> str:
+def _get_habit_trend(checks: list[datetime]) -> str:
     today = clock.today()
     period1_start = today - timedelta(days=6)
     period2_start = today - timedelta(days=13)
     period2_end = period1_start - timedelta(days=1)
 
-    count_p1 = sum(1 for d in checks if period1_start <= d <= today)
-    count_p2 = sum(1 for d in checks if period2_start <= d <= period2_end)
+    count_p1 = sum(1 for dt in checks if period1_start <= dt.date() <= today)
+    count_p2 = sum(1 for dt in checks if period2_start <= dt.date() <= period2_end)
 
     if count_p1 > count_p2:
         return "↗"
@@ -495,7 +495,7 @@ def render_habit_matrix(habits: list[Habit]) -> str:
         habit_name = habit.content.lower()
         padded_habit_name = f"{habit_name:<15}"
 
-        check_dates = set(habit.checks)
+        check_dates = {dt.date() for dt in habit.checks}
 
         status_indicators = []
         for date_item in dates:

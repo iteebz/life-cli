@@ -33,13 +33,12 @@ def _hydrate_habit(habit: Habit, checks: list[date], tags: list[str]) -> Habit:
     return dataclasses.replace(habit, checks=checks, tags=tags)
 
 
-def _get_habit_checks(conn, habit_id: str) -> list[date]:
-    """Get all check dates for a habit."""
+def _get_habit_checks(conn, habit_id: str) -> list[datetime]:
     cursor = conn.execute(
-        "SELECT check_date FROM checks WHERE habit_id = ? ORDER BY check_date",
+        "SELECT completed_at FROM checks WHERE habit_id = ? ORDER BY completed_at",
         (habit_id,),
     )
-    return [datetime.fromisoformat(row[0]).date() for row in cursor.fetchall()]
+    return [datetime.fromisoformat(row[0]) for row in cursor.fetchall()]
 
 
 def add_habit(content: str, tags: list[str] | None = None) -> str:
@@ -131,21 +130,19 @@ def get_habits(habit_ids: list[str] | None = None) -> list[Habit]:
     return result
 
 
-def get_checks(habit_id: str) -> list[date]:
-    """SELECT check_dates for habit, return as date objects (sorted DESC)."""
+def get_checks(habit_id: str) -> list[datetime]:
     if not habit_id:
         raise ValueError("habit_id cannot be empty")
 
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT check_date FROM checks WHERE habit_id = ? ORDER BY check_date DESC",
+            "SELECT completed_at FROM checks WHERE habit_id = ? ORDER BY completed_at DESC",
             (habit_id,),
         )
-        return [datetime.fromisoformat(row[0]).date() for row in cursor.fetchall()]
+        return [datetime.fromisoformat(row[0]) for row in cursor.fetchall()]
 
 
 def get_streak(habit_id: str) -> int:
-    """Count consecutive days checked (most recent backwards)."""
     if not habit_id:
         raise ValueError("habit_id cannot be empty")
 
@@ -158,14 +155,14 @@ def get_streak(habit_id: str) -> int:
     today = clock.today()
 
     for i in range(len(checks) - 1):
-        current = checks[i]
-        next_date = checks[i + 1]
+        current = checks[i].date()
+        next_date = checks[i + 1].date()
         if (current - next_date).days == 1:
             streak += 1
         else:
             break
 
-    if checks[0] != today:
+    if checks[0].date() != today:
         return 0
 
     return streak
@@ -213,44 +210,39 @@ def find_habit_exact(ref: str) -> Habit | None:
 
 
 def check_habit(habit_id: str) -> Habit | None:
-    """Check habit for today. No-op if already checked."""
     habit = get_habit(habit_id)
     if not habit:
         return None
-    today_str = clock.today().isoformat()
+    now = datetime.now().isoformat()
     with db.get_db() as conn:
         with contextlib.suppress(sqlite3.IntegrityError):
             conn.execute(
-                "INSERT INTO checks (habit_id, check_date) VALUES (?, ?)",
-                (habit_id, today_str),
+                "INSERT INTO checks (habit_id, check_date, completed_at) VALUES (?, ?, ?)",
+                (habit_id, clock.today().isoformat(), now),
             )
     return get_habit(habit_id)
 
 
 def uncheck_habit(habit_id: str) -> Habit | None:
-    """Uncheck habit for today. No-op if not checked."""
     habit = get_habit(habit_id)
     if not habit:
         return None
-    today_str = clock.today().isoformat()
     with db.get_db() as conn:
         conn.execute(
             "DELETE FROM checks WHERE habit_id = ? AND check_date = ?",
-            (habit_id, today_str),
+            (habit_id, clock.today().isoformat()),
         )
     return get_habit(habit_id)
 
 
 def toggle_check(habit_id: str) -> Habit | None:
-    """Toggle check for today. Returns updated Habit or None if not found."""
     habit = get_habit(habit_id)
     if not habit:
         return None
-    today_str = clock.today().isoformat()
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT 1 FROM checks WHERE habit_id = ? AND check_date = ?",
-            (habit_id, today_str),
+            (habit_id, clock.today().isoformat()),
         )
         if cursor.fetchone():
             return uncheck_habit(habit_id)
