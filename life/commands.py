@@ -374,8 +374,6 @@ def cmd_focus(args: list[str]) -> None:
     if not ref:
         exit_error("Usage: life focus <item>")
     task = resolve_task(ref)
-    if task.parent_id:
-        exit_error("Focus must be set on a parent task, not a subtask")
     toggle_focus(task.id)
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if not task.focus else "□"
     echo(format_status(symbol, task.content, task.id))
@@ -386,8 +384,6 @@ def cmd_unfocus(args: list[str]) -> None:
     if not ref:
         exit_error("Usage: life unfocus <item>")
     task = resolve_task(ref)
-    if task.parent_id:
-        exit_error("Focus must be set on a parent task, not a subtask")
     if not task.focus:
         exit_error(f"'{task.content}' is not focused")
     toggle_focus(task.id)
@@ -539,7 +535,7 @@ def cmd_status() -> None:
     habits = get_habits()
     today_date = today()
 
-    untagged = [t for t in tasks if not t.tags]
+    untagged = [t for t in tasks if not t.tags and not t.parent_id]
     overdue = [t for t in tasks if t.due_date and t.due_date < today_date]
     jaynice = [t for t in tasks if "jaynice" in (t.tags or [])]
     focused = [t for t in tasks if t.focus]
