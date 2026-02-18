@@ -328,20 +328,20 @@ def unblock(
 
 @app.command()
 def link(
-    a: list[str] = typer.Argument(..., help="First task (fuzzy)"),
-    b: list[str] = typer.Option(..., "--to", "-t", help="Second task (fuzzy)"),
+    a: str = typer.Argument(..., help="First task (fuzzy or UUID prefix)"),
+    b: str = typer.Argument(..., help="Second task (fuzzy or UUID prefix)"),
 ):
     """Link two tasks together"""
-    cmd_link(a, b)
+    cmd_link([a], [b])
 
 
 @app.command()
 def unlink(
-    a: list[str] = typer.Argument(..., help="First task (fuzzy)"),
-    b: list[str] = typer.Option(..., "--to", "-t", help="Second task (fuzzy)"),
+    a: str = typer.Argument(..., help="First task (fuzzy or UUID prefix)"),
+    b: str = typer.Argument(..., help="Second task (fuzzy or UUID prefix)"),
 ):
     """Remove link between two tasks"""
-    cmd_unlink(a, b)
+    cmd_unlink([a], [b])
 
 
 @app.command()
