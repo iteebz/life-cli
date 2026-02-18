@@ -83,57 +83,28 @@ def render_today_completed(today_items: list[Task | Habit], all_pending: list[Ta
             pending_by_parent.setdefault(t.parent_id, []).append(t)
 
     completed_tasks = [i for i in sorted_items if isinstance(i, Task)]
-    completed_by_id: dict[str, Task] = {t.id: t for t in completed_tasks}
     completed_by_parent: dict[str, list[Task]] = {}
     for t in completed_tasks:
         if t.parent_id:
             completed_by_parent.setdefault(t.parent_id, []).append(t)
 
     lines = [f"{ANSI.BOLD}{ANSI.GREEN}DONE:{ANSI.RESET}"]
-    rendered_ids: set[str] = set()
 
     for item in sorted_items:
-        if item.id in rendered_ids:
-            continue
         tags = item.tags
         tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in tags) if tags else ""
         content = item.content.lower()
         if isinstance(item, Habit):
-            if isinstance(item, Task) and item.completed_at:
-                time_str = item.completed_at.strftime("%H:%M")
+            lines.append(f"  {ANSI.GREY}✓ --:-- {content}{tags_str}{ANSI.RESET}")
+        elif isinstance(item, Task) and item.completed_at:
+            time_str = item.completed_at.strftime("%H:%M")
+            if item.parent_id:
+                parent = pending_by_id.get(item.parent_id)
+                parent_name = parent.content.lower() if parent else item.parent_id[:8]
+                parent_str = f" {ANSI.DIM}→ {parent_name}{ANSI.RESET}"
             else:
-                time_str = "--:--"
-            lines.append(f"  {ANSI.GREY}✓ {time_str} {content}{tags_str}{ANSI.RESET}")
-            rendered_ids.add(item.id)
-        elif isinstance(item, Task) and item.parent_id:
-            parent_id = item.parent_id
-            if parent_id in rendered_ids:
-                continue
-            parent = pending_by_id.get(parent_id)
-            parent_content = parent.content.lower() if parent else parent_id[:8]
-            parent_tags = parent.tags if parent else []
-            parent_tags_str = " " + " ".join(f"{ANSI.GREY}#{t}{ANSI.RESET}" for t in parent_tags) if parent_tags else ""
-            lines.append(f"  {ANSI.GREY}{parent_content}{parent_tags_str}{ANSI.RESET}")
-            rendered_ids.add(parent_id)
-            all_subs = sorted(
-                completed_by_parent.get(parent_id, []) + pending_by_parent.get(parent_id, []),
-                key=lambda t: t.completed_at if t.completed_at else t.created,
-            )
-            for sub in all_subs:
-                rendered_ids.add(sub.id)
-                sub_content = sub.content.lower()
-                if sub.completed_at:
-                    sub_time = sub.completed_at.strftime("%H:%M")
-                    lines.append(f"    {ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub_time} {sub_content}{ANSI.RESET}")
-                else:
-                    lines.append(f"    {ANSI.ITALIC}{ANSI.GREY}└ □ {sub_content}{ANSI.RESET}")
-        else:
-            if isinstance(item, Task) and item.completed_at:
-                time_str = item.completed_at.strftime("%H:%M")
-            else:
-                time_str = "--:--"
-            lines.append(f"  ✓ {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}")
-            rendered_ids.add(item.id)
+                parent_str = ""
+            lines.append(f"  ✓ {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{parent_str}")
 
     return "\n".join(lines)
 
@@ -190,8 +161,6 @@ def render_dashboard(
             emoji = next_date.get("emoji", "📌")
             name = next_date.get("name", "event")
             lines.append(f"{emoji} {days} days until {name}!")
-
-    all_pending = [item for item in items if isinstance(item, Task)]
     all_subtask_ids = {t.id for t in all_pending if t.parent_id}
     due_today = [
         t
@@ -313,6 +282,12 @@ def render_dashboard(
         def sort_items(task_list: list[Task]):
             return sorted(task_list, key=_task_sort_key)
 
+        completed_today_tasks = [i for i in (today_items or []) if isinstance(i, Task)]
+        completed_subs_by_parent: dict[str, list[Task]] = {}
+        for t in completed_today_tasks:
+            if t.parent_id:
+                completed_subs_by_parent.setdefault(t.parent_id, []).append(t)
+
         subtask_ids = {t.id for t in all_pending if t.parent_id}
         subtasks_by_parent = all_subtasks_by_parent
 
@@ -351,6 +326,9 @@ def render_dashboard(
                 sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
                 rows.append(f"{indent}  {ANSI.ITALIC}└ {sub_indicator}{sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+            for sub in completed_subs_by_parent.get(task.id, []):
+                sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
+                rows.append(f"{indent}  {ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
             return rows
 
         for tag in sorted(tagged_regular.keys()):
