@@ -53,6 +53,7 @@ __all__ = [
     "cmd_done",
     "cmd_due",
     "cmd_focus",
+    "cmd_unfocus",
     "cmd_habit",
     "cmd_habits",
     "cmd_momentum",
@@ -65,6 +66,7 @@ __all__ = [
     "cmd_status",
     "cmd_steward",
     "cmd_tag",
+    "cmd_untag",
     "cmd_task",
     "cmd_today",
     "cmd_tomorrow",
@@ -228,6 +230,17 @@ def cmd_focus(args: list[str]) -> None:
     echo(format_status(symbol, task.content, task.id))
 
 
+def cmd_unfocus(args: list[str]) -> None:
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life unfocus <item>")
+    task = resolve_task(ref)
+    if not task.focus:
+        exit_error(f"'{task.content}' is not focused")
+    toggle_focus(task.id)
+    echo(format_status("□", task.content, task.id))
+
+
 def cmd_due(args: list[str], remove: bool = False) -> None:
     try:
         date_str, item_name = parse_due_and_item(args, remove=remove)
@@ -265,6 +278,10 @@ def cmd_rename(from_args: list[str], to_content: str) -> None:
     else:
         update_habit(item.id, content=to_content)
     echo(f"→ {to_content}")
+
+
+def cmd_untag(tag_name: str | None, args: list[str] | None, tag_opt: str | None = None) -> None:
+    cmd_tag(tag_name, args, tag_opt=tag_opt, remove=True)
 
 
 def cmd_tag(

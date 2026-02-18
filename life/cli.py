@@ -23,6 +23,8 @@ from .commands import (
     cmd_status,
     cmd_steward,
     cmd_tag,
+    cmd_unfocus,
+    cmd_untag,
     cmd_task,
     cmd_today,
     cmd_tomorrow,
@@ -105,6 +107,14 @@ def focus(
 
 
 @app.command()
+def unfocus(
+    args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),
+):
+    """Remove focus from task (fuzzy match)"""
+    cmd_unfocus(args)
+
+
+@app.command()
 def due(
     args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and item content"),
     remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),
@@ -133,6 +143,16 @@ def tag(
 ):
     """Add or remove tag on item (fuzzy match)"""
     cmd_tag(tag_name, args, tag_opt=tag_opt, remove=remove)
+
+
+@app.command()
+def untag(
+    tag_name: str | None = typer.Argument(None, help="Tag name"),
+    args: list[str] = typer.Argument(None, help="Item content for fuzzy matching"),
+    tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),
+):
+    """Remove tag from item (fuzzy match)"""
+    cmd_untag(tag_name, args, tag_opt=tag_opt)
 
 
 @app.command()
