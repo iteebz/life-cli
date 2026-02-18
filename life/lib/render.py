@@ -17,20 +17,8 @@ __all__ = [
 ]
 
 
-def _due_time_color(due_time: str, now: datetime) -> str:
-    try:
-        h, m = map(int, due_time.split(":"))
-        task_dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
-        delta = (task_dt - now).total_seconds() / 60
-        if delta < 0:
-            return ANSI.BOLD + ANSI.SOFT_ORANGE
-        if delta <= 15:
-            return ANSI.SOFT_ORANGE
-        if delta <= 60:
-            return ANSI.YELLOW
-        return ANSI.GREY
-    except (ValueError, AttributeError):
-        return ANSI.GREY
+def _fmt_time(t: str) -> str:
+    return f"{ANSI.BOLD}{ANSI.WHITE}{t}{ANSI.RESET}"
 
 
 def _get_trend(current: int, previous: int) -> str:
@@ -204,14 +192,18 @@ def render_dashboard(
 
     lines.append(f"\n{ANSI.BOLD}{ANSI.WHITE}TODAY:{ANSI.RESET}")
     if due_today:
-        for task in sorted(due_today, key=_today_sort_key):
+        sorted_today = sorted(due_today, key=_today_sort_key)
+        now_marker_inserted = False
+        for task in sorted_today:
+            if not now_marker_inserted and task.due_time and task.due_time >= current_time:
+                lines.append(f"  {ANSI.BOLD}{ANSI.WHITE}→ {current_time}{ANSI.RESET}")
+                now_marker_inserted = True
             scheduled_ids.add(task.id)
             tags_str = _fmt_tags(task.tags, tag_colors)
             id_str = f" {ANSI.DIM}[{task.id[:8]}]{ANSI.RESET}"
             link_str = _link_hint(task.id)
             if task.due_time:
-                tc = _due_time_color(task.due_time, now)
-                time_str = f"{tc}{task.due_time}{ANSI.RESET} "
+                time_str = f"{_fmt_time(task.due_time)} "
             else:
                 time_str = ""
             if task.blocked_by:
@@ -294,7 +286,7 @@ def render_dashboard(
             if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
                 label = _short_date(task.due_date)
                 if task.due_time:
-                    date_str = f"{ANSI.DIM}{ANSI.ITALIC}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.BOLD}{task.due_time}{ANSI.RESET}{ANSI.DIM}{ANSI.RESET} "
+                    date_str = f"{ANSI.DIM}{ANSI.ITALIC}{label}{ANSI.RESET}{ANSI.DIM}·{ANSI.RESET}{_fmt_time(task.due_time)} "
                 else:
                     date_str = f"{ANSI.DIM}{label}{ANSI.RESET} "
             else:
