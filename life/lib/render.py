@@ -78,8 +78,7 @@ def _get_habit_trend(checks: list[datetime]) -> str:
 
 
 def _short_date(due: date, today: date) -> str:
-    delta = (due - today).days
-    return f"{delta}d"
+    return due.strftime("%d/%m")
 
 
 def _link_hint(task_id: str, linked_peers: dict[str, list[str]]) -> str:

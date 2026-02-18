@@ -27,12 +27,11 @@ def format_due(due_date: date | str, colorize: bool = True) -> str:
     else:
         return ""
 
-    today = clock.today()
-    diff = (due - today).days
+    date_str = due.strftime("%d/%m")
 
     if colorize:
-        return f"{ANSI.GREY}{diff}d·{ANSI.RESET}"
-    return f"{diff}d·"
+        return f"{ANSI.GREY}{date_str}·{ANSI.RESET}"
+    return f"{date_str}·"
 
 
 def format_task(task, tags: list[str] | None = None, show_id: bool = False) -> str:

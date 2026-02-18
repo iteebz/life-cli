@@ -11,18 +11,18 @@ def test_resolve_task_finds_pending(tmp_life_dir):
     assert task.content == "call the bank"
 
 
-def test_resolve_task_does_not_find_completed(tmp_life_dir):
-    task_id = add_task("completed thing", tags=["finance"])
+def test_resolve_task_finds_completed_today(tmp_life_dir):
+    task_id = add_task("completed today", tags=["finance"])
     toggle_completed(task_id)
-    with pytest.raises(Exit):
-        resolve_task("completed thing")
+    task = resolve_task("completed today")
+    assert task.id == task_id
 
 
-def test_resolve_item_does_not_find_completed(tmp_life_dir):
-    task_id = add_task("old task", tags=["finance"])
+def test_resolve_item_finds_completed_today(tmp_life_dir):
+    task_id = add_task("completed item", tags=["finance"])
     toggle_completed(task_id)
-    with pytest.raises(Exit):
-        resolve_item("old task")
+    task, _ = resolve_item("completed item")
+    assert task.id == task_id
 
 
 def test_resolve_item_any_finds_completed(tmp_life_dir):
@@ -41,11 +41,11 @@ def test_resolve_item_any_prefers_pending(tmp_life_dir):
     assert task.id == pending_id
 
 
-def test_resolve_item_pending_only_not_history(tmp_life_dir):
+def test_resolve_item_finds_today_completed(tmp_life_dir):
     add_task("pending task", tags=["finance"])
     completed_id = add_task("completed task", tags=["finance"])
     toggle_completed(completed_id)
     task, _ = resolve_item("pending task")
     assert task is not None
-    with pytest.raises(Exit):
-        resolve_item("completed task")
+    task, _ = resolve_item("completed task")
+    assert task.id == completed_id
