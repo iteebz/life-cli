@@ -85,7 +85,7 @@ def _build_link_peers(tasks: list[Task], links: list[tuple[str, str]]) -> dict[s
 
 def _render_header(today: date, tasks_done: int, habits_done: int, total_habits: int, added: int, deleted: int) -> list[str]:
     lines = [f"\n{ANSI.BOLD}{ANSI.WHITE}{today}{ANSI.RESET}"]
-    lines.append(f"tasks: {tasks_done}")
+    lines.append(f"done: {tasks_done}")
     lines.append(f"habits: {habits_done}/{total_habits}")
     if added:
         lines.append(f"added: {added}")
