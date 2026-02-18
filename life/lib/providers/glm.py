@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from ..errors import exit_error
+from life.errors import exit_error
 
 _DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/anthropic"
 _DEFAULT_ENV_FILE = Path.home() / "life" / ".env"
@@ -26,9 +26,7 @@ def build_env() -> dict[str, str]:
     env = os.environ.copy()
     zai_key = env.get("ZAI_API_KEY") or _read_env_file_value(_DEFAULT_ENV_FILE, "ZAI_API_KEY")
     if not zai_key:
-        exit_error(
-            f"ZAI_API_KEY is not set and was not found in {_DEFAULT_ENV_FILE}"
-        )
+        exit_error(f"ZAI_API_KEY is not set and was not found in {_DEFAULT_ENV_FILE}")
 
     env["ANTHROPIC_AUTH_TOKEN"] = zai_key
     env["ANTHROPIC_BASE_URL"] = env.get("ANTHROPIC_BASE_URL", _DEFAULT_BASE_URL)
@@ -75,7 +73,9 @@ def _stringify_content(value: object) -> str:
     return str(value)
 
 
-def normalize_event(event: dict[str, Any], tool_map: dict[str, str] | None = None) -> list[dict[str, Any]]:
+def normalize_event(
+    event: dict[str, Any], tool_map: dict[str, str] | None = None
+) -> list[dict[str, Any]]:
     if tool_map is None:
         tool_map = {}
 
@@ -90,7 +90,9 @@ def normalize_event(event: dict[str, Any], tool_map: dict[str, str] | None = Non
         ]
 
     if event_type == "error" or (event_type == "result" and event.get("subtype") == "error"):
-        message = event.get("error") or event.get("message") or event.get("result") or "unknown error"
+        message = (
+            event.get("error") or event.get("message") or event.get("result") or "unknown error"
+        )
         if isinstance(message, dict):
             message = message.get("message") or message.get("error") or str(message)
         return [{"type": "error", "message": str(message)}]

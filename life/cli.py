@@ -6,8 +6,6 @@ from .commands import (
     cmd_backup,
     cmd_block,
     cmd_check,
-    cmd_link,
-    cmd_unlink,
     cmd_dashboard,
     cmd_dates,
     cmd_defer,
@@ -16,6 +14,7 @@ from .commands import (
     cmd_focus,
     cmd_habit,
     cmd_habits,
+    cmd_link,
     cmd_migrate,
     cmd_momentum,
     cmd_now,
@@ -28,8 +27,8 @@ from .commands import (
     cmd_stats,
     cmd_status,
     cmd_steward,
-    cmd_tail,
     cmd_tag,
+    cmd_tail,
     cmd_task,
     cmd_today,
     cmd_tomorrow,
@@ -37,6 +36,7 @@ from .commands import (
     cmd_unblock,
     cmd_uncheck,
     cmd_unfocus,
+    cmd_unlink,
     cmd_untag,
 )
 
@@ -80,7 +80,15 @@ def task(
     done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
-    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under, description=description, done=done)
+    cmd_task(
+        content_args,
+        focus=focus,
+        due=due,
+        tags=tags,
+        under=under,
+        description=description,
+        done=done,
+    )
 
 
 @app.command(name="add", hidden=True)
@@ -96,7 +104,15 @@ def add(
     done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
 ):
     """Alias for task"""
-    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under, description=description, done=done)
+    cmd_task(
+        content_args,
+        focus=focus,
+        due=due,
+        tags=tags,
+        under=under,
+        description=description,
+        done=done,
+    )
 
 
 @app.command()
@@ -186,7 +202,7 @@ def rename(
 
 @app.command()
 def tag(
-    args: list[str] = typer.Argument(None, help="Item content then tag name: \"ITEM\" TAG"),
+    args: list[str] = typer.Argument(None, help='Item content then tag name: "ITEM" TAG'),
     tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),
     remove: bool = typer.Option(False, "--remove", "-r", help="Remove tag instead of adding"),
 ):
@@ -196,7 +212,7 @@ def tag(
 
 @app.command()
 def untag(
-    args: list[str] = typer.Argument(None, help="Item content then tag name: \"ITEM\" TAG"),
+    args: list[str] = typer.Argument(None, help='Item content then tag name: "ITEM" TAG'),
     tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),
 ):
     """Remove tag: life untag \"ITEM\" TAG"""
@@ -308,7 +324,9 @@ def set_cmd(
     args: list[str] = typer.Argument(..., help="Task to modify (fuzzy match)"),
     parent: str = typer.Option(None, "--parent", "-p", help="Set parent task (fuzzy match)"),
     content: str = typer.Option(None, "--content", "-c", help="Rename task"),
-    description: str = typer.Option(None, "--desc", "-d", help="Set or clear description (pass empty string to clear)"),
+    description: str = typer.Option(
+        None, "--desc", "-d", help="Set or clear description (pass empty string to clear)"
+    ),
 ):
     """Set parent or content on an existing task"""
     cmd_set(args, parent=parent, content=content, description=description)

@@ -15,7 +15,7 @@ class _FakePopen:
     def poll(self):
         return self.returncode
 
-    def wait(self, timeout=None):  # noqa: ARG002
+    def wait(self, timeout=None):
         return self.returncode
 
     def terminate(self):
@@ -113,7 +113,10 @@ def test_tail_tool_call_formats_key_args():
         {
             "type": "tool_call",
             "tool_name": "Bash",
-            "args": {"command": "uv run pytest tests/unit/test_tail.py -q", "description": "run tests"},
+            "args": {
+                "command": "uv run pytest tests/unit/test_tail.py -q",
+                "description": "run tests",
+            },
         }
     )
     assert rendered is not None
@@ -133,7 +136,7 @@ def test_cmd_tail_streams_pretty_output(monkeypatch, tmp_path):
     calls: list[tuple[list[str], Path, dict | None, int | None]] = []
     outputs: list[str] = []
 
-    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):  # noqa: ARG001
+    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):
         calls.append((cmd, cwd, env, bufsize))
         return _FakePopen(
             '{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]}}\n',
@@ -164,7 +167,7 @@ def test_cmd_tail_raw_mode_prints_raw_lines(monkeypatch, tmp_path):
 
     outputs: list[str] = []
 
-    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):  # noqa: ARG001
+    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):
         return _FakePopen('{"type":"assistant"}\n', "", 0)
 
     monkeypatch.setattr("life.commands.subprocess.Popen", fake_popen)
@@ -184,7 +187,7 @@ def test_cmd_tail_retries_then_succeeds(monkeypatch, tmp_path):
 
     calls = {"n": 0}
 
-    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):  # noqa: ARG001
+    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):
         calls["n"] += 1
         return _FakePopen("", "boom\n", 1 if calls["n"] == 1 else 0)
 
@@ -202,7 +205,7 @@ def test_cmd_tail_suppresses_duplicate_usage_and_errors(monkeypatch, tmp_path):
 
     outputs: list[str] = []
 
-    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):  # noqa: ARG001
+    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):
         return _FakePopen(
             '{"type":"error","message":"permission denied"}\n'
             '{"type":"error","message":"permission denied"}\n'
@@ -229,7 +232,7 @@ def test_cmd_tail_dry_run_does_not_execute(monkeypatch, tmp_path):
 
     called = {"popen": 0}
 
-    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):  # noqa: ARG001
+    def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):
         called["popen"] += 1
         raise AssertionError("subprocess.Popen should not be called in dry-run")
 

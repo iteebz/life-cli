@@ -1,4 +1,3 @@
-import contextlib
 import sqlite3
 from collections import defaultdict
 from typing import TypeVar
@@ -181,5 +180,5 @@ def hydrate_tags[T: (Task, Habit)](items: list[T], tag_map: dict[str, list[str]]
     for item in items:
         direct_tags = tag_map.get(item.id, [])
         hydrated.append(hydrate_tags_onto(item, direct_tags))
-    
+
     return hydrated

@@ -1,6 +1,5 @@
 from datetime import date
 
-from . import clock
 from .ansi import ANSI
 
 __all__ = [

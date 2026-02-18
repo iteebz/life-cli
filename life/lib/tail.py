@@ -4,8 +4,19 @@ import re
 from pathlib import Path
 
 from .ansi import (
-    bold, dim, gray, white, green, red, lime, teal, coral,
-    purple, slate, forest, strip_markdown,
+    bold,
+    coral,
+    dim,
+    forest,
+    gray,
+    green,
+    lime,
+    purple,
+    red,
+    slate,
+    strip_markdown,
+    teal,
+    white,
 )
 from .providers import glm
 
@@ -31,17 +42,17 @@ _TOOL_COLORS = {
 }
 
 _BASH_PRIMITIVES: list[tuple[re.Pattern[str], str, str | None]] = [
-    (re.compile(r"^cd\b"),                         "Cd",    r"^cd\s+"),
-    (re.compile(r"^git\b"),                        "Git",   r"^git\s+"),
-    (re.compile(r"^rg\b"),                         "Grep",  r"^rg\s+"),
-    (re.compile(r"^(ls|exa)(?:\s+|$)"),            "LS",    r"^(ls|exa)(?:\s+|$)"),
-    (re.compile(r"^curl\b"),                       "Fetch", r"^curl\s+"),
-    (re.compile(r"^uv\s+run\s+"),                  "Run",   r"^uv\s+run\s+"),
-    (re.compile(r"^python[23]?\b"),                "Run",   r"^python[23]?\s+"),
-    (re.compile(r"^just\b"),                       "Run",   r"^just\s+"),
-    (re.compile(r"^(npm|pnpm|yarn)\s+run\s+"),     "Run",   r"^(npm|pnpm|yarn)\s+run\s+"),
-    (re.compile(r"^(npm|pnpm|yarn)\b"),            "Run",   r"^(npm|pnpm|yarn)\s+"),
-    (re.compile(r"^(make|cargo|go)\b"),            "Run",   r"^(make|cargo|go)\s+"),
+    (re.compile(r"^cd\b"), "Cd", r"^cd\s+"),
+    (re.compile(r"^git\b"), "Git", r"^git\s+"),
+    (re.compile(r"^rg\b"), "Grep", r"^rg\s+"),
+    (re.compile(r"^(ls|exa)(?:\s+|$)"), "LS", r"^(ls|exa)(?:\s+|$)"),
+    (re.compile(r"^curl\b"), "Fetch", r"^curl\s+"),
+    (re.compile(r"^uv\s+run\s+"), "Run", r"^uv\s+run\s+"),
+    (re.compile(r"^python[23]?\b"), "Run", r"^python[23]?\s+"),
+    (re.compile(r"^just\b"), "Run", r"^just\s+"),
+    (re.compile(r"^(npm|pnpm|yarn)\s+run\s+"), "Run", r"^(npm|pnpm|yarn)\s+run\s+"),
+    (re.compile(r"^(npm|pnpm|yarn)\b"), "Run", r"^(npm|pnpm|yarn)\s+"),
+    (re.compile(r"^(make|cargo|go)\b"), "Run", r"^(make|cargo|go)\s+"),
 ]
 
 _STRIP_CACHE: dict[str, re.Pattern[str]] = {}
@@ -113,7 +124,9 @@ def _edit_suffix(raw_name: str, args: dict[str, object]) -> str:
         raw = args.get("edits", [])
         edits = list(raw) if isinstance(raw, list) else []
     elif raw_name == "Edit":
-        edits = [{"old_string": args.get("old_string", ""), "new_string": args.get("new_string", "")}]
+        edits = [
+            {"old_string": args.get("old_string", ""), "new_string": args.get("new_string", "")}
+        ]
     elif raw_name == "Write":
         content = args.get("content")
         if isinstance(content, str):

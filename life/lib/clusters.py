@@ -9,9 +9,7 @@ __all__ = [
 ]
 
 
-def build_clusters(
-    tasks: list[Task], links: list[tuple[str, str]]
-) -> list[list[Task]]:
+def build_clusters(tasks: list[Task], links: list[tuple[str, str]]) -> list[list[Task]]:
     """Group tasks into connected components via link graph. Returns list of clusters (each a list of Tasks). Singletons (no links) are excluded."""
     task_map = {t.id: t for t in tasks}
     adj: dict[str, set[str]] = {t.id: set() for t in tasks}

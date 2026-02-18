@@ -16,31 +16,31 @@ class ANSI:
     GREY = "\033[90m"
     RESET = "\033[0m"
 
-    LIME    = "\033[38;5;155m"
-    TEAL    = "\033[38;5;80m"
-    GOLD    = "\033[38;5;220m"
-    CORAL   = "\033[38;5;209m"
-    PURPLE  = "\033[38;5;141m"
-    SKY     = "\033[38;5;67m"
-    BLUE    = "\033[38;5;111m"
-    GREEN   = "\033[38;5;114m"
-    RED     = "\033[38;5;203m"
-    GRAY    = "\033[38;5;245m"
-    WHITE   = "\033[38;5;252m"
-    FOREST  = "\033[38;5;65m"
-    SLATE   = "\033[38;5;103m"
-    PEACH   = "\033[38;5;217m"
-    ORANGE  = "\033[38;5;173m"
+    LIME = "\033[38;5;155m"
+    TEAL = "\033[38;5;80m"
+    GOLD = "\033[38;5;220m"
+    CORAL = "\033[38;5;209m"
+    PURPLE = "\033[38;5;141m"
+    SKY = "\033[38;5;67m"
+    BLUE = "\033[38;5;111m"
+    GREEN = "\033[38;5;114m"
+    RED = "\033[38;5;203m"
+    GRAY = "\033[38;5;245m"
+    WHITE = "\033[38;5;252m"
+    FOREST = "\033[38;5;65m"
+    SLATE = "\033[38;5;103m"
+    PEACH = "\033[38;5;217m"
+    ORANGE = "\033[38;5;173m"
     MAGENTA = "\033[38;5;139m"
-    CYAN    = "\033[38;5;109m"
-    YELLOW  = "\033[38;5;179m"
-    PINK    = "\033[38;5;175m"
+    CYAN = "\033[38;5;109m"
+    YELLOW = "\033[38;5;179m"
+    PINK = "\033[38;5;175m"
     LAVENDER = "\033[38;5;146m"
     APRICOT = "\033[38;5;216m"
-    MINT    = "\033[38;5;122m"
-    BERRY   = "\033[38;5;163m"
-    SAGE    = "\033[38;5;151m"
-    INDIGO  = "\033[38;5;99m"
+    MINT = "\033[38;5;122m"
+    BERRY = "\033[38;5;163m"
+    SAGE = "\033[38;5;151m"
+    INDIGO = "\033[38;5;99m"
 
     POOL: ClassVar[list[str]] = [
         ORANGE,
@@ -82,8 +82,7 @@ def strip_markdown(text: str) -> str:
     text = _MD_ITALIC_RE.sub(r"\1", text)
     text = _MD_CODE_RE.sub(r"\1", text)
     text = _MD_HEADING_RE.sub("", text)
-    text = _MD_LINK_RE.sub(r"\1", text)
-    return text
+    return _MD_LINK_RE.sub(r"\1", text)
 
 
 def bold(text: str) -> str:

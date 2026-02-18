@@ -1,6 +1,3 @@
-import pytest
-from click.exceptions import Exit
-
 from life.lib.resolve import resolve_item, resolve_item_any, resolve_task
 from life.tasks import add_task, toggle_completed
 

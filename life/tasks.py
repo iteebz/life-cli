@@ -11,6 +11,7 @@ from .models import Task, TaskMutation
 from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
 __all__ = [
+    "add_link",
     "add_task",
     "check_task",
     "defer_task",
@@ -18,16 +19,15 @@ __all__ = [
     "find_task",
     "find_task_any",
     "find_task_exact",
+    "get_all_links",
     "get_all_tasks",
     "get_focus",
+    "get_links",
     "get_mutations",
     "get_subtasks",
     "get_task",
     "get_tasks",
-    "add_link",
     "remove_link",
-    "get_links",
-    "get_all_links",
     "set_blocked_by",
     "toggle_completed",
     "toggle_focus",
@@ -47,9 +47,15 @@ def _task_sort_key(task: Task) -> tuple[bool, bool, object, object]:
 
 
 _AUTOTAG_PATTERNS = {
-    "comms": re.compile(r"\b(call|message|whatsapp|email|voicemail|reply|text|telegram|signal)\b", re.I),
-    "finance": re.compile(r"\b(invoice|pay|transfer|liquidate|buy|order|purchase|refund|deposit)\b", re.I),
-    "health": re.compile(r"\b(dentist|doctor|physio|health|medical|pharmacy|chemist)\b", re.I),
+    "comms": re.compile(
+        r"\b(call|message|whatsapp|email|voicemail|reply|text|telegram|signal)\b", re.IGNORECASE
+    ),
+    "finance": re.compile(
+        r"\b(invoice|pay|transfer|liquidate|buy|order|purchase|refund|deposit)\b", re.IGNORECASE
+    ),
+    "health": re.compile(
+        r"\b(dentist|doctor|physio|health|medical|pharmacy|chemist)\b", re.IGNORECASE
+    ),
 }
 
 
@@ -57,7 +63,7 @@ def _autotag(content: str, existing_tags: list[str] | None) -> list[str]:
     """Auto-add tags based on content patterns. Returns new tags to add."""
     if existing_tags is None:
         existing_tags = []
-    existing_normalized = [t.lstrip('#') for t in existing_tags]
+    existing_normalized = [t.lstrip("#") for t in existing_tags]
     content_lower = content.lower()
     new_tags = []
     for tag, pattern in _AUTOTAG_PATTERNS.items():
@@ -84,10 +90,10 @@ def add_task(
             )
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Failed to add task: {e}") from e
-        
+
         all_tags = list(tags or [])
         all_tags.extend(_autotag(content, all_tags))
-        
+
         for tag in all_tags:
             add_tag(task_id, None, tag, conn=conn)
     return task_id
@@ -270,13 +276,9 @@ def defer_task(task_id: str, reason: str) -> Task | None:
 def delete_task(task_id: str) -> None:
     """DELETE from tasks. Writes audit record to deleted_tasks first."""
     with db.get_db() as conn:
-        row = conn.execute(
-            "SELECT id, content FROM tasks WHERE id = ?", (task_id,)
-        ).fetchone()
+        row = conn.execute("SELECT id, content FROM tasks WHERE id = ?", (task_id,)).fetchone()
         if row:
-            tag_rows = conn.execute(
-                "SELECT tag FROM tags WHERE task_id = ?", (task_id,)
-            ).fetchall()
+            tag_rows = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task_id,)).fetchall()
             tags_str = ",".join(r[0] for r in tag_rows) if tag_rows else None
             conn.execute(
                 "INSERT INTO deleted_tasks (task_id, content, tags) VALUES (?, ?, ?)",
@@ -358,6 +360,7 @@ def toggle_focus(task_id: str) -> Task | None:
 
 def find_task(ref: str) -> Task | None:
     from .dashboard import _get_completed_today
+
     pending = get_tasks()
     completed_today = _get_completed_today()
     return find_in_pool(ref, pending + completed_today)
@@ -369,6 +372,7 @@ def find_task_any(ref: str) -> Task | None:
 
 def find_task_exact(ref: str) -> Task | None:
     from .dashboard import _get_completed_today
+
     pending = get_tasks()
     completed_today = _get_completed_today()
     return find_in_pool_exact(ref, pending + completed_today)

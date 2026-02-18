@@ -1,10 +1,10 @@
-import sys
-import time
 import subprocess
+import sys
 import threading
-from queue import Empty, Queue
+import time
 from datetime import timedelta
 from pathlib import Path
+from queue import Empty, Queue
 
 from .config import get_profile, set_profile
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
@@ -26,6 +26,7 @@ from .interventions import (
     get_stats as get_intervention_stats,
 )
 from .lib.ansi import ANSI
+from .lib.ansi import strip as ansi_strip
 from .lib.backup import backup as backup_life
 from .lib.clock import now, today
 from .lib.dates import add_date, list_dates, parse_due_date, remove_date
@@ -34,18 +35,23 @@ from .lib.format import format_status
 from .lib.parsing import parse_due_and_item, parse_time, validate_content
 from .lib.providers import glm
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum, render_task_detail
-from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_item_exact, resolve_task
-from .lib.ansi import strip as ansi_strip
+from .lib.resolve import (
+    resolve_habit,
+    resolve_item,
+    resolve_item_any,
+    resolve_item_exact,
+    resolve_task,
+)
 from .lib.tail import StreamParser, format_entry
-from .metrics import build_feedback_snapshot, render_feedback_snapshot
-from .models import Task
-from .momentum import weekly_momentum
 from .loop import (
     load_loop_state,
     require_real_world_closure,
     save_loop_state,
     update_loop_state,
 )
+from .metrics import build_feedback_snapshot, render_feedback_snapshot
+from .models import Task
+from .momentum import weekly_momentum
 from .tags import add_tag, remove_tag
 from .tasks import (
     add_link,
@@ -77,6 +83,7 @@ __all__ = [
     "cmd_focus",
     "cmd_habit",
     "cmd_habits",
+    "cmd_link",
     "cmd_migrate",
     "cmd_momentum",
     "cmd_now",
@@ -84,15 +91,13 @@ __all__ = [
     "cmd_rename",
     "cmd_rm",
     "cmd_schedule",
-    "cmd_link",
-    "cmd_unlink",
     "cmd_set",
     "cmd_show",
     "cmd_stats",
     "cmd_status",
     "cmd_steward",
-    "cmd_tail",
     "cmd_tag",
+    "cmd_tail",
     "cmd_task",
     "cmd_today",
     "cmd_tomorrow",
@@ -100,6 +105,7 @@ __all__ = [
     "cmd_unblock",
     "cmd_uncheck",
     "cmd_unfocus",
+    "cmd_unlink",
     "cmd_untag",
 ]
 
@@ -243,8 +249,8 @@ def _run_tail_stream(
         text=True,
         bufsize=1,
     )
-    assert proc.stdout is not None
-    assert proc.stderr is not None
+    if proc.stdout is None or proc.stderr is None:
+        raise RuntimeError("subprocess streams unavailable")
 
     out_q: Queue[tuple[str, str | None]] = Queue()
     stdout_thread = threading.Thread(
@@ -298,9 +304,7 @@ def _run_tail_stream(
             if not rendered:
                 continue
             rendered_plain = ansi_strip(rendered).strip()
-            if rendered == last_rendered and (
-                rendered_plain.startswith("error.") or rendered_plain.startswith("in=")
-            ):
+            if rendered == last_rendered and rendered_plain.startswith(("error.", "in=")):
                 continue
             echo(rendered)
             last_rendered = rendered
@@ -552,7 +556,14 @@ def cmd_task(
         parent_id = parent_task.id
     if focus and parent_id:
         exit_error("Error: cannot focus a subtask — set focus on the parent")
-    task_id = add_task(content, focus=focus, due=resolved_due, tags=tags, parent_id=parent_id, description=description)
+    task_id = add_task(
+        content,
+        focus=focus,
+        due=resolved_due,
+        tags=tags,
+        parent_id=parent_id,
+        description=description,
+    )
     if done:
         check_task(task_id)
         echo(format_status("✓", content, task_id))
@@ -718,15 +729,13 @@ def cmd_tag(
     tag_opt: str | None = None,
     remove: bool = False,
 ) -> None:
-    positionals = (args or [])
+    positionals = args or []
     if tag_opt:
         tag_name_final = tag_opt
         item_ref = " ".join(positionals)
     else:
         if not positionals or len(positionals) < 2:
-            exit_error(
-                'Usage: life tag "ITEM" TAG  or  life tag "ITEM" --tag TAG'
-            )
+            exit_error('Usage: life tag "ITEM" TAG  or  life tag "ITEM" --tag TAG')
         tag_name_final = positionals[-1]
         item_ref = " ".join(positionals[:-1])
     task, habit = resolve_item_exact(item_ref)
@@ -935,5 +944,6 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
 
 def cmd_migrate() -> None:
     from . import db
+
     db.migrate()
     echo("migrations applied")

@@ -4,7 +4,13 @@ from life.tasks import find_task, find_task_any, find_task_exact
 
 from .errors import exit_error
 
-__all__ = ["resolve_habit", "resolve_item", "resolve_item_any", "resolve_item_exact", "resolve_task"]
+__all__ = [
+    "resolve_habit",
+    "resolve_item",
+    "resolve_item_any",
+    "resolve_item_exact",
+    "resolve_task",
+]
 
 
 def resolve_task(ref: str) -> Task:
