@@ -180,12 +180,6 @@ def hydrate_tags[T: (Task, Habit)](items: list[T], tag_map: dict[str, list[str]]
     hydrated = []
     for item in items:
         direct_tags = tag_map.get(item.id, [])
-        inherited_tags = []
-        
-        if isinstance(item, Task) and item.parent_id:
-            inherited_tags = _get_ancestor_tags(item.id)
-        
-        all_tags = list(dict.fromkeys(direct_tags + inherited_tags))  # dedupe while preserving order
-        hydrated.append(hydrate_tags_onto(item, all_tags))
+        hydrated.append(hydrate_tags_onto(item, direct_tags))
     
     return hydrated
