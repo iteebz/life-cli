@@ -9,13 +9,15 @@ def test_cmd_tail_runs_glm_via_zsh(monkeypatch, tmp_path):
     life_dir.mkdir()
     (life_dir / "STEWARD.md").write_text("test steward prompt")
 
-    calls: list[tuple[list[str], Path]] = []
+    calls: list[tuple[list[str], Path, dict | None]] = []
 
     class _Result:
         returncode = 0
 
-    def fake_run(cmd, cwd=None, check=False):  # noqa: ARG001
-        calls.append((cmd, cwd))
+    monkeypatch.setenv("ZAI_API_KEY", "test-key")
+
+    def fake_run(cmd, cwd=None, env=None, check=False):  # noqa: ARG001
+        calls.append((cmd, cwd, env))
         return _Result()
 
     monkeypatch.setattr(Path, "home", lambda: home)
@@ -25,9 +27,12 @@ def test_cmd_tail_runs_glm_via_zsh(monkeypatch, tmp_path):
     cmd_tail(cycles=2, interval_seconds=1, model="glm-5", dry_run=False)
 
     assert len(calls) == 2
-    assert calls[0][0][0:2] == ["zsh", "-lic"]
-    assert "glm --print --model glm-5 -p " in calls[0][0][2]
+    assert calls[0][0][0:5] == ["claude", "--print", "--verbose", "--output-format", "stream-json"]
+    assert "--model" in calls[0][0]
+    assert "-p" in calls[0][0]
     assert calls[0][1] == life_dir
+    assert calls[0][2] is not None
+    assert calls[0][2]["ANTHROPIC_AUTH_TOKEN"] == "test-key"
 
 
 def test_cmd_tail_dry_run_does_not_execute(monkeypatch, tmp_path):

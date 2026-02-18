@@ -1,6 +1,5 @@
 import sys
 import time
-import shlex
 import subprocess
 from datetime import timedelta
 from pathlib import Path
@@ -31,6 +30,7 @@ from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.errors import echo, exit_error
 from .lib.format import format_status
 from .lib.parsing import parse_due_and_item, parse_time, validate_content
+from .lib.providers import glm
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum, render_task_detail
 from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_item_exact, resolve_task
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
@@ -120,16 +120,16 @@ def cmd_tail(
     prompt = _steward_prompt()
 
     for i in range(1, cycles + 1):
-        shell_cmd = (
-            f"glm --print --model {shlex.quote(model)} -p {shlex.quote(prompt)}"
-        )
         echo(f"[tail] cycle {i}/{cycles}  model={model}")
+        cmd = glm.build_command(model=model, prompt=prompt)
+        env = glm.build_env()
         if dry_run:
-            echo(f"(cd {life_dir} && zsh -lic {shlex.quote(shell_cmd)})")
+            echo(" ".join(cmd))
         else:
             result = subprocess.run(
-                ["zsh", "-lic", shell_cmd],
+                cmd,
                 cwd=life_dir,
+                env=env,
                 check=False,
             )
             if result.returncode != 0:
