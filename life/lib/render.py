@@ -14,6 +14,7 @@ __all__ = [
     "render_habit_matrix",
     "render_item_list",
     "render_momentum",
+    "render_task_detail",
 ]
 
 
@@ -532,4 +533,49 @@ def render_habit_matrix(habits: list[Habit]) -> str:
 
         lines.append(f"{padded_habit_name} {'   '.join(status_indicators)}   {ANSI.GREY}[{habit.id[:8]}]{ANSI.RESET}")
 
+    return "\n".join(lines)
+
+
+def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> str:
+    """Render detailed view of a single task with its subtasks and linked tasks."""
+    lines = []
+    
+    tag_colors = _build_tag_colors([task] + subtasks + linked)
+    tags_str = _fmt_tags(task.tags, tag_colors)
+    focus_str = f" {ANSI.BOLD}🔥{ANSI.RESET}" if task.focus else ""
+    status = f"{ANSI.GREY}✓{ANSI.RESET}" if task.completed_at else "□"
+    id_str = f"{ANSI.GREY}[{task.id}]{ANSI.RESET}"
+    
+    lines.append(f"{status} {id_str}  {task.content.lower()}{tags_str}{focus_str}")
+    
+    if task.due_date:
+        due_str = task.due_date.isoformat()
+        if task.due_time:
+            due_str += f" {_fmt_time(task.due_time)}"
+        lines.append(f"  due: {due_str}")
+    
+    if task.description:
+        lines.append(f"  {task.description}")
+    
+    if task.blocked_by:
+        lines.append(f"  blocked by: {task.blocked_by}")
+    
+    if subtasks:
+        lines.append("  subtasks:")
+        for sub in sorted(subtasks, key=_task_sort_key):
+            sub_status = f"{ANSI.GREY}✓{ANSI.RESET}" if sub.completed_at else "□"
+            sub_id_str = f"{ANSI.GREY}[{sub.id}]{ANSI.RESET}"
+            sub_tags_str = _fmt_tags(sub.tags, tag_colors)
+            sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
+            lines.append(f"    {sub_status} {sub_id_str}  {sub_time_str}{sub.content.lower()}{sub_tags_str}")
+    
+    if linked:
+        lines.append("  links:")
+        for lt in sorted(linked, key=_task_sort_key):
+            lt_status = f"{ANSI.GREY}✓{ANSI.RESET}" if lt.completed_at else "□"
+            lt_id_str = f"{ANSI.GREY}[{lt.id}]{ANSI.RESET}"
+            lt_tags_str = _fmt_tags(lt.tags, tag_colors)
+            lt_time_str = f"{ANSI.DIM}{_fmt_time(lt.due_time)}{ANSI.RESET} " if lt.due_time else ""
+            lines.append(f"    {lt_status} {lt_id_str}  {lt_time_str}{lt.content.lower()}{lt_tags_str}")
+    
     return "\n".join(lines)

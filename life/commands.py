@@ -1,5 +1,7 @@
 import sys
 import time
+import shlex
+import subprocess
 from datetime import timedelta
 from pathlib import Path
 
@@ -29,7 +31,7 @@ from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.errors import echo, exit_error
 from .lib.format import format_status
 from .lib.parsing import parse_due_and_item, parse_time, validate_content
-from .lib.render import render_dashboard, render_habit_matrix, render_momentum
+from .lib.render import render_dashboard, render_habit_matrix, render_momentum, render_task_detail
 from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_item_exact, resolve_task
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
@@ -79,6 +81,7 @@ __all__ = [
     "cmd_stats",
     "cmd_status",
     "cmd_steward",
+    "cmd_tail",
     "cmd_tag",
     "cmd_task",
     "cmd_today",
@@ -89,6 +92,56 @@ __all__ = [
     "cmd_unfocus",
     "cmd_untag",
 ]
+
+
+def _steward_prompt() -> str:
+    prompt_path = Path.home() / "life" / "STEWARD.md"
+    if not prompt_path.exists():
+        exit_error("STEWARD.md not found at ~/life/STEWARD.md")
+    return (
+        prompt_path.read_text().strip()
+        + "\n\nRun exactly one autonomous loop for ~/life. Make concrete progress, then stop."
+    )
+
+
+def cmd_tail(
+    cycles: int = 1,
+    interval_seconds: int = 0,
+    model: str = "glm-5",
+    dry_run: bool = False,
+    continue_on_error: bool = False,
+) -> None:
+    if cycles < 1:
+        exit_error("--cycles must be >= 1")
+    if interval_seconds < 0:
+        exit_error("--every must be >= 0")
+
+    life_dir = Path.home() / "life"
+    prompt = _steward_prompt()
+
+    for i in range(1, cycles + 1):
+        shell_cmd = (
+            f"glm --print --model {shlex.quote(model)} -p {shlex.quote(prompt)}"
+        )
+        echo(f"[tail] cycle {i}/{cycles}  model={model}")
+        if dry_run:
+            echo(f"(cd {life_dir} && zsh -lic {shlex.quote(shell_cmd)})")
+        else:
+            result = subprocess.run(
+                ["zsh", "-lic", shell_cmd],
+                cwd=life_dir,
+                check=False,
+            )
+            if result.returncode != 0:
+                if continue_on_error:
+                    echo(
+                        f"[tail] cycle {i} failed (exit {result.returncode}), continuing"
+                    )
+                else:
+                    exit_error(f"tail loop failed on cycle {i} (exit {result.returncode})")
+        if i < cycles and interval_seconds > 0:
+            echo(f"[tail] sleeping {interval_seconds}s")
+            time.sleep(interval_seconds)
 
 
 def cmd_set(
@@ -130,36 +183,9 @@ def cmd_show(args: list[str]) -> None:
     if not ref:
         exit_error("Usage: life show <task>")
     task = resolve_task(ref)
-    tags_str = " ".join(f"#{t}" for t in task.tags) if task.tags else ""
-    focus_str = " 🔥" if task.focus else ""
-    status = f"{ANSI.GREY}✓{ANSI.RESET}" if task.completed_at else "□"
-    echo(f"{status} {task.id}  {task.content.lower()}{(' ' + tags_str) if tags_str else ''}{focus_str}")
-    if task.due_date:
-        due_str = task.due_date.isoformat()
-        if task.due_time:
-            due_str += f" {task.due_time}"
-        echo(f"  due: {due_str}")
-    if task.description:
-        echo(f"  {task.description}")
-    if task.blocked_by:
-        echo(f"  blocked by: {task.blocked_by}")
     subtasks = get_subtasks(task.id)
-    if subtasks:
-        echo("  subtasks:")
-        for sub in subtasks:
-            sub_status = f"{ANSI.GREY}✓{ANSI.RESET}" if sub.completed_at else "□"
-            echo(f"    {sub_status} {sub.id}  {sub.content.lower()}")
     linked = get_links(task.id)
-    if linked:
-        echo("  links:")
-        for lt in linked:
-            lt_status = f"{ANSI.GREY}✓{ANSI.RESET}" if lt.completed_at else "□"
-            lt_tags = " ".join(f"#{t}" for t in lt.tags) if lt.tags else ""
-            echo(f"    {lt_status} {lt.id}  {lt.content.lower()}{(' ' + lt_tags) if lt_tags else ''}")
-            lt_subs = get_subtasks(lt.id)
-            for sub in lt_subs:
-                sub_status = f"{ANSI.GREY}✓{ANSI.RESET}" if sub.completed_at else "□"
-                echo(f"      {sub_status} {sub.id}  {sub.content.lower()}")
+    echo(render_task_detail(task, subtasks, linked))
 
 
 def cmd_link(a_args: list[str], b_args: list[str]) -> None:
