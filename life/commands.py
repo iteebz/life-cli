@@ -13,13 +13,14 @@ from .habits import (
     get_archived_habits,
     get_checks,
     get_habits,
-    toggle_check,
     uncheck_habit,
     update_habit,
 )
 from .interventions import (
     add_intervention,
     get_interventions,
+)
+from .interventions import (
     get_stats as get_intervention_stats,
 )
 from .lib.ansi import ANSI
@@ -27,7 +28,7 @@ from .lib.backup import backup as backup_life
 from .lib.clock import now, today
 from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.errors import echo, exit_error
-from .lib.format import format_habit, format_status, format_task
+from .lib.format import format_status
 from .lib.parsing import parse_due_and_item, parse_time, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
 from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_task
@@ -43,7 +44,6 @@ from .tasks import (
     get_all_tasks,
     get_tasks,
     set_blocked_by,
-    toggle_completed,
     toggle_focus,
     uncheck_task,
     update_task,
@@ -53,14 +53,13 @@ __all__ = [
     "cmd_archive",
     "cmd_backup",
     "cmd_block",
+    "cmd_check",
     "cmd_dashboard",
     "cmd_dates",
     "cmd_defer",
-    "cmd_check",
     "cmd_done",
     "cmd_due",
     "cmd_focus",
-    "cmd_unfocus",
     "cmd_habit",
     "cmd_habits",
     "cmd_momentum",
@@ -69,18 +68,19 @@ __all__ = [
     "cmd_rename",
     "cmd_rm",
     "cmd_schedule",
+    "cmd_set",
     "cmd_stats",
     "cmd_status",
     "cmd_steward",
     "cmd_tag",
-    "cmd_uncheck",
-    "cmd_untag",
     "cmd_task",
     "cmd_today",
     "cmd_tomorrow",
     "cmd_track",
-    "cmd_set",
     "cmd_unblock",
+    "cmd_uncheck",
+    "cmd_unfocus",
+    "cmd_untag",
 ]
 
 
@@ -256,7 +256,7 @@ def cmd_check(args: list[str]) -> None:
     elif task:
         if task.completed_at:
             exit_error(f"'{task.content}' is already done")
-        completed_task, parent_completed = check_task(task.id)
+        _, parent_completed = check_task(task.id)
         _animate_check(task.content.lower())
         if parent_completed:
             _animate_check(parent_completed.content.lower())

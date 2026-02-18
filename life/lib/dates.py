@@ -9,7 +9,7 @@ from . import clock
 
 def parse_created_date(created_val: int | float | str) -> date:
     """Parse created date from various formats (timestamp, numeric string, ISO string).
-    
+
     Handles legacy formats: int/float timestamps, numeric strings, ISO date strings.
     """
     if isinstance(created_val, (int, float)):
