@@ -29,7 +29,11 @@ def _fmt_tags(tags: list[str], tag_colors: dict[str, str]) -> str:
 
 
 def _build_tag_colors(items: list) -> dict[str, str]:
-    tags = sorted({tag for item in items if isinstance(item, Task) for tag in item.tags})
+    tags = sorted({
+        tag for item in items 
+        if isinstance(item, (Task, Habit)) 
+        for tag in item.tags
+    })
     return {tag: ANSI.POOL[i % len(ANSI.POOL)] for i, tag in enumerate(tags)}
 
 
@@ -379,7 +383,8 @@ def render_dashboard(
     tomorrow_str = tomorrow.isoformat()
 
     all_pending = [item for item in items if isinstance(item, Task)]
-    tag_colors = _build_tag_colors(items)
+    all_items = items + (today_items or [])
+    tag_colors = _build_tag_colors(all_items)
     all_links = get_all_links()
     linked_peers = _build_link_peers(all_pending, all_links)
 
