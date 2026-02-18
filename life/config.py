@@ -38,11 +38,11 @@ class Config:
         with CONFIG_PATH.open("w") as f:
             yaml.dump(self._data, f, default_flow_style=False, allow_unicode=True)
 
-    def get(self, key: str, default=None):
+    def get(self, key: str, default: object = None) -> object:
         """Get config value."""
         return self._data.get(key, default)
 
-    def set(self, key: str, value) -> None:
+    def set(self, key: str, value: object) -> None:
         """Set config value and persist."""
         self._data[key] = value
         self._save()
@@ -57,7 +57,7 @@ def get_profile() -> str:
     return str(profile).strip() if profile else ""
 
 
-def set_profile(profile):
+def set_profile(profile: str) -> None:
     """Set current profile"""
     _config.set("profile", profile)
 
