@@ -359,7 +359,7 @@ def steward():
 def tail(
     cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
     every: int = typer.Option(0, "--every", min=0, help="Sleep between cycles (seconds)"),
-    model: str = typer.Option("glm-5", "--model", "-m", help="Model passed to glm"),
+    model: str = typer.Option("glm-4", "--model", "-m", help="Model passed to glm"),
     timeout: int = typer.Option(1200, "--timeout", min=1, help="Per-cycle timeout (seconds)"),
     retries: int = typer.Option(2, "--retries", min=0, help="Retries after failed cycle"),
     retry_delay: int = typer.Option(
@@ -387,7 +387,7 @@ def tail(
 def auto(
     cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
     every: int = typer.Option(0, "--every", min=0, help="Sleep between cycles (seconds)"),
-    model: str = typer.Option("glm-5", "--model", "-m", help="Model passed to glm"),
+    model: str = typer.Option("glm-4", "--model", "-m", help="Model passed to glm"),
     timeout: int = typer.Option(1200, "--timeout", min=1, help="Per-cycle timeout (seconds)"),
     retries: int = typer.Option(2, "--retries", min=0, help="Retries after failed cycle"),
     retry_delay: int = typer.Option(

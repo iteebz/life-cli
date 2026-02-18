@@ -4,7 +4,7 @@ from pathlib import Path
 from ..errors import exit_error
 
 _DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/anthropic"
-_DEFAULT_ENV_FILE = Path("/Users/iteebz/space/.env")
+_DEFAULT_ENV_FILE = Path.home() / "life" / ".env"
 
 
 def _read_env_file_value(path: Path, key: str) -> str | None:
@@ -40,7 +40,7 @@ def build_env() -> dict[str, str]:
     return env
 
 
-def build_command(model: str, prompt: str) -> list[str]:
+def build_command(prompt: str) -> list[str]:
     return [
         "claude",
         "--print",
@@ -48,8 +48,5 @@ def build_command(model: str, prompt: str) -> list[str]:
         "--output-format",
         "stream-json",
         "--dangerously-skip-permissions",
-        "--model",
-        model,
-        "-p",
         prompt,
     ]

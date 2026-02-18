@@ -129,8 +129,8 @@ def cmd_tail(
     prompt = _steward_prompt()
 
     for i in range(1, cycles + 1):
-        echo(f"[tail] cycle {i}/{cycles}  model={model}")
-        cmd = glm.build_command(model=model, prompt=prompt)
+        echo(f"[tail] cycle {i}/{cycles}")
+        cmd = glm.build_command(prompt=prompt)
         env = glm.build_env()
         attempts = retries + 1
         if dry_run:
