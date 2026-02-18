@@ -18,7 +18,7 @@ __all__ = [
 
 
 def _fmt_time(t: str) -> str:
-    return f"{ANSI.BOLD}{ANSI.WHITE}{t}{ANSI.RESET}"
+    return f"{ANSI.WHITE}{t}{ANSI.RESET}"
 
 
 def _fmt_tags(tags: list[str], tag_colors: dict[str, str]) -> str:
@@ -202,7 +202,8 @@ def _render_today_tasks(
             scheduled_ids.add(sub.id)
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
             sub_tags_str = _fmt_tags(sub.tags, tag_colors)
-            lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
+            lines.append(f"    {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
     return lines, scheduled_ids
 
@@ -231,7 +232,8 @@ def _render_tomorrow_tasks(
             scheduled_ids.add(sub.id)
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
             sub_tags_str = _fmt_tags(sub.tags, tag_colors)
-            lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
+            lines.append(f"    {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
     return lines, scheduled_ids
 
@@ -297,11 +299,13 @@ def _render_task_row(
     for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
         sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
         sub_tags_str = _fmt_tags(sub.tags, tag_colors)
-        rows.append(f"{indent}  {ANSI.ITALIC}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+        sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
+        rows.append(f"{indent}  {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
     for sub in completed_subs_by_parent.get(task.id, []):
         sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
         sub_tags_str = _fmt_tags(sub.tags, tag_colors)
-        rows.append(f"{indent}  {ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+        sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
+        rows.append(f"{indent}  {ANSI.ITALIC}{ANSI.GREY}{sub_time_str}└ ✓ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
     return rows
 
 
@@ -341,7 +345,8 @@ def _render_clusters(
         for sub in sorted(subtasks_by_parent.get(focus.id, []), key=_task_sort_key):
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
             sub_tags_str = _fmt_tags(sub.tags, tag_colors)
-            lines.append(f"  {ANSI.ITALIC}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+            sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
+            lines.append(f"  {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
         peers_close = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) <= 2], key=_task_sort_key)
         peers_far = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) > 2], key=_task_sort_key)
@@ -353,7 +358,8 @@ def _render_clusters(
             for sub in sorted(subtasks_by_parent.get(peer.id, []), key=_task_sort_key):
                 sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
                 sub_tags_str = _fmt_tags(sub.tags, tag_colors)
-                lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
+                sub_time_str = f"{ANSI.DIM}{_fmt_time(sub.due_time)}{ANSI.RESET} " if sub.due_time else ""
+                lines.append(f"    {ANSI.ITALIC}{sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{ANSI.RESET}")
 
         for peer in peers_far:
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)
