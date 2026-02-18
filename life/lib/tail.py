@@ -1,7 +1,77 @@
+import difflib
 import json
 import re
+from pathlib import Path
 
+from .ansi import (
+    bold, dim, gray, white, green, red, lime, teal, coral,
+    purple, slate, forest, strip_markdown,
+)
 from .providers import glm
+
+_HOME = str(Path.home())
+
+_TOOL_DISPLAY = {
+    "MultiEdit": "Edit",
+    "WebFetch": "Fetch",
+    "WebSearch": "Web",
+}
+
+_TOOL_COLORS = {
+    "Write": lime,
+    "Edit": lime,
+    "Bash": slate,
+    "Git": purple,
+    "Read": teal,
+    "Grep": teal,
+    "Glob": teal,
+    "LS": teal,
+    "Fetch": teal,
+    "Web": teal,
+}
+
+_BASH_PRIMITIVES: list[tuple[re.Pattern[str], str, str | None]] = [
+    (re.compile(r"^cd\b"),                         "Cd",    r"^cd\s+"),
+    (re.compile(r"^git\b"),                        "Git",   r"^git\s+"),
+    (re.compile(r"^rg\b"),                         "Grep",  r"^rg\s+"),
+    (re.compile(r"^(ls|exa)(?:\s+|$)"),            "LS",    r"^(ls|exa)(?:\s+|$)"),
+    (re.compile(r"^curl\b"),                       "Fetch", r"^curl\s+"),
+    (re.compile(r"^uv\s+run\s+"),                  "Run",   r"^uv\s+run\s+"),
+    (re.compile(r"^python[23]?\b"),                "Run",   r"^python[23]?\s+"),
+    (re.compile(r"^just\b"),                       "Run",   r"^just\s+"),
+    (re.compile(r"^(npm|pnpm|yarn)\s+run\s+"),     "Run",   r"^(npm|pnpm|yarn)\s+run\s+"),
+    (re.compile(r"^(npm|pnpm|yarn)\b"),            "Run",   r"^(npm|pnpm|yarn)\s+"),
+    (re.compile(r"^(make|cargo|go)\b"),            "Run",   r"^(make|cargo|go)\s+"),
+]
+
+_STRIP_CACHE: dict[str, re.Pattern[str]] = {}
+_CHAIN_RE = re.compile(r'\s*&&\s*(?=(?:[^"]*"[^"]*")*[^"]*$)(?=(?:[^\']*\'[^\']*\')*[^\']*$)')
+_PIPE_RE = re.compile(r"\s+(?:[|&]|[12]?>[>&]?)")
+
+
+def _strip_re(pattern: str) -> re.Pattern[str]:
+    if pattern not in _STRIP_CACHE:
+        _STRIP_CACHE[pattern] = re.compile(pattern)
+    return _STRIP_CACHE[pattern]
+
+
+def _split_chain(cmd: str) -> list[str]:
+    parts = _CHAIN_RE.split(cmd.strip())
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _parse_bash(cmd: str) -> tuple[str, str]:
+    cleaned = cmd.strip()
+    base_cmd = cleaned
+    pipe_match = _PIPE_RE.search(cleaned)
+    if pipe_match:
+        base_cmd = cleaned[: pipe_match.start()].strip()
+    for pat, name, strip in _BASH_PRIMITIVES:
+        if not pat.match(base_cmd):
+            continue
+        arg = _strip_re(strip).sub("", base_cmd).strip() if strip else base_cmd
+        return name, arg
+    return "Run", cleaned
 
 
 def _short(value: object, limit: int = 120) -> str:
@@ -12,83 +82,104 @@ def _short(value: object, limit: int = 120) -> str:
     return text[: limit - 3] + "..."
 
 
-def _stringify_content(value: object) -> str:
-    if isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        parts: list[str] = []
-        for item in value:
-            if isinstance(item, str):
-                parts.append(item)
-            elif isinstance(item, dict):
-                text = item.get("text")
-                if isinstance(text, str) and text.strip():
-                    parts.append(text)
-                else:
-                    parts.append(json.dumps(item, ensure_ascii=True, separators=(",", ":")))
-            else:
-                parts.append(str(item))
-        return "\n".join(parts)
-    if isinstance(value, dict):
-        return json.dumps(value, ensure_ascii=True, separators=(",", ":"))
-    return str(value)
+def _tool_arg(raw_name: str, args: dict[str, object]) -> str:
+    if raw_name == "WebFetch":
+        return str(args.get("url", ""))
+    if raw_name == "WebSearch":
+        return str(args.get("query", ""))
+    cmd = args.get("command")
+    if isinstance(cmd, str) and cmd:
+        return cmd
+    path = args.get("path") or args.get("file_path")
+    pattern = args.get("pattern")
+    if raw_name == "Grep":
+        if isinstance(path, str) and isinstance(pattern, str) and path and pattern:
+            return f"{path} {pattern}"
+        if isinstance(pattern, str) and pattern:
+            return pattern
+        if isinstance(path, str):
+            return path
+    if isinstance(path, str) and path:
+        return path
+    if isinstance(pattern, str) and pattern:
+        return pattern
+    items = list(args.items())[:2]
+    return ", ".join(f"{k}={_short(v, 40)}" for k, v in items)
 
 
-def _summarize_tool_args(tool_name: str, args: object) -> str:
-    if not isinstance(args, dict):
-        return _short(args, 140)
-    key_order = {
-        "Read": ["file_path", "offset", "limit"],
-        "Edit": ["file_path", "old_string", "new_string", "replace_all"],
-        "Write": ["file_path"],
-        "Bash": ["command", "description"],
-        "Grep": ["pattern", "path"],
-        "Glob": ["pattern", "path"],
-        "LS": ["path"],
-    }.get(tool_name, ["file_path", "path", "command", "pattern"])
-    parts: list[str] = []
-    for key in key_order:
-        if key not in args:
-            continue
-        value = args.get(key)
-        if key in {"old_string", "new_string"}:
-            parts.append(f"{key}={_short(value, 36)}")
-        elif key == "command":
-            parts.append(f"cmd={_short(value, 80)}")
-        else:
-            parts.append(f"{key}={_short(value, 48)}")
-    if not parts:
-        items = list(args.items())[:3]
-        parts = [f"{k}={_short(v, 40)}" for k, v in items]
-    return ", ".join(parts)
+def _edit_suffix(raw_name: str, args: dict[str, object]) -> str:
+    edits: list[dict[str, object]] = []
+    if raw_name == "MultiEdit":
+        raw = args.get("edits", [])
+        edits = list(raw) if isinstance(raw, list) else []
+    elif raw_name == "Edit":
+        edits = [{"old_string": args.get("old_string", ""), "new_string": args.get("new_string", "")}]
+    elif raw_name == "Write":
+        content = args.get("content")
+        if isinstance(content, str):
+            n = len(content.split("\n"))
+            return f" {lime(str(n))}"
+        return ""
+    total_add = total_rem = 0
+    for edit in edits:
+        old = edit.get("old_string", "")
+        new = edit.get("new_string", "")
+        if isinstance(old, str) and isinstance(new, str):
+            old_lines = old.rstrip().split("\n") if old else []
+            new_lines = new.rstrip().split("\n") if new else []
+            for line in difflib.unified_diff(old_lines, new_lines, lineterm="", n=0):
+                if line.startswith(("---", "+++", "@@")):
+                    continue
+                if line.startswith("-"):
+                    total_rem += 1
+                elif line.startswith("+"):
+                    total_add += 1
+    parts = []
+    if total_add:
+        parts.append(lime(f"+{total_add}"))
+    if total_rem:
+        parts.append(coral(f"-{total_rem}"))
+    return f" ({' '.join(parts)})" if parts else ""
 
 
-def _summarize_diff(text: str) -> str | None:
-    if "diff --git " not in text and "\n--- " not in text and "\n+++ " not in text:
+def _format_tool_call(raw_name: str, args: dict[str, object]) -> str:
+    name = _TOOL_DISPLAY.get(raw_name, raw_name)
+    is_bash = raw_name == "Bash"
+    arg = _tool_arg(raw_name, args)
+    arg = arg.replace(_HOME, "~")
+
+    if is_bash:
+        name, arg = _parse_bash(arg.split("\n")[0])
+        name = _TOOL_DISPLAY.get(name, name)
+
+    suffix = ""
+    if raw_name in ("Edit", "MultiEdit", "Write"):
+        suffix = _edit_suffix(raw_name, args)
+
+    color_fn = _TOOL_COLORS.get(name, gray)
+    label = bold(color_fn(name.lower()))
+    arg_fmt = white(arg[:100].replace(_HOME, "~")) if arg else ""
+    return f"  {label} {arg_fmt}{suffix}"
+
+
+def _format_bash_chain(raw_name: str, args: dict[str, object]) -> list[str] | None:
+    if raw_name != "Bash":
         return None
-    files: list[str] = []
-    plus = 0
-    minus = 0
-    for line in text.splitlines():
-        if line.startswith("diff --git "):
-            parts = line.split()
-            if len(parts) >= 4:
-                path = parts[3]
-                if path.startswith("b/"):
-                    path = path[2:]
-                files.append(path)
+    cmd = str(args.get("command", "")).split("\n")[0].replace(_HOME, "~")
+    subcmds = _split_chain(cmd)
+    if len(subcmds) <= 1:
+        return None
+    lines = []
+    for sub in subcmds:
+        name, arg = _parse_bash(sub)
+        if name == "Cd":
             continue
-        if line.startswith("+++ ") or line.startswith("--- ") or line.startswith("@@"):
-            continue
-        if line.startswith("+"):
-            plus += 1
-        elif line.startswith("-"):
-            minus += 1
-    files_unique = list(dict.fromkeys(files))
-    names = ", ".join(files_unique[:2])
-    if len(files_unique) > 2:
-        names += ", ..."
-    return f"diff: files={len(files_unique) or 1} +{plus} -{minus} {names}".strip()
+        name = _TOOL_DISPLAY.get(name, name)
+        color_fn = _TOOL_COLORS.get(name, gray)
+        label = bold(color_fn(name.lower()))
+        arg_fmt = white(arg[:80]) if arg else ""
+        lines.append(f"  {label} {arg_fmt}")
+    return lines if lines else None
 
 
 class StreamParser:
@@ -113,42 +204,56 @@ class StreamParser:
 
 def format_entry(entry: dict[str, object], quiet_system: bool = False) -> str | None:
     kind = str(entry.get("type", ""))
+
     if kind == "assistant_text":
-        return f"ai: {_short(entry.get('text', ''), 500)}"
+        text = str(entry.get("text", ""))
+        text = strip_markdown(text.replace("\n", " "))
+        m = re.search(r"[.?!](?:\s|$)", text)
+        if m:
+            text = text[: m.start() + 1]
+        elif len(text) > 120:
+            text = text[:120] + "…"
+        return f"  {bold(green('hm...'))} {forest(text.lower())}"
+
     if kind == "tool_call":
-        tool_name = entry.get("tool_name") or "unknown"
-        return f"tool: {tool_name}({_summarize_tool_args(str(tool_name), entry.get('args', {}))})"
+        raw_name = str(entry.get("tool_name") or "unknown")
+        args = entry.get("args", {})
+        if not isinstance(args, dict):
+            args = {}
+        chain = _format_bash_chain(raw_name, args)
+        if chain:
+            return "\n".join(chain)
+        return _format_tool_call(raw_name, args)
+
     if kind == "tool_result":
-        tool_name = entry.get("tool_name") or "unknown"
-        prefix = "error" if entry.get("is_error") else "result"
-        result_text = _stringify_content(entry.get("result", ""))
-        diff_summary = _summarize_diff(result_text)
-        if diff_summary:
-            return f"{prefix}: {tool_name} {diff_summary}"
-        clean = result_text
-        clean = re.sub(r"\s*\d+→", "\n", clean)
-        clean = " ".join(clean.split())
-        return f"{prefix}: {tool_name} {_short(clean, 220)}"
+        is_error = bool(entry.get("is_error"))
+        if is_error:
+            tool_name = str(entry.get("tool_name") or "")
+            result_text = str(entry.get("result", ""))
+            err_line = result_text.replace(_HOME, "~").split("\n")[0][:80]
+            label = f"{tool_name.lower()} " if tool_name else ""
+            return f"  {bold(red('oops.'))} {coral(label + err_line)}"
+        return None
+
     if kind == "system":
         if quiet_system:
             return None
         session_id = _short(entry.get("session_id", ""), 8)
         model = _short(entry.get("model", ""), 40)
-        return f"session: {session_id or '-'} model={model or '-'}"
+        return dim(f"  session {session_id or '-'} model={model or '-'}")
+
     if kind == "usage":
-        in_tokens = int(entry.get("input_tokens", 0))
-        out_tokens = int(entry.get("output_tokens", 0))
-        cache_tokens = int(entry.get("cache_tokens", 0))
-        if in_tokens == 0 and out_tokens == 0 and cache_tokens == 0:
+        in_tok = int(entry.get("input_tokens", 0))
+        out_tok = int(entry.get("output_tokens", 0))
+        cache_tok = int(entry.get("cache_tokens", 0))
+        if in_tok == 0 and out_tok == 0 and cache_tok == 0:
             return None
-        return (
-            "usage: "
-            f"in={in_tokens} "
-            f"out={out_tokens} "
-            f"cache={cache_tokens}"
-        )
+        return dim(f"  in={in_tok} out={out_tok} cache={cache_tok}")
+
     if kind == "error":
-        return f"error: {_short(entry.get('message', ''), 240)}"
+        return f"  {bold(red('error.'))} {coral(_short(str(entry.get('message', '')), 200))}"
+
     if kind == "raw":
-        return f"raw: {entry.get('raw', '')}"
+        return None
+
     return None

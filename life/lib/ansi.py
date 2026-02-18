@@ -1,4 +1,12 @@
+import re
 from typing import ClassVar
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+_MD_BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")
+_MD_ITALIC_RE = re.compile(r"(?<!\*)\*([^*]+)\*(?!\*)")
+_MD_CODE_RE = re.compile(r"`([^`]+)`")
+_MD_HEADING_RE = re.compile(r"^#{1,6}\s+", re.MULTILINE)
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 
 
 class ANSI:
@@ -58,3 +66,99 @@ class ANSI:
         SOFT_SAGE,
         SOFT_INDIGO,
     ]
+
+
+_R = ANSI.RESET
+_B = ANSI.BOLD
+
+_LIME   = "\033[38;5;155m"
+_TEAL   = "\033[38;5;80m"
+_GOLD   = "\033[38;5;220m"
+_CORAL  = "\033[38;5;209m"
+_PURPLE = "\033[38;5;141m"
+_SKY    = "\033[38;5;67m"
+_BLUE   = "\033[38;5;111m"
+_GREEN  = "\033[38;5;114m"
+_RED    = "\033[38;5;203m"
+_GRAY   = "\033[38;5;245m"
+_WHITE  = "\033[38;5;252m"
+_FOREST = "\033[38;5;65m"
+_SLATE  = "\033[38;5;103m"
+_PEACH  = "\033[38;5;217m"
+
+
+def strip(text: str) -> str:
+    return _ANSI_RE.sub("", text)
+
+
+def strip_markdown(text: str) -> str:
+    text = _MD_BOLD_RE.sub(r"\1", text)
+    text = _MD_ITALIC_RE.sub(r"\1", text)
+    text = _MD_CODE_RE.sub(r"\1", text)
+    text = _MD_HEADING_RE.sub("", text)
+    text = _MD_LINK_RE.sub(r"\1", text)
+    return text
+
+
+def bold(text: str) -> str:
+    return f"{_B}{text}\033[22m{_R}"
+
+
+def dim(text: str) -> str:
+    return f"\033[2m{text}\033[22m{_R}"
+
+
+def lime(text: str) -> str:
+    return f"{_LIME}{text}{_R}"
+
+
+def teal(text: str) -> str:
+    return f"{_TEAL}{text}{_R}"
+
+
+def gold(text: str) -> str:
+    return f"{_GOLD}{text}{_R}"
+
+
+def coral(text: str) -> str:
+    return f"{_CORAL}{text}{_R}"
+
+
+def purple(text: str) -> str:
+    return f"{_PURPLE}{text}{_R}"
+
+
+def sky(text: str) -> str:
+    return f"{_SKY}{text}{_R}"
+
+
+def blue(text: str) -> str:
+    return f"{_BLUE}{text}{_R}"
+
+
+def green(text: str) -> str:
+    return f"{_GREEN}{text}{_R}"
+
+
+def red(text: str) -> str:
+    return f"{_RED}{text}{_R}"
+
+
+def gray(text: str) -> str:
+    return f"{_GRAY}{text}{_R}"
+
+
+def white(text: str) -> str:
+    return f"{_WHITE}{text}{_R}"
+
+
+def forest(text: str) -> str:
+    return f"{_FOREST}{text}{_R}"
+
+
+def slate(text: str) -> str:
+    return f"{_SLATE}{text}{_R}"
+
+
+def peach(text: str) -> str:
+    return f"{_PEACH}{text}{_R}"

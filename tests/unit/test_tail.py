@@ -2,6 +2,7 @@ import io
 from pathlib import Path
 
 from life.commands import cmd_tail
+from life.lib.ansi import strip
 from life.lib.tail import StreamParser, format_entry
 
 
@@ -30,7 +31,11 @@ def test_tail_parser_text_block_formats_ai_line():
         '{"type":"assistant","message":{"content":[{"type":"text","text":"hello world"}]}}'
     )
     assert entries
-    assert format_entry(entries[-1]) == "ai: hello world"
+    rendered = format_entry(entries[-1])
+    assert rendered is not None
+    plain = strip(rendered)
+    assert "hm..." in plain
+    assert "hello world" in plain
 
 
 def test_tail_parser_tool_result_correlates_tool_name():
@@ -42,14 +47,15 @@ def test_tail_parser_tool_result_correlates_tool_name():
         '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"ok"}]}}'
     )
     assert entries
-    assert format_entry(entries[-1]) == "result: Read ok"
+    rendered = format_entry(entries[-1])
+    assert rendered is None
 
 
 def test_tail_parser_malformed_json_falls_back_to_raw():
     parser = StreamParser()
     entries = parser.parse_line("{not-json")
     assert entries
-    assert format_entry(entries[0]) == "raw: {not-json"
+    assert format_entry(entries[0]) is None
 
 
 def test_tail_usage_zero_is_suppressed():
@@ -68,9 +74,7 @@ def test_tail_tool_result_structured_content_is_flattened():
     )
     assert entries
     rendered = format_entry(entries[0])
-    assert rendered is not None
-    assert rendered.startswith("result: Read")
-    assert "line1 line2" in rendered
+    assert rendered is None
 
 
 def test_tail_parser_assistant_usage_and_tool_use_both_emitted():
@@ -79,8 +83,9 @@ def test_tail_parser_assistant_usage_and_tool_use_both_emitted():
         '{"type":"assistant","message":{"usage":{"input_tokens":12,"output_tokens":3,"cache_read_input_tokens":4},"content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{"file":"x.md"}}]}}'
     )
     rendered = [format_entry(e) for e in entries]
-    assert "usage: in=12 out=3 cache=4" in rendered
-    assert any(r and r.startswith("tool: Read(") and "x.md" in r for r in rendered)
+    plain = [strip(r) for r in rendered if r]
+    assert any("in=12 out=3 cache=4" in p for p in plain)
+    assert any("read" in p for p in plain)
 
 
 def test_tail_tool_result_diff_is_summarized():
@@ -100,8 +105,7 @@ def test_tail_tool_result_diff_is_summarized():
             ),
         }
     )
-    assert rendered is not None
-    assert rendered == "result: Edit diff: files=1 +2 -1 life/commands.py"
+    assert rendered is None
 
 
 def test_tail_tool_call_formats_key_args():
@@ -113,14 +117,15 @@ def test_tail_tool_call_formats_key_args():
         }
     )
     assert rendered is not None
-    assert rendered.startswith("tool: Bash(cmd=uv run pytest")
+    plain = strip(rendered)
+    assert "run" in plain
+    assert "pytest" in plain
 
 
 def test_cmd_tail_streams_pretty_output(monkeypatch, tmp_path):
     home = tmp_path
     life_dir = home / "life"
     life_dir.mkdir()
-    (life_dir / "STEWARD.md").write_text("test steward prompt")
     monkeypatch.setenv("ZAI_API_KEY", "test-key")
     monkeypatch.setattr(Path, "home", lambda: home)
     monkeypatch.setattr("life.commands.time.sleep", lambda _seconds: None)
@@ -146,14 +151,14 @@ def test_cmd_tail_streams_pretty_output(monkeypatch, tmp_path):
     assert calls[0][1] == life_dir
     assert calls[0][2] is not None
     assert calls[0][2]["ANTHROPIC_AUTH_TOKEN"] == "test-key"
-    assert "ai: hi" in outputs
+    plain_outputs = [strip(o) for o in outputs]
+    assert any("hm..." in o and "hi" in o for o in plain_outputs)
 
 
 def test_cmd_tail_raw_mode_prints_raw_lines(monkeypatch, tmp_path):
     home = tmp_path
     life_dir = home / "life"
     life_dir.mkdir()
-    (life_dir / "STEWARD.md").write_text("test steward prompt")
     monkeypatch.setenv("ZAI_API_KEY", "test-key")
     monkeypatch.setattr(Path, "home", lambda: home)
 
@@ -173,7 +178,6 @@ def test_cmd_tail_retries_then_succeeds(monkeypatch, tmp_path):
     home = tmp_path
     life_dir = home / "life"
     life_dir.mkdir()
-    (life_dir / "STEWARD.md").write_text("test steward prompt")
     monkeypatch.setenv("ZAI_API_KEY", "test-key")
     monkeypatch.setattr(Path, "home", lambda: home)
     monkeypatch.setattr("life.commands.time.sleep", lambda _seconds: None)
@@ -193,7 +197,6 @@ def test_cmd_tail_suppresses_duplicate_usage_and_errors(monkeypatch, tmp_path):
     home = tmp_path
     life_dir = home / "life"
     life_dir.mkdir()
-    (life_dir / "STEWARD.md").write_text("test steward prompt")
     monkeypatch.setenv("ZAI_API_KEY", "test-key")
     monkeypatch.setattr(Path, "home", lambda: home)
 
@@ -213,15 +216,15 @@ def test_cmd_tail_suppresses_duplicate_usage_and_errors(monkeypatch, tmp_path):
     monkeypatch.setattr("life.commands.echo", lambda msg="", err=False: outputs.append(msg))
 
     cmd_tail(cycles=1)
-    assert outputs.count("error: permission denied") == 1
-    assert outputs.count("usage: in=1 out=2 cache=3") == 1
+    plain = [strip(o) for o in outputs]
+    assert plain.count("  error. permission denied") == 1
+    assert plain.count("  in=1 out=2 cache=3") == 1
 
 
 def test_cmd_tail_dry_run_does_not_execute(monkeypatch, tmp_path):
     home = tmp_path
     life_dir = home / "life"
     life_dir.mkdir()
-    (life_dir / "STEWARD.md").write_text("test steward prompt")
     monkeypatch.setattr(Path, "home", lambda: home)
 
     called = {"popen": 0}

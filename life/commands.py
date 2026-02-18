@@ -35,6 +35,7 @@ from .lib.parsing import parse_due_and_item, parse_time, validate_content
 from .lib.providers import glm
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum, render_task_detail
 from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_item_exact, resolve_task
+from .lib.ansi import strip as ansi_strip
 from .lib.tail import StreamParser, format_entry
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
@@ -296,8 +297,9 @@ def _run_tail_stream(
             rendered = format_entry(entry, quiet_system=quiet_system)
             if not rendered:
                 continue
+            rendered_plain = ansi_strip(rendered).strip()
             if rendered == last_rendered and (
-                rendered.startswith("usage:") or rendered.startswith("error:")
+                rendered_plain.startswith("error.") or rendered_plain.startswith("in=")
             ):
                 continue
             echo(rendered)
