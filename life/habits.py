@@ -13,8 +13,10 @@ from .tags import get_tags_for_habit, load_tags_for_habits
 
 __all__ = [
     "add_habit",
+    "archive_habit",
     "delete_habit",
     "find_habit",
+    "get_archived_habits",
     "get_checks",
     "get_habit",
     "get_habits",
@@ -64,7 +66,7 @@ def get_habit(habit_id: str) -> Habit | None:
     """SELECT from habits + LEFT JOIN checks + LEFT JOIN tags."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, created FROM habits WHERE id = ?",
+            "SELECT id, content, created, archived_at FROM habits WHERE id = ?",
             (habit_id,),
         )
         row = cursor.fetchone()
@@ -101,10 +103,12 @@ def delete_habit(habit_id: str) -> None:
 
 
 def get_habits(habit_ids: list[str] | None = None) -> list[Habit]:
-    """Get habits by IDs, or all habits if IDs is None."""
+    """Get active (non-archived) habits by IDs, or all active habits if IDs is None."""
     if habit_ids is None:
         with db.get_db() as conn:
-            cursor = conn.execute("SELECT id, content, created FROM habits ORDER BY created DESC")
+            cursor = conn.execute(
+                "SELECT id, content, created, archived_at FROM habits WHERE archived_at IS NULL ORDER BY created DESC"
+            )
             rows = cursor.fetchall()
             all_habit_ids = [row[0] for row in rows]
             tags_map = load_tags_for_habits(all_habit_ids, conn=conn)
@@ -163,6 +167,39 @@ def get_streak(habit_id: str) -> int:
         return 0
 
     return streak
+
+
+def get_archived_habits() -> list[Habit]:
+    """Get archived habits."""
+    with db.get_db() as conn:
+        cursor = conn.execute(
+            "SELECT id, content, created, archived_at FROM habits WHERE archived_at IS NOT NULL ORDER BY archived_at DESC"
+        )
+        rows = cursor.fetchall()
+        all_habit_ids = [row[0] for row in rows]
+        tags_map = load_tags_for_habits(all_habit_ids, conn=conn)
+        habits = []
+        for row in rows:
+            habit_id = row[0]
+            checks = _get_habit_checks(conn, habit_id)
+            tags = tags_map.get(habit_id, [])
+            habit = row_to_habit(row)
+            habits.append(_hydrate_habit(habit, checks, tags))
+        return habits
+
+
+def archive_habit(habit_id: str) -> Habit | None:
+    """Set archived_at to now. Returns updated Habit or None if not found."""
+    habit = get_habit(habit_id)
+    if not habit:
+        return None
+    archived_at = datetime.now().isoformat()
+    with db.get_db() as conn:
+        conn.execute(
+            "UPDATE habits SET archived_at = ? WHERE id = ?",
+            (archived_at, habit_id),
+        )
+    return get_habit(habit_id)
 
 
 def find_habit(ref: str) -> Habit | None:

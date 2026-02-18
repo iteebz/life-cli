@@ -21,6 +21,7 @@ class Habit:
     id: str
     content: str
     created: datetime
+    archived_at: datetime | None = None
     checks: list[date] = dataclasses.field(default_factory=list, hash=False)
     tags: list[str] = dataclasses.field(default_factory=list, hash=False)
 

@@ -2,6 +2,7 @@ import typer
 
 from . import db
 from .commands import (
+    cmd_archive,
     cmd_backup,
     cmd_block,
     cmd_dashboard,
@@ -132,6 +133,15 @@ def tag(
 ):
     """Add or remove tag on item (fuzzy match)"""
     cmd_tag(tag_name, args, tag_opt=tag_opt, remove=remove)
+
+
+@app.command()
+def archive(
+    args: list[str] = typer.Argument(None, help="Habit to archive (fuzzy match)"),
+    list_archived: bool = typer.Option(False, "--list", "-l", help="List archived habits"),
+):
+    """Archive a habit (keeps history, hides from daily view)"""
+    cmd_archive(args or [], show_list=list_archived)
 
 
 @app.command()

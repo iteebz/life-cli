@@ -5,7 +5,9 @@ from .config import get_profile, set_profile
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import (
     add_habit,
+    archive_habit,
     delete_habit,
+    get_archived_habits,
     get_checks,
     get_habits,
     toggle_check,
@@ -24,7 +26,7 @@ from .lib.errors import echo, exit_error
 from .lib.format import format_habit, format_status, format_task
 from .lib.parsing import parse_due_and_item, parse_time, validate_content
 from .lib.render import render_dashboard, render_habit_matrix, render_momentum
-from .lib.resolve import resolve_item, resolve_item_any, resolve_task
+from .lib.resolve import resolve_habit, resolve_item, resolve_item_any, resolve_task
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
@@ -42,6 +44,7 @@ from .tasks import (
 )
 
 __all__ = [
+    "cmd_archive",
     "cmd_backup",
     "cmd_block",
     "cmd_dashboard",
@@ -298,6 +301,24 @@ def cmd_tag(
         else:
             add_tag(None, habit.id, tag_name_final)
             echo(f"{habit.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+
+
+def cmd_archive(args: list[str], show_list: bool = False) -> None:
+    if show_list:
+        habits = get_archived_habits()
+        if not habits:
+            echo("no archived habits")
+            return
+        for habit in habits:
+            archived = habit.archived_at.strftime("%Y-%m-%d") if habit.archived_at else "?"
+            echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}  archived {archived}")
+        return
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life archive <habit>")
+    habit = resolve_habit(ref)
+    archive_habit(habit.id)
+    echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}  archived")
 
 
 def cmd_habits() -> None:

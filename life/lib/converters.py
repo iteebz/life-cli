@@ -64,12 +64,13 @@ def row_to_task(row: TaskRow) -> Task:
 def row_to_habit(row: HabitRow) -> Habit:
     """
     Converts a raw database row from habits table into a Habit object.
-    Expected row format: (id, content, created)
+    Expected row format: (id, content, created, archived_at)
     """
     return Habit(
         id=cast(str, row[0]),
         content=cast(str, row[1]),
         created=_parse_datetime(row[2]),
+        archived_at=_parse_datetime_optional(row[3]) if len(row) > 3 else None,
     )
 
 
