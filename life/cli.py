@@ -75,9 +75,10 @@ def task(
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
     description: str = typer.Option(None, "--desc", help="Optional description"),
+    done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
-    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under, description=description)
+    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under, description=description, done=done)
 
 
 @app.command(name="add", hidden=True)
@@ -90,9 +91,10 @@ def add(
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
     description: str = typer.Option(None, "--desc", help="Optional description"),
+    done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
 ):
     """Alias for task"""
-    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under, description=description)
+    cmd_task(content_args, focus=focus, due=due, tags=tags, under=under, description=description, done=done)
 
 
 @app.command()

@@ -262,6 +262,7 @@ def cmd_task(
     tags: list[str] | None = None,
     under: str | None = None,
     description: str | None = None,
+    done: bool = False,
 ) -> None:
     content = " ".join(content_args) if content_args else ""
     try:
@@ -280,6 +281,10 @@ def cmd_task(
     if focus and parent_id:
         exit_error("Error: cannot focus a subtask — set focus on the parent")
     task_id = add_task(content, focus=focus, due=resolved_due, tags=tags, parent_id=parent_id, description=description)
+    if done:
+        check_task(task_id)
+        echo(format_status("✓", content, task_id))
+        return
     symbol = f"{ANSI.BOLD}⦿{ANSI.RESET}" if focus else "□"
     prefix = "  └ " if parent_id else ""
     echo(f"{prefix}{format_status(symbol, content, task_id)}")
