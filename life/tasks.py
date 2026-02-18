@@ -11,6 +11,7 @@ from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
 __all__ = [
     "add_task",
+    "check_task",
     "defer_task",
     "delete_task",
     "find_task",
@@ -22,7 +23,6 @@ __all__ = [
     "get_task",
     "get_tasks",
     "set_blocked_by",
-    "check_task",
     "toggle_completed",
     "toggle_focus",
     "uncheck_task",
@@ -235,8 +235,20 @@ def defer_task(task_id: str, reason: str) -> Task | None:
 
 
 def delete_task(task_id: str) -> None:
-    """DELETE from tasks."""
+    """DELETE from tasks. Writes audit record to deleted_tasks first."""
     with db.get_db() as conn:
+        row = conn.execute(
+            "SELECT id, content FROM tasks WHERE id = ?", (task_id,)
+        ).fetchone()
+        if row:
+            tag_rows = conn.execute(
+                "SELECT tag FROM tags WHERE task_id = ?", (task_id,)
+            ).fetchall()
+            tags_str = ",".join(r[0] for r in tag_rows) if tag_rows else None
+            conn.execute(
+                "INSERT INTO deleted_tasks (task_id, content, tags) VALUES (?, ?, ?)",
+                (row[0], row[1], tags_str),
+            )
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
 
 

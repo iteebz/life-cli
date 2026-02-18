@@ -127,7 +127,7 @@ def render_dashboard(
     items, today_breakdown, momentum, context, today_items=None, profile=None, verbose=False
 ):
     """Render full dashboard view"""
-    habits_today, tasks_today, added_today = today_breakdown
+    habits_today, tasks_today, added_today, deleted_today = today_breakdown
     today = clock.today()
     now = clock.now().astimezone()
     current_time = now.strftime("%H:%M")
@@ -141,7 +141,8 @@ def render_dashboard(
     lines = []
     checked_today = habits_today + tasks_today
 
-    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\ndone: {ANSI.BOLD}{ANSI.GREEN}{checked_today}{ANSI.RESET}  added: {ANSI.BOLD}{ANSI.SOFT_ORANGE}{added_today}{ANSI.RESET}")
+    deleted_str = f"  deleted: {ANSI.BOLD}{ANSI.DIM}{deleted_today}{ANSI.RESET}" if deleted_today else ""
+    lines.append(f"\n{ANSI.BOLD}{today}{ANSI.RESET} {ANSI.DIM}·{ANSI.RESET} {ANSI.WHITE}{current_time}{ANSI.RESET}\ndone: {ANSI.BOLD}{ANSI.GREEN}{checked_today}{ANSI.RESET}  added: {ANSI.BOLD}{ANSI.SOFT_ORANGE}{added_today}{ANSI.RESET}{deleted_str}")
 
     all_pending = [item for item in items if isinstance(item, Task)]
     done_section = render_today_completed(today_items or [], all_pending)
@@ -210,8 +211,7 @@ def render_dashboard(
             for sub in sorted(all_subtasks_by_parent.get(task.id, []), key=_task_sort_key):
                 scheduled_ids.add(sub.id)
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
-                sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
-                lines.append(f"    {ANSI.ITALIC}└ {sub_indicator}{sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+                lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
     else:
         lines.append(f"  {ANSI.GREY}nothing scheduled.{ANSI.RESET}")
 
@@ -226,8 +226,7 @@ def render_dashboard(
             for sub in sorted(all_subtasks_by_parent.get(task.id, []), key=_task_sort_key):
                 scheduled_ids.add(sub.id)
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
-                sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
-                lines.append(f"    {ANSI.ITALIC}└ {sub_indicator}{sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+                lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
 
     habits = [item for item in items if isinstance(item, Habit)]
     regular_items = [
@@ -325,9 +324,8 @@ def render_dashboard(
                 indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if task.focus else ""
                 rows = [f"{indent}{indicator}{date_str}{task.content.lower()}{tags_str}{id_str}"]
             for sub in sort_items(subtasks_by_parent.get(task.id, [])):
-                sub_indicator = f"{ANSI.BOLD}🔥{ANSI.RESET} " if sub.focus else ""
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
-                rows.append(f"{indent}  {ANSI.ITALIC}└ {sub_indicator}{sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+                rows.append(f"{indent}  {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
             for sub in completed_subs_by_parent.get(task.id, []):
                 sub_id_str = f" {ANSI.DIM}[{sub.id[:8]}]{ANSI.RESET}" if verbose else ""
                 rows.append(f"{indent}  {ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")

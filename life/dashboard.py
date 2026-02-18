@@ -85,6 +85,12 @@ def get_today_breakdown():
         )
         habits_added = cursor.fetchone()[0]
 
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM deleted_tasks WHERE DATE(deleted_at) = DATE(?)",
+            (today_str,),
+        )
+        tasks_deleted = cursor.fetchone()[0]
+
     tasks_today = len(_get_completed_today())
     added_today = tasks_added + habits_added
-    return habits_today, tasks_today, added_today
+    return habits_today, tasks_today, added_today, tasks_deleted
