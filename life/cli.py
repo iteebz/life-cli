@@ -360,6 +360,11 @@ def tail(
     cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
     every: int = typer.Option(0, "--every", min=0, help="Sleep between cycles (seconds)"),
     model: str = typer.Option("glm-5", "--model", "-m", help="Model passed to glm"),
+    timeout: int = typer.Option(1200, "--timeout", min=1, help="Per-cycle timeout (seconds)"),
+    retries: int = typer.Option(2, "--retries", min=0, help="Retries after failed cycle"),
+    retry_delay: int = typer.Option(
+        2, "--retry-delay", min=0, help="Sleep between retries (seconds)"
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print command without executing"),
     continue_on_error: bool = typer.Option(
         False, "--continue-on-error", help="Continue remaining cycles after command failures"
@@ -370,6 +375,9 @@ def tail(
         cycles=cycles,
         interval_seconds=every,
         model=model,
+        timeout_seconds=timeout,
+        retries=retries,
+        retry_delay_seconds=retry_delay,
         dry_run=dry_run,
         continue_on_error=continue_on_error,
     )
@@ -380,6 +388,11 @@ def auto(
     cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
     every: int = typer.Option(0, "--every", min=0, help="Sleep between cycles (seconds)"),
     model: str = typer.Option("glm-5", "--model", "-m", help="Model passed to glm"),
+    timeout: int = typer.Option(1200, "--timeout", min=1, help="Per-cycle timeout (seconds)"),
+    retries: int = typer.Option(2, "--retries", min=0, help="Retries after failed cycle"),
+    retry_delay: int = typer.Option(
+        2, "--retry-delay", min=0, help="Sleep between retries (seconds)"
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print command without executing"),
     continue_on_error: bool = typer.Option(
         False, "--continue-on-error", help="Continue remaining cycles after command failures"
@@ -390,6 +403,9 @@ def auto(
         cycles=cycles,
         interval_seconds=every,
         model=model,
+        timeout_seconds=timeout,
+        retries=retries,
+        retry_delay_seconds=retry_delay,
         dry_run=dry_run,
         continue_on_error=continue_on_error,
     )

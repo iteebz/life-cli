@@ -110,11 +110,20 @@ def cmd_tail(
     model: str = "glm-5",
     dry_run: bool = False,
     continue_on_error: bool = False,
+    timeout_seconds: int = 1200,
+    retries: int = 2,
+    retry_delay_seconds: int = 2,
 ) -> None:
     if cycles < 1:
         exit_error("--cycles must be >= 1")
     if interval_seconds < 0:
         exit_error("--every must be >= 0")
+    if timeout_seconds < 1:
+        exit_error("--timeout must be >= 1")
+    if retries < 0:
+        exit_error("--retries must be >= 0")
+    if retry_delay_seconds < 0:
+        exit_error("--retry-delay must be >= 0")
 
     life_dir = Path.home() / "life"
     prompt = _steward_prompt()
@@ -123,22 +132,38 @@ def cmd_tail(
         echo(f"[tail] cycle {i}/{cycles}  model={model}")
         cmd = glm.build_command(model=model, prompt=prompt)
         env = glm.build_env()
+        attempts = retries + 1
         if dry_run:
             echo(" ".join(cmd))
         else:
-            result = subprocess.run(
-                cmd,
-                cwd=life_dir,
-                env=env,
-                check=False,
-            )
-            if result.returncode != 0:
-                if continue_on_error:
-                    echo(
-                        f"[tail] cycle {i} failed (exit {result.returncode}), continuing"
+            ok = False
+            last_rc = 1
+            for attempt in range(1, attempts + 1):
+                if attempt > 1:
+                    echo(f"[tail] retry {attempt - 1}/{retries} after failure")
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        cwd=life_dir,
+                        env=env,
+                        check=False,
+                        timeout=timeout_seconds,
                     )
+                    last_rc = result.returncode
+                except subprocess.TimeoutExpired:
+                    last_rc = 124
+
+                if last_rc == 0:
+                    ok = True
+                    break
+                if attempt < attempts and retry_delay_seconds > 0:
+                    time.sleep(retry_delay_seconds)
+
+            if not ok:
+                if continue_on_error:
+                    echo(f"[tail] cycle {i} failed (exit {last_rc}), continuing")
                 else:
-                    exit_error(f"tail loop failed on cycle {i} (exit {result.returncode})")
+                    exit_error(f"tail loop failed on cycle {i} (exit {last_rc})")
         if i < cycles and interval_seconds > 0:
             echo(f"[tail] sleeping {interval_seconds}s")
             time.sleep(interval_seconds)

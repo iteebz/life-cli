@@ -16,8 +16,9 @@ def test_cmd_tail_runs_glm_via_zsh(monkeypatch, tmp_path):
 
     monkeypatch.setenv("ZAI_API_KEY", "test-key")
 
-    def fake_run(cmd, cwd=None, env=None, check=False):  # noqa: ARG001
+    def fake_run(cmd, cwd=None, env=None, check=False, timeout=None):  # noqa: ARG001
         calls.append((cmd, cwd, env))
+        assert timeout == 1200
         return _Result()
 
     monkeypatch.setattr(Path, "home", lambda: home)
@@ -45,7 +46,7 @@ def test_cmd_tail_dry_run_does_not_execute(monkeypatch, tmp_path):
 
     called = {"run": 0}
 
-    def fake_run(cmd, cwd=None, check=False):  # noqa: ARG001
+    def fake_run(cmd, cwd=None, env=None, check=False, timeout=None):  # noqa: ARG001
         called["run"] += 1
         raise AssertionError("subprocess.run should not be called in dry-run")
 
@@ -53,3 +54,27 @@ def test_cmd_tail_dry_run_does_not_execute(monkeypatch, tmp_path):
 
     cmd_tail(cycles=1, model="glm-5", dry_run=True)
     assert called["run"] == 0
+
+
+def test_cmd_tail_retries_then_succeeds(monkeypatch, tmp_path):
+    home = tmp_path
+    life_dir = home / "life"
+    life_dir.mkdir()
+    (life_dir / "STEWARD.md").write_text("test steward prompt")
+    monkeypatch.setenv("ZAI_API_KEY", "test-key")
+    monkeypatch.setattr(Path, "home", lambda: home)
+    monkeypatch.setattr("life.commands.time.sleep", lambda _seconds: None)
+
+    class _Result:
+        def __init__(self, code: int):
+            self.returncode = code
+
+    calls = {"n": 0}
+
+    def fake_run(cmd, cwd=None, env=None, check=False, timeout=None):  # noqa: ARG001
+        calls["n"] += 1
+        return _Result(1 if calls["n"] == 1 else 0)
+
+    monkeypatch.setattr("life.commands.subprocess.run", fake_run)
+    cmd_tail(cycles=1, retries=2, retry_delay_seconds=0)
+    assert calls["n"] == 2
