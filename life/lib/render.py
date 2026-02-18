@@ -100,8 +100,10 @@ def render_today_completed(today_items: list[Task | Habit], all_pending: list[Ta
             time_str = item.completed_at.strftime("%H:%M")
             if item.parent_id:
                 parent = pending_by_id.get(item.parent_id)
-                parent_name = parent.content.lower() if parent else item.parent_id[:8]
-                parent_str = f" {ANSI.DIM}→ {parent_name}{ANSI.RESET}"
+                if parent and not parent.completed_at:
+                    parent_str = f" {ANSI.DIM}→ {parent.content.lower()}{ANSI.RESET}"
+                else:
+                    parent_str = ""
             else:
                 parent_str = ""
             lines.append(f"  ✓ {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{parent_str}")

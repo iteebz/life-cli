@@ -254,8 +254,10 @@ def cmd_check(args: list[str]) -> None:
     elif task:
         if task.completed_at:
             exit_error(f"'{task.content}' is already done")
-        check_task(task.id)
+        completed_task, parent_completed = check_task(task.id)
         _animate_check(task.content.lower())
+        if parent_completed:
+            _animate_check(parent_completed.content.lower())
 
 
 def cmd_uncheck(args: list[str]) -> None:

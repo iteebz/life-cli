@@ -18,6 +18,7 @@ __all__ = [
     "get_all_tasks",
     "get_focus",
     "get_mutations",
+    "get_subtasks",
     "get_task",
     "get_tasks",
     "set_blocked_by",
@@ -104,6 +105,19 @@ def get_all_tasks() -> list[Task]:
         result = hydrate_tags(tasks, tags_map)
 
     return sorted(result, key=_task_sort_key)
+
+
+def get_subtasks(parent_id: str) -> list[Task]:
+    """Return all tasks with the given parent_id."""
+    with db.get_db() as conn:
+        cursor = conn.execute(
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by FROM tasks WHERE parent_id = ?",
+            (parent_id,),
+        )
+        tasks = [row_to_task(row) for row in cursor.fetchall()]
+        task_ids = [t.id for t in tasks]
+        tags_map = load_tags_for_tasks(task_ids, conn=conn)
+        return hydrate_tags(tasks, tags_map)
 
 
 def get_focus() -> list[Task]:
@@ -226,11 +240,11 @@ def delete_task(task_id: str) -> None:
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
 
 
-def check_task(task_id: str) -> Task | None:
-    """Mark task as complete. No-op if already completed."""
+def check_task(task_id: str) -> tuple[Task | None, Task | None]:
+    """Mark task as complete. Returns (task, parent_if_set_completed)."""
     task = get_task(task_id)
     if not task or task.completed_at:
-        return task
+        return task, None
     completed = clock.now().strftime("%Y-%m-%dT%H:%M:%S")
     with db.get_db() as conn:
         conn.execute(
@@ -242,28 +256,49 @@ def check_task(task_id: str) -> Task | None:
             "UPDATE tasks SET blocked_by = NULL WHERE blocked_by = ?",
             (task_id,),
         )
-    return get_task(task_id)
+    completed_task = get_task(task_id)
+    parent_completed = None
+    if task.parent_id:
+        siblings = get_subtasks(task.parent_id)
+        if all(s.completed_at for s in siblings):
+            parent = get_task(task.parent_id)
+            if parent and not parent.completed_at:
+                with db.get_db() as conn:
+                    conn.execute(
+                        "UPDATE tasks SET completed_at = ? WHERE id = ?",
+                        (completed, task.parent_id),
+                    )
+                    _record_mutation(conn, task.parent_id, "completed_at", None, completed)
+                parent_completed = get_task(task.parent_id)
+    return completed_task, parent_completed
 
 
 def uncheck_task(task_id: str) -> Task | None:
-    """Mark task as pending. No-op if already pending."""
+    """Mark task as pending. Reopens parent if set was complete."""
     task = get_task(task_id)
     if not task or not task.completed_at:
         return task
     with db.get_db() as conn:
         conn.execute("UPDATE tasks SET completed_at = NULL WHERE id = ?", (task_id,))
         _record_mutation(conn, task_id, "completed_at", task.completed_at, None)
+    if task.parent_id:
+        parent = get_task(task.parent_id)
+        if parent and parent.completed_at:
+            with db.get_db() as conn:
+                conn.execute("UPDATE tasks SET completed_at = NULL WHERE id = ?", (task.parent_id,))
+                _record_mutation(conn, task.parent_id, "completed_at", parent.completed_at, None)
     return get_task(task_id)
 
 
 def toggle_completed(task_id: str) -> Task | None:
-    """Toggle task completion. If completed, mark as pending. If pending, mark as complete."""
+    """Toggle task completion."""
     task = get_task(task_id)
     if not task:
         return None
     if task.completed_at:
         return uncheck_task(task_id)
-    return check_task(task_id)
+    task, _ = check_task(task_id)
+    return task
 
 
 def toggle_focus(task_id: str) -> Task | None:
