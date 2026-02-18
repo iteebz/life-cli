@@ -139,7 +139,7 @@ def _render_done(
                 latest_check = max(item.checks)
                 if latest_check.date() == clock.today():
                     time_str = latest_check.strftime("%H:%M")
-            lines.append(f"  {ANSI.MAGENTA}✓{ANSI.RESET} {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}")
+            lines.append(f"  {ANSI.GREY}✓{ANSI.RESET} {ANSI.GREY}{time_str}{ANSI.RESET} {content}{tags_str}{id_str}")
         elif isinstance(item, Task) and item.completed_at:
             time_str = item.completed_at.strftime("%H:%M")
             parent_str = ""
