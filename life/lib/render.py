@@ -189,7 +189,7 @@ def _render_today_tasks(
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-            lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+            lines.append(f"  {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
 
     return lines, scheduled_ids
 
@@ -217,7 +217,7 @@ def _render_tomorrow_tasks(
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-            lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+            lines.append(f"  {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
 
     return lines, scheduled_ids
 
@@ -282,10 +282,10 @@ def _render_task_row(
     rows = [row]
     for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
         sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-        rows.append(f"{indent}  {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+        rows.append(f"{indent}{ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
     for sub in completed_subs_by_parent.get(task.id, []):
         sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-        rows.append(f"{indent}  {ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+        rows.append(f"{indent}{ANSI.ITALIC}{ANSI.GREY}└ ✓ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
     return rows
 
 
@@ -324,7 +324,7 @@ def _render_clusters(
 
         for sub in sorted(subtasks_by_parent.get(focus.id, []), key=_task_sort_key):
             sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-            lines.append(f"    {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+            lines.append(f"{ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
 
         peers_close = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) <= 2], key=_task_sort_key)
         peers_far = sorted([t for t in cluster if t.id != focus.id and distances.get(t.id, 99) > 2], key=_task_sort_key)
@@ -335,7 +335,7 @@ def _render_clusters(
             lines.append(f"  {ANSI.GREY}~{ANSI.RESET} {peer.content.lower()}{peer_tags_str}{peer_id_str}")
             for sub in sorted(subtasks_by_parent.get(peer.id, []), key=_task_sort_key):
                 sub_id_str = f" {ANSI.GREY}[{sub.id[:8]}]{ANSI.RESET}"
-                lines.append(f"      {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
+                lines.append(f"  {ANSI.ITALIC}└ {sub.content.lower()}{sub_id_str}{ANSI.RESET}")
 
         for peer in peers_far:
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)
