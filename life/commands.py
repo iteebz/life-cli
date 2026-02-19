@@ -63,6 +63,7 @@ from .tasks import (
     get_links,
     get_subtasks,
     get_tasks,
+    last_completion,
     remove_link,
     set_blocked_by,
     toggle_focus,
@@ -815,6 +816,21 @@ def cmd_dates(
         )
 
 
+def _format_elapsed(dt) -> str:
+    delta = now() - dt
+    s = int(delta.total_seconds())
+    if s < 60:
+        return f"{s}s ago"
+    m = s // 60
+    if m < 60:
+        return f"{m}m ago"
+    h = m // 60
+    if h < 24:
+        return f"{h}h ago"
+    d = h // 24
+    return f"{d}d ago"
+
+
 def cmd_status() -> None:
     tasks = get_tasks()
     all_tasks = get_all_tasks()
@@ -828,8 +844,11 @@ def cmd_status() -> None:
 
     snapshot = build_feedback_snapshot(all_tasks=all_tasks, pending_tasks=tasks, today=today_date)
 
+    lc = last_completion()
+    last_check_str = _format_elapsed(lc) if lc else "never"
+
     lines = []
-    lines.append(f"tasks: {len(tasks)}  habits: {len(habits)}  focused: {len(focused)}")
+    lines.append(f"tasks: {len(tasks)}  habits: {len(habits)}  focused: {len(focused)}  last check: {last_check_str}")
     lines.append("\nHEALTH:")
     lines.append(f"  untagged: {len(untagged)}")
     lines.append(f"  overdue: {len(overdue)}")

@@ -29,6 +29,7 @@ __all__ = [
     "get_tasks",
     "remove_link",
     "set_blocked_by",
+    "last_completion",
     "toggle_completed",
     "toggle_focus",
     "uncheck_task",
@@ -422,3 +423,22 @@ def set_blocked_by(task_id: str, blocker_id: str | None) -> Task | None:
             (blocker_id, task_id),
         )
     return get_task(task_id)
+
+
+def last_completion() -> datetime | None:
+    """Return the most recent completion timestamp across tasks and habit checks."""
+    with db.get_db() as conn:
+        task_row = conn.execute(
+            "SELECT completed_at FROM tasks WHERE completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
+        ).fetchone()
+        check_row = conn.execute(
+            "SELECT completed_at FROM checks ORDER BY completed_at DESC LIMIT 1"
+        ).fetchone()
+    candidates: list[datetime] = []
+    for row in (task_row, check_row):
+        if row and row[0]:
+            try:
+                candidates.append(datetime.fromisoformat(row[0]))
+            except ValueError:
+                pass
+    return max(candidates) if candidates else None
