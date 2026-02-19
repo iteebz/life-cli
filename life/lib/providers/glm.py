@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from life.errors import exit_error
+from life.lib.errors import exit_error
 
 _DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/anthropic"
 _DEFAULT_ENV_FILE = Path.home() / "life" / ".env"
