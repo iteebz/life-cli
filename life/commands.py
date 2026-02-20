@@ -1168,7 +1168,7 @@ def cmd_status() -> None:
     habits = get_habits()
     today_date = today()
 
-    untagged = [t for t in tasks if not t.tags and not t.parent_id]
+    untagged = [t for t in tasks if not t.tags]
     overdue = [t for t in tasks if t.due_date and t.due_date < today_date]
     janice = [t for t in tasks if "janice" in (t.tags or [])]
     focused = [t for t in tasks if t.focus]
@@ -1192,10 +1192,13 @@ def cmd_status() -> None:
     else:
         lines.append("  none")
     lines.append("\nHOT LIST:")
-    lines.extend(f"  ! {t.content}" for t in overdue[:3])
-    lines.extend(f"  ♥ {t.content}" for t in janice[:3])
+    overdue_ids = {t.id for t in overdue}
+    hot_overdue = overdue[:3]
+    hot_janice = [t for t in janice if t.id not in overdue_ids][:3]
+    lines.extend(f"  ! {t.content}" for t in hot_overdue)
+    lines.extend(f"  ♥ {t.content}" for t in hot_janice)
 
-    if not overdue and not janice:
+    if not hot_overdue and not hot_janice:
         lines.append("  none")
 
     echo("\n".join(lines))
