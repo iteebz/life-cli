@@ -82,13 +82,17 @@ def task(
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
     description: str = typer.Option(None, "--desc", help="Optional description"),
     done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
+    steward: bool = typer.Option(False, "--steward", help="Tag as steward task (hidden from dash)"),
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
+    tags_list = list(tags) if tags else []
+    if steward:
+        tags_list.append("steward")
     cmd_task(
         content_args,
         focus=focus,
         due=due,
-        tags=tags,
+        tags=tags_list,
         under=under,
         description=description,
         done=done,

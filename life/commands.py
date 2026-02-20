@@ -435,6 +435,14 @@ def cmd_steward_boot() -> None:
         else:
             rel = f"{int(secs // 86400)}d ago"
         echo(f"\nLAST SESSION ({rel}): {s.summary}")
+    
+    steward_tasks = get_tasks(include_steward=True)
+    steward_tasks = [t for t in steward_tasks if "steward" in (t.tags or [])]
+    if steward_tasks:
+        echo("\nSTEWARD IN PROGRESS:")
+        for t in steward_tasks[:3]:
+            echo(f"  → {t.content}")
+    
     from .steward import get_observations
     now = datetime.utcnow()
     recent = get_observations(limit=20)

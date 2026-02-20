@@ -118,7 +118,7 @@ def get_task(task_id: str) -> Task | None:
         return hydrate_tags([task], tags_map)[0]
 
 
-def get_tasks() -> list[Task]:
+def get_tasks(include_steward: bool = False) -> list[Task]:
     """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         cursor = conn.execute(
@@ -128,6 +128,9 @@ def get_tasks() -> list[Task]:
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
         result = hydrate_tags(tasks, tags_map)
+        
+        if not include_steward:
+            result = [t for t in result if "steward" not in (t.tags or [])]
 
     return sorted(result, key=_task_sort_key)
 
