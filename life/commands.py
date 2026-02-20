@@ -794,6 +794,7 @@ def cmd_task(
     description: str | None = None,
     done: bool = False,
     steward: bool = False,
+    source: str | None = None,
 ) -> None:
     content = " ".join(content_args) if content_args else ""
     try:
@@ -817,6 +818,7 @@ def cmd_task(
         parent_id=parent_id,
         description=description,
         steward=steward,
+        source=source,
     )
     if done:
         check_task(task_id)

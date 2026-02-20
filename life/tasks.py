@@ -13,6 +13,7 @@ from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 __all__ = [
     "add_link",
     "add_task",
+    "cancel_task",
     "check_task",
     "count_overdue_resets",
     "defer_task",
@@ -28,13 +29,12 @@ __all__ = [
     "get_subtasks",
     "get_task",
     "get_tasks",
+    "last_completion",
     "remove_link",
     "set_blocked_by",
-    "last_completion",
     "toggle_completed",
     "toggle_focus",
     "uncheck_task",
-    "cancel_task",
     "update_task",
 ]
 
@@ -83,14 +83,25 @@ def add_task(
     parent_id: str | None = None,
     description: str | None = None,
     steward: bool = False,
+    source: str | None = None,
 ) -> str:
     """Adds a new task. Returns task_id."""
     task_id = str(uuid.uuid4())
     with db.get_db() as conn:
         try:
             conn.execute(
-                "INSERT INTO tasks (id, content, focus, due_date, created, parent_id, description, steward) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (task_id, content, focus, due, clock.today().isoformat(), parent_id, description, steward),
+                "INSERT INTO tasks (id, content, focus, due_date, created, parent_id, description, steward, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    task_id,
+                    content,
+                    focus,
+                    due,
+                    clock.today().isoformat(),
+                    parent_id,
+                    description,
+                    steward,
+                    source,
+                ),
             )
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Failed to add task: {e}") from e
@@ -107,7 +118,7 @@ def get_task(task_id: str) -> Task | None:
     """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward, source FROM tasks WHERE id = ?",
             (task_id,),
         )
         row = cursor.fetchone()
@@ -124,11 +135,11 @@ def get_tasks(include_steward: bool = False) -> list[Task]:
     with db.get_db() as conn:
         if include_steward:
             cursor = conn.execute(
-                "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE completed_at IS NULL"
+                "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward, source FROM tasks WHERE completed_at IS NULL"
             )
         else:
             cursor = conn.execute(
-                "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE completed_at IS NULL AND steward = 0"
+                "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward, source FROM tasks WHERE completed_at IS NULL AND steward = 0"
             )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -142,7 +153,7 @@ def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE steward = 0"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward, source FROM tasks WHERE steward = 0"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -156,7 +167,7 @@ def get_subtasks(parent_id: str) -> list[Task]:
     """Return all tasks with the given parent_id."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE parent_id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward, source FROM tasks WHERE parent_id = ?",
             (parent_id,),
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
@@ -169,7 +180,7 @@ def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE focus = 1 AND completed_at IS NULL AND steward = 0"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward, source FROM tasks WHERE focus = 1 AND completed_at IS NULL AND steward = 0"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -438,7 +449,7 @@ def get_links(task_id: str) -> list[Task]:
     """Return all tasks linked to/from task_id."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE id IN (SELECT to_id FROM task_links WHERE from_id = ? UNION SELECT from_id FROM task_links WHERE to_id = ?)",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward, source FROM tasks WHERE id IN (SELECT to_id FROM task_links WHERE from_id = ? UNION SELECT from_id FROM task_links WHERE to_id = ?)",
             (task_id, task_id),
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]

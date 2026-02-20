@@ -82,6 +82,7 @@ def task(
     description: str = typer.Option(None, "--desc", help="Optional description"),
     done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
     steward: bool = typer.Option(False, "--steward", help="Steward task (hidden from dash)"),
+    source: str = typer.Option(None, "--source", help="Task provenance: tyson, steward, scheduled"),
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
     cmd_task(
@@ -93,6 +94,7 @@ def task(
         description=description,
         done=done,
         steward=steward,
+        source=source,
     )
 
 
