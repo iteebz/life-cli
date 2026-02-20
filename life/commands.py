@@ -451,6 +451,44 @@ def cmd_steward_boot() -> None:
                 rel = f"{int(secs // 86400)}d ago"
             echo(f"  {rel:<10}  {o.body}")
 
+    repos_dir = Path.home() / "life" / "repos"
+    if repos_dir.exists():
+        subrepos = sorted(p for p in repos_dir.iterdir() if p.is_dir() and (p / ".git").exists())
+        if subrepos:
+            echo("\nSUBREPOS:")
+            now_ts = time.time()
+            for repo in subrepos:
+                try:
+                    result = subprocess.run(
+                        ["git", "log", "-1", "--format=%ct %s"],
+                        cwd=repo,
+                        capture_output=True,
+                        text=True,
+                    )
+                    dirty_result = subprocess.run(
+                        ["git", "status", "--porcelain"],
+                        cwd=repo,
+                        capture_output=True,
+                        text=True,
+                    )
+                    dirty = "~" if dirty_result.stdout.strip() else " "
+                    if result.returncode == 0 and result.stdout.strip():
+                        ct_str, _, msg = result.stdout.strip().partition(" ")
+                        secs = now_ts - int(ct_str)
+                        if secs < 3600:
+                            rel = f"{int(secs // 60)}m ago"
+                        elif secs < 86400:
+                            rel = f"{int(secs // 3600)}h ago"
+                        elif secs < 86400 * 7:
+                            rel = f"{int(secs // 86400)}d ago"
+                        else:
+                            rel = f"{int(secs // (86400 * 7))}w ago"
+                        echo(f"  {dirty} {repo.name:<16}  {rel:<10}  {msg}")
+                    else:
+                        echo(f"  {dirty} {repo.name:<16}  (no commits)")
+                except Exception:
+                    echo(f"    {repo.name:<16}  (error)")
+
 
 def cmd_steward_close(summary: str) -> None:
     from .steward import add_session
