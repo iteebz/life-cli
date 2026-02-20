@@ -42,3 +42,18 @@ def get_latest_mood() -> MoodEntry | None:
     if not row:
         return None
     return MoodEntry(id=row[0], score=row[1], label=row[2], logged_at=datetime.fromisoformat(row[3]))
+
+
+def delete_latest_mood(within_seconds: int = 3600) -> MoodEntry | None:
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT id, score, label, logged_at FROM mood_log ORDER BY logged_at DESC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return None
+        entry = MoodEntry(id=row[0], score=row[1], label=row[2], logged_at=datetime.fromisoformat(row[3]))
+        age = (datetime.utcnow() - entry.logged_at).total_seconds()
+        if age > within_seconds:
+            raise ValueError(f"latest entry is {int(age // 60)}m old — too old to remove")
+        conn.execute("DELETE FROM mood_log WHERE id = ?", (row[0],))
+    return entry

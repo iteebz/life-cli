@@ -614,17 +614,30 @@ def pattern(
 
 @app.command()
 def mood(
-    args: list[str] = typer.Argument(None, help="Score (1-5) and optional label"),
+    args: list[str] = typer.Argument(None, help="Score (1-5) and optional label, or 'rm'"),
     show: bool = typer.Option(False, "--log", "-l", help="Show last 24h mood log"),
 ):
-    """Log energy/mood (1-5) or view rolling 24h window"""
+    """Log energy/mood (1-5), view rolling 24h window, or rm latest entry"""
+    from .lib.errors import echo, exit_error
+
     if show or not args:
         cmd_mood(show=True)
+        return
+    if args[0] == "rm":
+        from .mood import delete_latest_mood
+        try:
+            entry = delete_latest_mood()
+        except ValueError as e:
+            exit_error(str(e))
+        if not entry:
+            exit_error("no mood entries to remove")
+        bar = "█" * entry.score + "░" * (5 - entry.score)
+        label_str = f"  {entry.label}" if entry.label else ""
+        echo(f"✗ {bar}  {entry.score}/5{label_str}")
         return
     try:
         score = int(args[0])
     except (ValueError, IndexError):
-        from .lib.errors import exit_error
         exit_error("Usage: life mood <1-5> [label]")
     label = " ".join(args[1:]) if len(args) > 1 else None
     cmd_mood(score=score, label=label)
