@@ -904,8 +904,11 @@ def _set_due_relative(args: list[str], offset_days: int, label: str) -> None:
     if not ref:
         exit_error(f"Usage: life {label} <task>")
     task = resolve_task(ref)
-    due_str = (today() + timedelta(days=offset_days)).isoformat()
-    update_task(task.id, due=due_str)
+    new_due = today() + timedelta(days=offset_days)
+    was_overdue = task.due_date is not None and task.due_date < today()
+    update_task(task.id, due=new_due.isoformat())
+    if was_overdue:
+        defer_task(task.id, "overdue_reset")
     echo(format_status("□", task.content, task.id))
 
 
