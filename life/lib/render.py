@@ -76,7 +76,10 @@ def _get_habit_trend(checks: list[datetime]) -> str:
 
 
 def _short_date(due: date, today: date) -> str:
-    return due.strftime("%d/%m")
+    delta = (due - today).days
+    if 0 < delta <= 7:
+        return due.strftime("%a").upper()
+    return due.isoformat()
 
 
 def _link_hint(task_id: str, linked_peers: dict[str, list[str]]) -> str:
@@ -226,26 +229,28 @@ def _render_today_tasks(
     return lines, scheduled_ids
 
 
-def _render_tomorrow_tasks(
-    due_tomorrow: list[Task],
+def _render_day_tasks(
+    due_day: list[Task],
+    label: str,
     tag_colors: dict[str, str],
     linked_peers: dict[str, list[str]],
     subtasks_by_parent: dict[str, list[Task]],
     all_pending: list[Task],
 ) -> tuple[list[str], set[str]]:
-    if not due_tomorrow:
+    if not due_day:
         return [], set()
 
-    lines = [f"\n{bold(white('TOMORROW:'))}"]
+    lines = [f"\n{bold(white(label + ':'))}"]  
     scheduled_ids: set[str] = set()
 
-    for task in sorted(due_tomorrow, key=_task_sort_key):
+    for task in sorted(due_day, key=_task_sort_key):
         scheduled_ids.add(task.id)
         fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         link_str = _link_hint(task.id, linked_peers)
-        lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
+        time_str = f"{_fmt_time(task.due_time)} " if task.due_time else ""
+        lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
@@ -504,11 +509,6 @@ def render_dashboard(
         for t in all_pending
         if t.due_date and t.due_date.isoformat() == today_str and t.id not in all_subtask_ids
     ]
-    due_tomorrow = [
-        t
-        for t in all_pending
-        if t.due_date and t.due_date.isoformat() == tomorrow_str and t.id not in all_subtask_ids
-    ]
 
     today_lines, scheduled_ids = _render_today_tasks(
         due_today,
@@ -521,15 +521,30 @@ def render_dashboard(
     )
     lines.extend(today_lines)
 
-    tomorrow_lines, tomorrow_scheduled = _render_tomorrow_tasks(
-        due_tomorrow,
-        tag_colors,
-        linked_peers,
-        subtasks_by_parent,
-        all_pending,
-    )
-    scheduled_ids.update(tomorrow_scheduled)
-    lines.extend(tomorrow_lines)
+    for offset in range(1, 8):
+        day = today + timedelta(days=offset)
+        day_str = day.isoformat()
+        if offset == 1:
+            label = "TOMORROW"
+        elif offset <= 7:
+            label = day.strftime("%A").upper()
+        else:
+            label = day_str
+        due_day = [
+            t
+            for t in all_pending
+            if t.due_date and t.due_date.isoformat() == day_str and t.id not in all_subtask_ids
+        ]
+        day_lines, day_scheduled = _render_day_tasks(
+            due_day,
+            label,
+            tag_colors,
+            linked_peers,
+            subtasks_by_parent,
+            all_pending,
+        )
+        scheduled_ids.update(day_scheduled)
+        lines.extend(day_lines)
 
     today_habit_items = [item for item in (today_items or []) if isinstance(item, Habit)]
     today_habit_ids = {item.id for item in today_habit_items}
