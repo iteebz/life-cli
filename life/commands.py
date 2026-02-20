@@ -435,6 +435,21 @@ def cmd_steward_boot() -> None:
         else:
             rel = f"{int(secs // 86400)}d ago"
         echo(f"\nLAST SESSION ({rel}): {s.summary}")
+    from .steward import get_observations
+    observations = get_observations(limit=10)
+    if observations:
+        echo("\nRECENT OBSERVATIONS:")
+        now = datetime.utcnow()
+        for o in observations:
+            delta = now - o.logged_at
+            secs = delta.total_seconds()
+            if secs < 3600:
+                rel = f"{int(secs // 60)}m ago"
+            elif secs < 86400:
+                rel = f"{int(secs // 3600)}h ago"
+            else:
+                rel = f"{int(secs // 86400)}d ago"
+            echo(f"  {rel:<10}  {o.body}")
 
 
 def cmd_steward_close(summary: str) -> None:

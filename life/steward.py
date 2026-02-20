@@ -17,6 +17,31 @@ def add_session(summary: str) -> int:
         return cursor.lastrowid or 0
 
 
+@dataclass(frozen=True)
+class Observation:
+    id: int
+    body: str
+    logged_at: datetime
+
+
+def add_observation(body: str) -> int:
+    with get_db() as conn:
+        cursor = conn.execute("INSERT INTO steward_observations (body) VALUES (?)", (body,))
+        return cursor.lastrowid or 0
+
+
+def get_observations(limit: int = 20) -> list[Observation]:
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, body, logged_at FROM steward_observations ORDER BY logged_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [
+            Observation(id=row[0], body=row[1], logged_at=datetime.fromisoformat(row[2]))
+            for row in rows
+        ]
+
+
 def get_sessions(limit: int = 10) -> list[StewardSession]:
     with get_db() as conn:
         rows = conn.execute(

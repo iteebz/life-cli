@@ -411,6 +411,17 @@ def steward_close(
     cmd_steward_close(summary)
 
 
+@steward_app.command(name="observe")
+def steward_observe(
+    body: str = typer.Argument(..., help="Raw observation to store"),
+):
+    """Log a raw observation — things Tyson says that should persist as context"""
+    from .steward import add_observation
+    from .lib.errors import echo
+    add_observation(body)
+    echo(f"→ {body}")
+
+
 @steward_app.command(name="log")
 def steward_log(
     limit: int = typer.Option(10, "--limit", "-n", help="Number of sessions to show"),
