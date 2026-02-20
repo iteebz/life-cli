@@ -104,6 +104,7 @@ __all__ = [
     "cmd_steward",
     "cmd_steward_boot",
     "cmd_steward_close",
+    "cmd_steward_dash",
     "cmd_tag",
     "cmd_tail",
     "cmd_task",
@@ -437,7 +438,7 @@ def cmd_steward_boot() -> None:
         echo(f"\nLAST SESSION ({rel}): {s.summary}")
     
     steward_tasks = get_tasks(include_steward=True)
-    steward_tasks = [t for t in steward_tasks if "steward" in (t.tags or [])]
+    steward_tasks = [t for t in steward_tasks if t.steward]
     if steward_tasks:
         echo("\nSTEWARD IN PROGRESS:")
         for t in steward_tasks[:3]:
@@ -514,6 +515,56 @@ def cmd_steward_close(summary: str) -> None:
     from .steward import add_session
     add_session(summary)
     echo(f"→ session logged")
+
+
+def cmd_steward_dash() -> None:
+    from .steward import get_observations
+    from .patterns import get_patterns
+    from datetime import datetime
+    
+    steward_tasks = get_tasks(include_steward=True)
+    steward_tasks = [t for t in steward_tasks if t.steward]
+
+    if steward_tasks:
+        echo("STEWARD TASKS:")
+        for t in steward_tasks:
+            status = "✓" if t.completed_at else "□"
+            echo(f"  {status} {t.content}")
+    else:
+        echo("STEWARD TASKS: none")
+    
+    patterns = get_patterns(limit=5)
+    if patterns:
+        echo("\nRECENT PATTERNS:")
+        now = datetime.utcnow()
+        for p in patterns:
+            delta = now - p.logged_at
+            s = delta.total_seconds()
+            if s < 3600:
+                rel = f"{int(s // 60)}m ago"
+            elif s < 86400:
+                rel = f"{int(s // 3600)}h ago"
+            elif s < 86400 * 7:
+                rel = f"{int(s // 86400)}d ago"
+            else:
+                rel = p.logged_at.strftime("%Y-%m-%d")
+            echo(f"  {rel:<10}  {p.body}")
+    
+    observations = get_observations(limit=10)
+    if observations:
+        echo("\nRECENT OBSERVATIONS:")
+        now = datetime.utcnow()
+        for o in observations:
+            delta = now - o.logged_at
+            s = delta.total_seconds()
+            if s < 3600:
+                rel = f"{int(s // 60)}m ago"
+            elif s < 86400:
+                rel = f"{int(s // 3600)}h ago"
+            else:
+                rel = f"{int(s // 86400)}d ago"
+            tag_str = f" #{o.tag}" if o.tag else ""
+            echo(f"  {rel:<10}  {o.body}{tag_str}")
 
 
 def cmd_steward() -> None:
@@ -683,6 +734,7 @@ def cmd_task(
     under: str | None = None,
     description: str | None = None,
     done: bool = False,
+    steward: bool = False,
 ) -> None:
     content = " ".join(content_args) if content_args else ""
     try:
@@ -705,6 +757,7 @@ def cmd_task(
         tags=tags,
         parent_id=parent_id,
         description=description,
+        steward=steward,
     )
     if done:
         check_task(task_id)

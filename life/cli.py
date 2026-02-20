@@ -82,20 +82,18 @@ def task(
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
     description: str = typer.Option(None, "--desc", help="Optional description"),
     done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
-    steward: bool = typer.Option(False, "--steward", help="Tag as steward task (hidden from dash)"),
+    steward: bool = typer.Option(False, "--steward", help="Steward task (hidden from dash)"),
 ):
     """Add task (supports focus, due date, tags, immediate completion)"""
-    tags_list = list(tags) if tags else []
-    if steward:
-        tags_list.append("steward")
     cmd_task(
         content_args,
         focus=focus,
         due=due,
-        tags=tags_list,
+        tags=list(tags) if tags else [],
         under=under,
         description=description,
         done=done,
+        steward=steward,
     )
 
 
@@ -426,6 +424,13 @@ def steward_observe(
     add_observation(body, tag=tag)
     suffix = f" #{tag}" if tag else ""
     echo(f"→ {body}{suffix}")
+
+
+@steward_app.command(name="dash")
+def steward_dash():
+    """Steward dashboard — tasks, patterns, observations, sessions"""
+    from .commands import cmd_steward_dash
+    cmd_steward_dash()
 
 
 @steward_app.command(name="log")

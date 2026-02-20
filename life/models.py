@@ -14,6 +14,7 @@ class Task:
     due_time: str | None = None
     blocked_by: str | None = None
     description: str | None = None
+    steward: bool = False
     tags: list[str] = dataclasses.field(default_factory=list, hash=False)
 
 

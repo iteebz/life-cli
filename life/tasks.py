@@ -82,14 +82,15 @@ def add_task(
     tags: list[str] | None = None,
     parent_id: str | None = None,
     description: str | None = None,
+    steward: bool = False,
 ) -> str:
     """Adds a new task. Returns task_id."""
     task_id = str(uuid.uuid4())
     with db.get_db() as conn:
         try:
             conn.execute(
-                "INSERT INTO tasks (id, content, focus, due_date, created, parent_id, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (task_id, content, focus, due, clock.today().isoformat(), parent_id, description),
+                "INSERT INTO tasks (id, content, focus, due_date, created, parent_id, description, steward) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (task_id, content, focus, due, clock.today().isoformat(), parent_id, description, steward),
             )
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Failed to add task: {e}") from e
@@ -106,7 +107,7 @@ def get_task(task_id: str) -> Task | None:
     """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE id = ?",
             (task_id,),
         )
         row = cursor.fetchone()
@@ -121,16 +122,18 @@ def get_task(task_id: str) -> Task | None:
 def get_tasks(include_steward: bool = False) -> list[Task]:
     """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
-        cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE completed_at IS NULL"
-        )
+        if include_steward:
+            cursor = conn.execute(
+                "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE completed_at IS NULL"
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE completed_at IS NULL AND steward = 0"
+            )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
         tags_map = load_tags_for_tasks(task_ids, conn=conn)
         result = hydrate_tags(tasks, tags_map)
-        
-        if not include_steward:
-            result = [t for t in result if "steward" not in (t.tags or [])]
 
     return sorted(result, key=_task_sort_key)
 
@@ -139,7 +142,7 @@ def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE steward = 0"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -153,7 +156,7 @@ def get_subtasks(parent_id: str) -> list[Task]:
     """Return all tasks with the given parent_id."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE parent_id = ?",
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE parent_id = ?",
             (parent_id,),
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
@@ -166,7 +169,7 @@ def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description FROM tasks WHERE focus = 1 AND completed_at IS NULL"
+            "SELECT id, content, focus, due_date, created, completed_at, parent_id, due_time, blocked_by, description, steward FROM tasks WHERE focus = 1 AND completed_at IS NULL AND steward = 0"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]

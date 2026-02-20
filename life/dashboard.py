@@ -52,9 +52,7 @@ def _get_completed_today() -> list[Task]:
 
 def get_pending_items(asc: bool = True, include_steward: bool = False) -> list[Task]:
     """Get pending tasks for display. asc=True returns sorted ascending."""
-    tasks = get_tasks()
-    if not include_steward:
-        tasks = [t for t in tasks if "steward" not in (t.tags or [])]
+    tasks = get_tasks(include_steward=include_steward)
     return sorted(tasks, key=_task_sort_key, reverse=not asc)
 
 

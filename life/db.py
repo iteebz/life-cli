@@ -56,8 +56,10 @@ def _table_count(conn: sqlite3.Connection, table: str) -> int:
         return 0
 
 
-def _check_data_loss(conn: sqlite3.Connection, before: dict[str, int]) -> None:
+def _check_data_loss(conn: sqlite3.Connection, before: dict[str, int], exempt: set[str] | None = None) -> None:
     for table, count in before.items():
+        if exempt and table in exempt:
+            continue
         after = _table_count(conn, table)
         if after < count:
             raise ValueError(f"migration data loss: {table} had {count} rows, now {after}")
@@ -117,11 +119,13 @@ def _apply_migrations(conn: sqlite3.Connection, db_path: Path) -> None:
 
         try:
             if callable(migration):
-                migration(conn)
+                result = migration(conn)
+                exempt = result if isinstance(result, set) else None
             else:
                 conn.executescript(migration)
+                exempt = None
 
-            _check_data_loss(conn, before)
+            _check_data_loss(conn, before, exempt=exempt)
             conn.execute(f"INSERT OR IGNORE INTO {MIGRATIONS_TABLE} (name) VALUES (?)", (name,))  # noqa: S608
             conn.commit()
         except Exception:
