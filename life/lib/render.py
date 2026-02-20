@@ -383,6 +383,7 @@ def _render_clusters(
 
     subtask_ids = {t.id for t in regular_items if t.parent_id}
     top_level = [t for t in regular_items if t.id not in subtask_ids]
+    lines_out: list[str] = [f"\n{bold(white(f'TASKS ({len(top_level)}):'))}"]
 
     clusters = build_clusters(top_level, all_links)
     focused_clusters = [c for c in clusters if cluster_focus(c)]
@@ -452,7 +453,6 @@ def _render_clusters(
 
     unlinked = [t for t in top_level if t.id not in clustered_ids]
     if unlinked:
-        lines.append("")
         seen: set[str] = set()
         for task in sorted(unlinked, key=_task_sort_key):
             if task.id in seen:
@@ -472,7 +472,7 @@ def _render_clusters(
                 )
             )
 
-    return lines
+    return lines_out + lines
 
 
 def render_dashboard(
