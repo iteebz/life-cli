@@ -2,7 +2,7 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from queue import Empty, Queue
 
@@ -416,25 +416,31 @@ def cmd_unblock(args: list[str]) -> None:
 
 
 def cmd_steward_boot() -> None:
+    from .steward import get_sessions
     tasks = get_tasks()
     all_tasks = get_all_tasks()
     today_date = today()
     snapshot = build_feedback_snapshot(all_tasks=all_tasks, pending_tasks=tasks, today=today_date)
     echo("\n".join(render_feedback_snapshot(snapshot)))
+    sessions = get_sessions(limit=1)
+    if sessions:
+        s = sessions[0]
+        now = datetime.utcnow()
+        delta = now - s.logged_at
+        secs = delta.total_seconds()
+        if secs < 3600:
+            rel = f"{int(secs // 60)}m ago"
+        elif secs < 86400:
+            rel = f"{int(secs // 3600)}h ago"
+        else:
+            rel = f"{int(secs // 86400)}d ago"
+        echo(f"\nLAST SESSION ({rel}): {s.summary}")
 
 
 def cmd_steward_close(summary: str) -> None:
-    life_dir = Path.home() / "life"
-    sessions_dir = life_dir / "brr" / "sessions"
-    sessions_dir.mkdir(parents=True, exist_ok=True)
-    date_str = today().isoformat()
-    session_file = sessions_dir / f"{date_str}.md"
-    content = f"# {date_str}\n\n{summary}\n"
-    if session_file.exists():
-        existing = session_file.read_text()
-        content = existing.rstrip() + "\n\n---\n\n" + summary + "\n"
-    session_file.write_text(content)
-    echo(f"session logged -> brr/sessions/{date_str}.md")
+    from .steward import add_session
+    add_session(summary)
+    echo(f"→ session logged")
 
 
 def cmd_steward() -> None:
@@ -567,9 +573,19 @@ def cmd_pattern(
         if not patterns:
             echo("no patterns logged")
             return
+        now = datetime.utcnow()
         for p in patterns:
-            ts = p.logged_at.strftime("%Y-%m-%d")
-            echo(f"{ts}  {p.body}")
+            delta = now - p.logged_at
+            s = delta.total_seconds()
+            if s < 3600:
+                rel = f"{int(s // 60)}m ago"
+            elif s < 86400:
+                rel = f"{int(s // 3600)}h ago"
+            elif s < 86400 * 7:
+                rel = f"{int(s // 86400)}d ago"
+            else:
+                rel = p.logged_at.strftime("%Y-%m-%d")
+            echo(f"{rel:<10}  {p.body}")
         return
 
     if not body:

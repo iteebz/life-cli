@@ -411,6 +411,31 @@ def steward_close(
     cmd_steward_close(summary)
 
 
+@steward_app.command(name="log")
+def steward_log(
+    limit: int = typer.Option(10, "--limit", "-n", help="Number of sessions to show"),
+):
+    """Show recent steward session logs"""
+    from .steward import get_sessions
+    sessions = get_sessions(limit=limit)
+    if not sessions:
+        from .lib.errors import echo
+        echo("no sessions logged")
+        return
+    now = __import__("datetime").datetime.utcnow()
+    from .lib.errors import echo
+    for s in sessions:
+        delta = now - s.logged_at
+        secs = delta.total_seconds()
+        if secs < 3600:
+            rel = f"{int(secs // 60)}m ago"
+        elif secs < 86400:
+            rel = f"{int(secs // 3600)}h ago"
+        else:
+            rel = f"{int(secs // 86400)}d ago"
+        echo(f"{rel:<10}  {s.summary}")
+
+
 @app.command(name="tail", hidden=True)
 def tail(
     cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
