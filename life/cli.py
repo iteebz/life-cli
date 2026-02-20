@@ -16,6 +16,7 @@ from .commands import (
     cmd_habits,
     cmd_link,
     cmd_momentum,
+    cmd_mood,
     cmd_now,
     cmd_pattern,
     cmd_profile,
@@ -609,6 +610,24 @@ def pattern(
         return
     text = " ".join(body) if body else None
     cmd_pattern(body=text)
+
+
+@app.command()
+def mood(
+    args: list[str] = typer.Argument(None, help="Score (1-5) and optional label"),
+    show: bool = typer.Option(False, "--log", "-l", help="Show last 24h mood log"),
+):
+    """Log energy/mood (1-5) or view rolling 24h window"""
+    if show or not args:
+        cmd_mood(show=True)
+        return
+    try:
+        score = int(args[0])
+    except (ValueError, IndexError):
+        from .lib.errors import exit_error
+        exit_error("Usage: life mood <1-5> [label]")
+    label = " ".join(args[1:]) if len(args) > 1 else None
+    cmd_mood(score=score, label=label)
 
 
 def main():

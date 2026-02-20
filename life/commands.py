@@ -88,6 +88,7 @@ __all__ = [
     "cmd_habits",
     "cmd_link",
     "cmd_momentum",
+    "cmd_mood",
     "cmd_now",
     "cmd_pattern",
     "cmd_profile",
@@ -413,6 +414,41 @@ def cmd_unblock(args: list[str]) -> None:
     echo(f"□ {task.content.lower()}  unblocked")
 
 
+def cmd_mood(
+    score: int | None = None,
+    label: str | None = None,
+    show: bool = False,
+) -> None:
+    from .mood import add_mood, get_recent_moods
+
+    if show or score is None:
+        entries = get_recent_moods(hours=24)
+        if not entries:
+            echo("no mood logged in the last 24h")
+            return
+        now_dt = datetime.utcnow()
+        for e in entries:
+            delta = now_dt - e.logged_at
+            secs = delta.total_seconds()
+            if secs < 3600:
+                rel = f"{int(secs // 60)}m ago"
+            elif secs < 86400:
+                rel = f"{int(secs // 3600)}h ago"
+            else:
+                rel = f"{int(secs // 86400)}d ago"
+            bar = "█" * e.score + "░" * (5 - e.score)
+            label_str = f"  {e.label}" if e.label else ""
+            echo(f"  {rel:<10}  {bar}  {e.score}/5{label_str}")
+        return
+
+    if score < 1 or score > 5:
+        exit_error("Score must be 1–5")
+    add_mood(score, label)
+    bar = "█" * score + "░" * (5 - score)
+    label_str = f"  {label}" if label else ""
+    echo(f"→ {bar}  {score}/5{label_str}")
+
+
 def cmd_steward_boot() -> None:
     from .steward import get_sessions
 
@@ -470,6 +506,28 @@ def cmd_steward_boot() -> None:
                 rel = f"{int(secs // 86400)}d ago"
             tag_str = f" #{o.tag}" if o.tag else ""
             echo(f"  {rel:<10}  {o.body}{tag_str}")
+
+    from .mood import get_latest_mood, get_recent_moods
+
+    recent_moods = get_recent_moods(hours=24)
+    if recent_moods:
+        latest = recent_moods[0]
+        now_dt = datetime.utcnow()
+        delta = now_dt - latest.logged_at
+        secs = delta.total_seconds()
+        if secs < 3600:
+            rel = f"{int(secs // 60)}m ago"
+        elif secs < 86400:
+            rel = f"{int(secs // 3600)}h ago"
+        else:
+            rel = f"{int(secs // 86400)}d ago"
+        bar = "█" * latest.score + "░" * (5 - latest.score)
+        label_str = f"  {latest.label}" if latest.label else ""
+        echo(f"\nMOOD ({rel}): {bar}  {latest.score}/5{label_str}")
+        if len(recent_moods) > 1:
+            echo(f"  ({len(recent_moods)} entries last 24h)")
+    else:
+        echo("\nMOOD: none logged — consider asking")
 
     repos_dir = Path.home() / "life" / "repos"
     if repos_dir.exists():
