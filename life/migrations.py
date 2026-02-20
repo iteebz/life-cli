@@ -11,5 +11,6 @@ def migration_023_steward_task_field(conn: sqlite3.Connection) -> None:
     )
 
 
-def migration_024_remove_steward_tag(conn: sqlite3.Connection) -> None:
+def migration_024_remove_steward_tag(conn: sqlite3.Connection) -> set[str]:
     conn.execute("DELETE FROM tags WHERE tag = 'steward'")
+    return {"tags"}
