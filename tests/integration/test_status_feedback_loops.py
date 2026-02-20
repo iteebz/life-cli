@@ -9,7 +9,7 @@ from life.cli import app
 def test_status_shows_feedback_metrics(tmp_life_dir):
     runner = CliRunner()
     runner.invoke(app, ["task", "call bank", "-t", "finance", "-d", "today"])
-    runner.invoke(app, ["task", "wedding vids", "-t", "jaynice"])
+    runner.invoke(app, ["task", "wedding vids", "-t", "janice"])
 
     result = runner.invoke(app, ["status"])
 
@@ -21,7 +21,7 @@ def test_status_shows_feedback_metrics(tmp_life_dir):
 
 def test_status_flags_relationship_and_stuck_task(tmp_life_dir):
     runner = CliRunner()
-    runner.invoke(app, ["task", "wedding vids", "-t", "jaynice"])
+    runner.invoke(app, ["task", "wedding vids", "-t", "janice"])
     runner.invoke(app, ["task", "call bank", "-t", "finance"])
 
     today = date.today()

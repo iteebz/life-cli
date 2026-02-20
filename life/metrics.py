@@ -5,15 +5,15 @@ from statistics import median
 from .models import Task
 from .tasks import count_overdue_resets
 
-DISCOMFORT_TAGS = {"finance", "legal", "jaynice"}
+DISCOMFORT_TAGS = {"finance", "legal", "janice"}
 
 
 @dataclass(frozen=True)
 class FeedbackSnapshot:
     admin_closed: int
     admin_created: int
-    jaynice_done: int
-    jaynice_created: int
+    janice_done: int
+    janice_created: int
     avoidance_half_life_days: int
     overdue_resets: int
     flags: list[str]
@@ -56,15 +56,15 @@ def build_feedback_snapshot(
         and t.due_date < t.completed_at.date()
     )
 
-    jaynice_created = sum(
+    janice_created = sum(
         1
         for t in all_tasks
-        if "jaynice" in (t.tags or []) and window_start <= t.created.date() <= today
+        if "janice" in (t.tags or []) and window_start <= t.created.date() <= today
     )
-    jaynice_done = sum(
+    janice_done = sum(
         1
         for t in all_tasks
-        if "jaynice" in (t.tags or []) and _in_window(t.completed_at, window_start, today)
+        if "janice" in (t.tags or []) and _in_window(t.completed_at, window_start, today)
     )
 
     discomfort_open_ages = [
@@ -75,7 +75,7 @@ def build_feedback_snapshot(
     avoidance_half_life_days = int(median(discomfort_open_ages)) if discomfort_open_ages else 0
 
     flags: list[str] = []
-    if jaynice_created and (jaynice_done / jaynice_created) < 0.5:
+    if janice_created and (janice_done / janice_created) < 0.5:
         flags.append("relationship_escalation")
     if discomfort_open_ages and max(discomfort_open_ages) >= 3:
         flags.append("stuck_task_protocol")
@@ -85,8 +85,8 @@ def build_feedback_snapshot(
     return FeedbackSnapshot(
         admin_closed=admin_closed,
         admin_created=admin_created,
-        jaynice_done=jaynice_done,
-        jaynice_created=jaynice_created,
+        janice_done=janice_done,
+        janice_created=janice_created,
         avoidance_half_life_days=avoidance_half_life_days,
         overdue_resets=overdue_resets,
         flags=flags,
@@ -97,7 +97,7 @@ def render_feedback_snapshot(snapshot: FeedbackSnapshot) -> list[str]:
     lines = [
         "STATS (7d):",
         f"  admin_closure_rate: {_format_ratio(snapshot.admin_closed, snapshot.admin_created)} ({snapshot.admin_closed}/{snapshot.admin_created})",
-        f"  jaynice_followthrough_rate: {_format_ratio(snapshot.jaynice_done, snapshot.jaynice_created)} ({snapshot.jaynice_done}/{snapshot.jaynice_created})",
+        f"  janice_followthrough_rate: {_format_ratio(snapshot.janice_done, snapshot.janice_created)} ({snapshot.janice_done}/{snapshot.janice_created})",
         f"  avoidance_half_life_days: {snapshot.avoidance_half_life_days}",
         f"  overdue_resets: {snapshot.overdue_resets}",
     ]

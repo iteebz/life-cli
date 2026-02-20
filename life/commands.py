@@ -149,7 +149,7 @@ Run exactly one autonomous loop for ~/life. Make concrete progress, then stop.""
 
 
 def _select_required_real_world_task(tasks: list[Task]) -> Task | None:
-    discomfort = {"finance", "legal", "jaynice"}
+    discomfort = {"finance", "legal", "janice"}
     candidates = [t for t in tasks if set(t.tags or []).intersection(discomfort)]
     if not candidates:
         return None
@@ -977,7 +977,7 @@ def cmd_status() -> None:
 
     untagged = [t for t in tasks if not t.tags and not t.parent_id]
     overdue = [t for t in tasks if t.due_date and t.due_date < today_date]
-    jaynice = [t for t in tasks if "jaynice" in (t.tags or [])]
+    janice = [t for t in tasks if "janice" in (t.tags or [])]
     focused = [t for t in tasks if t.focus]
 
     snapshot = build_feedback_snapshot(all_tasks=all_tasks, pending_tasks=tasks, today=today_date)
@@ -990,7 +990,7 @@ def cmd_status() -> None:
     lines.append("\nHEALTH:")
     lines.append(f"  untagged: {len(untagged)}")
     lines.append(f"  overdue: {len(overdue)}")
-    lines.append(f"  jaynice_open: {len(jaynice)}")
+    lines.append(f"  janice_open: {len(janice)}")
     lines.append("\nFLAGS:")
     if snapshot.flags:
         lines.append("  " + ", ".join(snapshot.flags))
@@ -998,9 +998,9 @@ def cmd_status() -> None:
         lines.append("  none")
     lines.append("\nHOT LIST:")
     lines.extend(f"  ! {t.content}" for t in overdue[:3])
-    lines.extend(f"  ♥ {t.content}" for t in jaynice[:3])
+    lines.extend(f"  ♥ {t.content}" for t in janice[:3])
 
-    if not overdue and not jaynice:
+    if not overdue and not janice:
         lines.append("  none")
 
     echo("\n".join(lines))

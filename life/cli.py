@@ -259,7 +259,7 @@ def dates(
 
 @app.command()
 def status():
-    """Health check — untagged tasks, overdue, habit streaks, jaynice signal"""
+    """Health check — untagged tasks, overdue, habit streaks, janice signal"""
     cmd_status()
 
 
