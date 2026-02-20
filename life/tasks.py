@@ -1,3 +1,4 @@
+import contextlib
 import re
 import sqlite3
 import uuid
@@ -211,7 +212,8 @@ def _record_mutations(
         _record_mutation(conn, task_id, field, getattr(old, field, None), new_val)
 
 
-_UNSET = object()
+_UNSET: object = object()
+UNSET = _UNSET
 
 
 def update_task(
@@ -480,8 +482,6 @@ def last_completion() -> datetime | None:
     candidates: list[datetime] = []
     for row in (task_row, check_row):
         if row and row[0]:
-            try:
+            with contextlib.suppress(ValueError):
                 candidates.append(datetime.fromisoformat(row[0]))
-            except ValueError:
-                pass
     return max(candidates) if candidates else None

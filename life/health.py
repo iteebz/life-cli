@@ -7,7 +7,7 @@ from life import config
 from life.db import get_db, load_migrations
 from life.lib.errors import echo
 
-__all__ = ["CheckResult", "cli", "score"]
+__all__ = ["cli", "score"]
 
 FTS_TABLES = ("tasks_fts", "habits_fts", "tags_fts")
 MIGRATIONS_TABLE = "_migrations"
@@ -17,11 +17,7 @@ def _core_tables(conn: sqlite3.Connection) -> list[str]:
     rows = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
     ).fetchall()
-    return sorted(
-        name
-        for (name,) in rows
-        if "_fts" not in name and name != MIGRATIONS_TABLE
-    )
+    return sorted(name for (name,) in rows if "_fts" not in name and name != MIGRATIONS_TABLE)
 
 
 def _check_fk_violations(conn: sqlite3.Connection) -> dict[str, int]:
@@ -42,18 +38,10 @@ def _check_fts_integrity(conn: sqlite3.Connection) -> list[str]:
     return corrupted
 
 
-def _rebuild_fts(conn: sqlite3.Connection, table: str) -> bool:
-    try:
-        conn.execute(f"INSERT INTO {table}({table}) VALUES('rebuild')")  # noqa: S608
-        return True
-    except sqlite3.DatabaseError:
-        return False
-
-
 def _expected_schema(migrations_path: Path) -> dict[str, set[str]] | None:
     mem = sqlite3.connect(":memory:")
     try:
-        for name, migration in load_migrations():
+        for _name, migration in load_migrations():
             if callable(migration):
                 migration(mem)
             else:
@@ -65,7 +53,7 @@ def _expected_schema(migrations_path: Path) -> dict[str, set[str]] | None:
         for (table,) in rows:
             if "_fts" in table or table == MIGRATIONS_TABLE:
                 continue
-            cols = mem.execute(f"PRAGMA table_info('{table}')").fetchall()  # noqa: S608
+            cols = mem.execute(f"PRAGMA table_info('{table}')").fetchall()
             schema[table] = {col[1] for col in cols}
         return schema
     except Exception:
@@ -87,19 +75,16 @@ def _check_schema_drift(conn: sqlite3.Connection) -> list[str]:
     for (table,) in live_rows:
         if "_fts" in table or table == MIGRATIONS_TABLE:
             continue
-        cols = conn.execute(f"PRAGMA table_info('{table}')").fetchall()  # noqa: S608
+        cols = conn.execute(f"PRAGMA table_info('{table}')").fetchall()
         live_tables[table] = {col[1] for col in cols}
 
     for table, expected_cols in expected.items():
         if table not in live_tables:
             drift.append(f"missing table: {table}")
             continue
-        for col in expected_cols - live_tables[table]:
-            drift.append(f"{table}.{col}: missing column")
+        drift.extend(f"{table}.{col}: missing column" for col in expected_cols - live_tables[table])
 
-    for table in live_tables:
-        if table not in expected:
-            drift.append(f"extra table: {table}")
+    drift.extend(f"extra table: {table}" for table in live_tables if table not in expected)
 
     return drift
 

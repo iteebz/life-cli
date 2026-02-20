@@ -128,8 +128,8 @@ def _apply_migrations(conn: sqlite3.Connection, db_path: Path) -> None:
 
         try:
             if callable(migration):
-                result = migration(conn)
-                exempt = result if isinstance(result, set) else None
+                migration(conn)
+                exempt = None
             else:
                 conn.executescript(migration)
                 exempt = None

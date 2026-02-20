@@ -154,19 +154,6 @@ def load_tags_for_habits(
         return _run(c)
 
 
-def _get_ancestor_tags(task_id: str) -> list[str]:
-    """Fetch all tags from ancestor tasks."""
-    tags = []
-    current_id = task_id
-    while current_id:
-        tags.extend(get_tags_for_task(current_id))
-        # Get parent_id from tasks table
-        with db.get_db() as conn:
-            row = conn.execute("SELECT parent_id FROM tasks WHERE id = ?", (current_id,)).fetchone()
-            current_id = row[0] if row else None
-    return tags
-
-
 def hydrate_tags[T: (Task, Habit)](items: list[T], tag_map: dict[str, list[str]]) -> list[T]:
     """Apply tags to a list of items using a pre-loaded tag map.
 

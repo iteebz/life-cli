@@ -14,7 +14,7 @@ def parse_created_date(created_val: int | float | str) -> date:
     """
     if isinstance(created_val, (int, float)):
         return datetime.fromtimestamp(created_val).date()
-    if isinstance(created_val, str) and created_val.replace(".", "").isdigit():
+    if created_val.replace(".", "").isdigit():
         return datetime.fromtimestamp(float(created_val)).date()
     return date.fromisoformat(created_val.split("T")[0])
 
@@ -29,8 +29,13 @@ def parse_due_date(due_str: str) -> str | None:
     if due_str_lower == "tomorrow":
         return (today + timedelta(days=1)).isoformat()
     _day_aliases = {
-        "monday": "mon", "tuesday": "tue", "wednesday": "wed",
-        "thursday": "thu", "friday": "fri", "saturday": "sat", "sunday": "sun",
+        "monday": "mon",
+        "tuesday": "tue",
+        "wednesday": "wed",
+        "thursday": "thu",
+        "friday": "fri",
+        "saturday": "sat",
+        "sunday": "sun",
     }
     due_str_lower = _day_aliases.get(due_str_lower, due_str_lower)
     if due_str_lower in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:

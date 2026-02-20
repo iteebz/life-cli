@@ -21,10 +21,8 @@ def format_due(due_date: date | str, colorize: bool = True) -> str:
 
     if isinstance(due_date, str):
         due = date.fromisoformat(due_date)
-    elif isinstance(due_date, date):
-        due = due_date
     else:
-        return ""
+        due = due_date
 
     date_str = due.strftime("%d/%m")
 

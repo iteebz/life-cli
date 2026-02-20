@@ -2,6 +2,7 @@ import difflib
 import json
 import re
 from pathlib import Path
+from typing import cast
 
 from .ansi import (
     bold,
@@ -256,9 +257,9 @@ def format_entry(entry: dict[str, object], quiet_system: bool = False) -> str | 
         return dim(f"  session {session_id or '-'} model={model or '-'}")
 
     if kind == "usage":
-        in_tok = int(entry.get("input_tokens", 0))
-        out_tok = int(entry.get("output_tokens", 0))
-        cache_tok = int(entry.get("cache_tokens", 0))
+        in_tok = cast(int, entry.get("input_tokens") or 0)
+        out_tok = cast(int, entry.get("output_tokens") or 0)
+        cache_tok = cast(int, entry.get("cache_tokens") or 0)
         if in_tok == 0 and out_tok == 0 and cache_tok == 0:
             return None
         return dim(f"  in={in_tok} out={out_tok} cache={cache_tok}")

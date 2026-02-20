@@ -1,7 +1,8 @@
+from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 
 from life.config import get_dates
-from life.models import Habit, Task
+from life.models import Habit, Task, TaskMutation
 from life.tasks import _task_sort_key, get_all_links
 
 from . import clock
@@ -27,6 +28,7 @@ def _fmt_time(t: str) -> str:
 
 def _fmt_countdown(due_time: str, now_dt) -> str:
     from datetime import datetime as _dt
+
     due_dt = _dt.combine(now_dt.date(), _dt.strptime(due_time, "%H:%M").time())
     diff = due_dt - now_dt.replace(tzinfo=None)
     total = int(diff.total_seconds())
@@ -67,8 +69,8 @@ def _get_direct_tags(task: Task, all_pending: list[Task]) -> list[str]:
     return [tag for tag in task.tags if tag not in parent_tags]
 
 
-def _build_tag_colors(items: list) -> dict[str, str]:
-    tags = sorted({tag for item in items if isinstance(item, (Task, Habit)) for tag in item.tags})
+def _build_tag_colors(items: Sequence[Task | Habit]) -> dict[str, str]:
+    tags = sorted({tag for item in items for tag in item.tags})
     return {tag: ANSI.POOL[i % len(ANSI.POOL)] for i, tag in enumerate(tags)}
 
 
@@ -96,13 +98,6 @@ def _get_habit_trend(checks: list[datetime]) -> str:
     if count_p1 < count_p2:
         return "↘"
     return "→"
-
-
-def _short_date(due: date, today: date) -> str:
-    delta = (due - today).days
-    if 0 < delta <= 7:
-        return due.strftime("%a").upper()
-    return due.isoformat()
 
 
 def _link_hint(task_id: str, linked_peers: dict[str, list[str]]) -> str:
@@ -166,7 +161,7 @@ def _render_done(
                 if latest_check.date() == clock.today():
                     time_str = latest_check.strftime("%H:%M")
             lines.append(f"  {gray('✓')} {_GREY}{time_str}{_R} {content}{tags_str}{id_str}")
-        elif isinstance(item, Task) and item.completed_at:
+        elif item.completed_at:
             time_str = item.completed_at.strftime("%H:%M")
             parent_str = ""
             if item.parent_id:
@@ -179,7 +174,7 @@ def _render_done(
     return lines
 
 
-def _render_upcoming_date(dates_list: list, today: date) -> list[str]:
+def _render_upcoming_date(dates_list: list[dict[str, str]], today: date) -> list[str]:
     if not dates_list:
         return []
     upcoming = sorted(
@@ -265,7 +260,7 @@ def _render_day_tasks(
     if not due_day:
         return [], set()
 
-    lines = [f"\n{bold(white(label + ':'))}"]  
+    lines = [f"\n{bold(white(label + ':'))}"]
     scheduled_ids: set[str] = set()
 
     for task in sorted(due_day, key=_task_sort_key):
@@ -674,7 +669,12 @@ def render_habit_matrix(habits: list[Habit]) -> str:
     return "\n".join(lines)
 
 
-def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task], mutations: list | None = None) -> str:
+def render_task_detail(
+    task: Task,
+    subtasks: list[Task],
+    linked: list[Task],
+    mutations: list[TaskMutation] | None = None,
+) -> str:
     lines = []
 
     all_tasks = [task, *subtasks, *linked]

@@ -2,7 +2,7 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from queue import Empty, Queue
 
@@ -52,8 +52,10 @@ from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
 from .patterns import add_pattern, get_patterns
+from .steward import Observation
 from .tags import add_tag, remove_tag
 from .tasks import (
+    UNSET,
     add_link,
     add_task,
     cancel_task,
@@ -338,13 +340,14 @@ def cmd_set(
     args: list[str],
     parent: str | None = None,
     content: str | None = None,
-    description: str | object = None,
+    description: str | None = None,
 ) -> None:
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life set <task> [-p parent] [-c content]")
     task = resolve_task(ref)
-    updates: dict = {}
+    parent_id: str | None = None
+    has_update = False
     if parent is not None:
         parent_task = resolve_task(parent)
         if parent_task.parent_id:
@@ -353,16 +356,24 @@ def cmd_set(
             exit_error("Error: a task cannot be its own parent")
         if task.focus:
             exit_error("Error: cannot parent a focused task — unfocus first")
-        updates["parent_id"] = parent_task.id
+        parent_id = parent_task.id
+        has_update = True
     if content is not None:
         if not content.strip():
             exit_error("Error: content cannot be empty")
-        updates["content"] = content
+        has_update = True
+    desc: str | None = None
     if description is not None:
-        updates["description"] = description if description != "" else None
-    if not updates:
+        desc = description if description != "" else None
+        has_update = True
+    if not has_update:
         exit_error("Nothing to set. Use -p for parent, -c for content, or -d for description.")
-    update_task(task.id, **updates)
+    update_task(
+        task.id,
+        content=content,
+        parent_id=parent_id if parent is not None else UNSET,
+        description=desc if description is not None else UNSET,
+    )
     updated = resolve_task(content or ref)
     prefix = "  └ " if updated.parent_id else ""
     echo(f"{prefix}{format_status('□', updated.content, updated.id)}")
@@ -426,7 +437,7 @@ def cmd_mood(
         if not entries:
             echo("no mood logged in the last 24h")
             return
-        now_dt = datetime.utcnow()
+        now_dt = datetime.now(UTC)
         for e in entries:
             delta = now_dt - e.logged_at
             secs = delta.total_seconds()
@@ -442,20 +453,20 @@ def cmd_mood(
         return
 
     if score < 1 or score > 5:
-        exit_error("Score must be 1–5")
+        exit_error("Score must be 1-5")
     add_mood(score, label)
     bar = "█" * score + "░" * (5 - score)
     label_str = f"  {label}" if label else ""
     echo(f"→ {bar}  {score}/5{label_str}")
 
 
-STEWARD_BIRTHDAY = datetime(2026, 2, 18)
+STEWARD_BIRTHDAY = datetime(2026, 2, 18, tzinfo=UTC)
 
 
 def cmd_steward_boot() -> None:
     from .steward import get_sessions
 
-    age_days = (datetime.utcnow() - STEWARD_BIRTHDAY).days
+    age_days = (datetime.now(UTC) - STEWARD_BIRTHDAY).days
     now_local = datetime.now()
     echo(f"STEWARD — day {age_days}  |  {now_local.strftime('%a %d %b %Y  %I:%M%p').lower()}\n")
 
@@ -467,7 +478,7 @@ def cmd_steward_boot() -> None:
     sessions = get_sessions(limit=1)
     if sessions:
         s = sessions[0]
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         delta = now - s.logged_at
         secs = delta.total_seconds()
         if secs < 3600:
@@ -489,20 +500,18 @@ def cmd_steward_boot() -> None:
 
     from .steward import get_observations
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     today_d = date.today()
     recent = get_observations(limit=40)
     cutoff_24h = 86400
 
     upcoming_obs = [o for o in recent if o.about_date and o.about_date >= today_d]
     recent_obs = [
-        o for o in recent
-        if not o.about_date
-        and (now - o.logged_at).total_seconds() < cutoff_24h
+        o for o in recent if not o.about_date and (now - o.logged_at).total_seconds() < cutoff_24h
     ]
     active_tags = {tag for t in tasks for tag in (getattr(t, "tags", None) or [])}
-    tagged_obs: list = []
-    seen_ids: set = {o.id for o in recent_obs} | {o.id for o in upcoming_obs}
+    tagged_obs: list[Observation] = []
+    seen_ids: set[int] = {o.id for o in recent_obs} | {o.id for o in upcoming_obs}
     for tag in active_tags:
         for o in get_observations(limit=5, tag=tag):
             if o.id not in seen_ids and (not o.about_date or o.about_date >= today_d):
@@ -510,7 +519,9 @@ def cmd_steward_boot() -> None:
                 seen_ids.add(o.id)
 
     upcoming_obs_sorted = sorted(upcoming_obs, key=lambda o: o.about_date or today_d)
-    all_obs = upcoming_obs_sorted + sorted(recent_obs + tagged_obs, key=lambda o: o.logged_at, reverse=True)
+    all_obs = upcoming_obs_sorted + sorted(
+        recent_obs + tagged_obs, key=lambda o: o.logged_at, reverse=True
+    )
 
     if all_obs:
         echo("\nOBSERVATIONS:")
@@ -535,12 +546,12 @@ def cmd_steward_boot() -> None:
             tag_str = f" #{o.tag}" if o.tag else ""
             echo(f"  {rel:<10}  {o.body}{tag_str}")
 
-    from .mood import get_latest_mood, get_recent_moods
+    from .mood import get_recent_moods
 
     recent_moods = get_recent_moods(hours=24)
     if recent_moods:
         latest = recent_moods[0]
-        now_dt = datetime.utcnow()
+        now_dt = datetime.now(UTC)
         delta = now_dt - latest.logged_at
         secs = delta.total_seconds()
         if secs < 3600:
@@ -604,8 +615,6 @@ def cmd_steward_close(summary: str) -> None:
 
 
 def cmd_steward_dash() -> None:
-    from datetime import datetime
-
     from .patterns import get_patterns
     from .steward import get_observations
 
@@ -623,7 +632,7 @@ def cmd_steward_dash() -> None:
     patterns = get_patterns(limit=5)
     if patterns:
         echo("\nRECENT PATTERNS:")
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         for p in patterns:
             delta = now - p.logged_at
             s = delta.total_seconds()
@@ -640,7 +649,7 @@ def cmd_steward_dash() -> None:
     observations = get_observations(limit=10)
     if observations:
         echo("\nRECENT OBSERVATIONS:")
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         for o in observations:
             delta = now - o.logged_at
             s = delta.total_seconds()
@@ -784,7 +793,7 @@ def cmd_pattern(
         if not patterns:
             echo("no patterns logged")
             return
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         for p in patterns:
             delta = now - p.logged_at
             s = delta.total_seconds()
@@ -1241,5 +1250,3 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
     task = resolve_task(ref)
     update_task(task.id, due_time=parsed)
     echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content, task.id))
-
-

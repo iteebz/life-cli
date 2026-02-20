@@ -14,7 +14,7 @@ class SearchResult:
     type: str
     rank: float
     task: object = None
-    tag: str = None
+    tag: str | None = None
 
 
 def search_tasks(query: str, limit: int = 20) -> list[SearchResult]:
@@ -145,21 +145,23 @@ def search_fuzzy(query: str, limit: int = 20) -> list[SearchResult]:
     if not query or not query.strip():
         return []
 
-    results = []
+    results: list[SearchResult] = []
 
     tasks = get_tasks()
-    task_pool = [(t.id, t.content, t) for t in tasks]
-
-    matches = find_in_pool(query, task_pool, limit)
-    for task_id, content, task in matches:
-        results.append(SearchResult(id=task_id, content=content, type="task", rank=0.0, task=task))
+    task_match = find_in_pool(query, tasks)
+    if task_match:
+        results.append(
+            SearchResult(
+                id=task_match.id, content=task_match.content, type="task", rank=0.0, task=task_match
+            )
+        )
 
     habits = get_habits()
-    habit_pool = [(h.id, h.content) for h in habits]
-
-    habit_matches = find_in_pool(query, habit_pool, limit)
-    for habit_id, content, _ in habit_matches:
-        results.append(SearchResult(id=habit_id, content=content, type="habit", rank=0.0))
+    habit_match = find_in_pool(query, habits)
+    if habit_match:
+        results.append(
+            SearchResult(id=habit_match.id, content=habit_match.content, type="habit", rank=0.0)
+        )
 
     return results[:limit]
 
@@ -174,7 +176,7 @@ def search_all(query: str, limit: int = 20, fuzzy_fallback: bool = True) -> list
     if tag_prefix:
         results = search_by_tag(query, limit)
     else:
-        results = []
+        results: list[SearchResult] = []
         results.extend(search_tasks(query, limit))
         results.extend(search_habits(query, limit))
         results.extend(search_tags(query, limit))

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from .db import get_db
 
@@ -22,7 +22,7 @@ def add_mood(score: int, label: str | None = None) -> int:
 
 
 def get_recent_moods(hours: int = 24) -> list[MoodEntry]:
-    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     with get_db() as conn:
         rows = conn.execute(
             "SELECT id, score, label, logged_at FROM mood_log WHERE logged_at > ? ORDER BY logged_at DESC",
@@ -41,7 +41,9 @@ def get_latest_mood() -> MoodEntry | None:
         ).fetchone()
     if not row:
         return None
-    return MoodEntry(id=row[0], score=row[1], label=row[2], logged_at=datetime.fromisoformat(row[3]))
+    return MoodEntry(
+        id=row[0], score=row[1], label=row[2], logged_at=datetime.fromisoformat(row[3])
+    )
 
 
 def delete_latest_mood(within_seconds: int = 3600) -> MoodEntry | None:
@@ -51,8 +53,10 @@ def delete_latest_mood(within_seconds: int = 3600) -> MoodEntry | None:
         ).fetchone()
         if not row:
             return None
-        entry = MoodEntry(id=row[0], score=row[1], label=row[2], logged_at=datetime.fromisoformat(row[3]))
-        age = (datetime.utcnow() - entry.logged_at).total_seconds()
+        entry = MoodEntry(
+            id=row[0], score=row[1], label=row[2], logged_at=datetime.fromisoformat(row[3])
+        )
+        age = (datetime.now(UTC) - entry.logged_at).total_seconds()
         if age > within_seconds:
             raise ValueError(f"latest entry is {int(age // 60)}m old — too old to remove")
         conn.execute("DELETE FROM mood_log WHERE id = ?", (row[0],))

@@ -2,7 +2,7 @@ import contextlib
 import dataclasses
 import sqlite3
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from . import db
 from .lib import clock
@@ -28,7 +28,7 @@ __all__ = [
 ]
 
 
-def _hydrate_habit(habit: Habit, checks: list[date], tags: list[str]) -> Habit:
+def _hydrate_habit(habit: Habit, checks: list[datetime], tags: list[str]) -> Habit:
     """Attach checks and tags to a habit."""
     return dataclasses.replace(habit, checks=checks, tags=tags)
 
