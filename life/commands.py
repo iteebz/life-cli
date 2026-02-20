@@ -436,11 +436,22 @@ def cmd_steward_boot() -> None:
             rel = f"{int(secs // 86400)}d ago"
         echo(f"\nLAST SESSION ({rel}): {s.summary}")
     from .steward import get_observations
-    observations = get_observations(limit=10)
-    if observations:
-        echo("\nRECENT OBSERVATIONS:")
-        now = datetime.utcnow()
-        for o in observations:
+    now = datetime.utcnow()
+    recent = get_observations(limit=20)
+    cutoff_24h = 86400
+    recent_obs = [o for o in recent if (now - o.logged_at).total_seconds() < cutoff_24h]
+    active_tags = {tag for t in tasks for tag in (getattr(t, "tags", None) or [])}
+    tagged_obs: list = []
+    seen_ids: set = {o.id for o in recent_obs}
+    for tag in active_tags:
+        for o in get_observations(limit=5, tag=tag):
+            if o.id not in seen_ids:
+                tagged_obs.append(o)
+                seen_ids.add(o.id)
+    all_obs = sorted(recent_obs + tagged_obs, key=lambda o: o.logged_at, reverse=True)
+    if all_obs:
+        echo("\nOBSERVATIONS:")
+        for o in all_obs:
             delta = now - o.logged_at
             secs = delta.total_seconds()
             if secs < 3600:
@@ -449,7 +460,8 @@ def cmd_steward_boot() -> None:
                 rel = f"{int(secs // 3600)}h ago"
             else:
                 rel = f"{int(secs // 86400)}d ago"
-            echo(f"  {rel:<10}  {o.body}")
+            tag_str = f" #{o.tag}" if o.tag else ""
+            echo(f"  {rel:<10}  {o.body}{tag_str}")
 
     repos_dir = Path.home() / "life" / "repos"
     if repos_dir.exists():

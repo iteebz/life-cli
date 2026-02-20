@@ -21,23 +21,33 @@ def add_session(summary: str) -> int:
 class Observation:
     id: int
     body: str
+    tag: str | None
     logged_at: datetime
 
 
-def add_observation(body: str) -> int:
+def add_observation(body: str, tag: str | None = None) -> int:
     with get_db() as conn:
-        cursor = conn.execute("INSERT INTO steward_observations (body) VALUES (?)", (body,))
+        cursor = conn.execute(
+            "INSERT INTO steward_observations (body, tag) VALUES (?, ?)",
+            (body, tag),
+        )
         return cursor.lastrowid or 0
 
 
-def get_observations(limit: int = 20) -> list[Observation]:
+def get_observations(limit: int = 20, tag: str | None = None) -> list[Observation]:
     with get_db() as conn:
-        rows = conn.execute(
-            "SELECT id, body, logged_at FROM steward_observations ORDER BY logged_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        if tag:
+            rows = conn.execute(
+                "SELECT id, body, tag, logged_at FROM steward_observations WHERE tag = ? ORDER BY logged_at DESC LIMIT ?",
+                (tag, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, body, tag, logged_at FROM steward_observations ORDER BY logged_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
         return [
-            Observation(id=row[0], body=row[1], logged_at=datetime.fromisoformat(row[2]))
+            Observation(id=row[0], body=row[1], tag=row[2], logged_at=datetime.fromisoformat(row[3]))
             for row in rows
         ]
 

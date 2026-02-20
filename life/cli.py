@@ -414,12 +414,14 @@ def steward_close(
 @steward_app.command(name="observe")
 def steward_observe(
     body: str = typer.Argument(..., help="Raw observation to store"),
+    tag: str = typer.Option(None, "--tag", "-t", help="Tag for retrieval (e.g. janice, finance)"),
 ):
     """Log a raw observation — things Tyson says that should persist as context"""
     from .steward import add_observation
     from .lib.errors import echo
-    add_observation(body)
-    echo(f"→ {body}")
+    add_observation(body, tag=tag)
+    suffix = f" #{tag}" if tag else ""
+    echo(f"→ {body}{suffix}")
 
 
 @steward_app.command(name="log")
