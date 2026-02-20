@@ -14,6 +14,7 @@ __all__ = [
     "add_link",
     "add_task",
     "check_task",
+    "count_overdue_resets",
     "defer_task",
     "delete_task",
     "find_task",
@@ -272,6 +273,16 @@ def defer_task(task_id: str, reason: str) -> Task | None:
             (task_id, reason),
         )
     return task
+
+
+def count_overdue_resets(window_start: str, window_end: str) -> int:
+    """Count overdue_reset deferrals within a date window (ISO strings)."""
+    with db.get_db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM task_mutations WHERE reason = 'overdue_reset' AND date(mutated_at) >= ? AND date(mutated_at) <= ?",
+            (window_start, window_end),
+        ).fetchone()
+    return row[0] if row else 0
 
 
 def delete_task(task_id: str) -> None:

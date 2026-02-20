@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from statistics import median
 
 from .models import Task
+from .tasks import count_overdue_resets
 
 DISCOMFORT_TAGS = {"finance", "legal", "jaynice"}
 
@@ -14,6 +15,7 @@ class FeedbackSnapshot:
     jaynice_done: int
     jaynice_created: int
     avoidance_half_life_days: int
+    overdue_resets: int
     flags: list[str]
 
 
@@ -38,6 +40,7 @@ def build_feedback_snapshot(
     window_days: int = 7,
 ) -> FeedbackSnapshot:
     window_start = today - timedelta(days=window_days - 1)
+    overdue_resets = count_overdue_resets(window_start.isoformat(), today.isoformat())
 
     admin_created = sum(
         1
@@ -85,6 +88,7 @@ def build_feedback_snapshot(
         jaynice_done=jaynice_done,
         jaynice_created=jaynice_created,
         avoidance_half_life_days=avoidance_half_life_days,
+        overdue_resets=overdue_resets,
         flags=flags,
     )
 
@@ -95,6 +99,7 @@ def render_feedback_snapshot(snapshot: FeedbackSnapshot) -> list[str]:
         f"  admin_closure_rate: {_format_ratio(snapshot.admin_closed, snapshot.admin_created)} ({snapshot.admin_closed}/{snapshot.admin_created})",
         f"  jaynice_followthrough_rate: {_format_ratio(snapshot.jaynice_done, snapshot.jaynice_created)} ({snapshot.jaynice_done}/{snapshot.jaynice_created})",
         f"  avoidance_half_life_days: {snapshot.avoidance_half_life_days}",
+        f"  overdue_resets: {snapshot.overdue_resets}",
     ]
     if snapshot.flags:
         lines.append("  flags: " + ", ".join(snapshot.flags))
