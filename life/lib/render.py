@@ -25,6 +25,29 @@ def _fmt_time(t: str) -> str:
     return f"{_GREY}{t}{_R}"
 
 
+def _fmt_countdown(due_time: str, now_dt) -> str:
+    from datetime import datetime as _dt
+    due_dt = _dt.combine(now_dt.date(), _dt.strptime(due_time, "%H:%M").time())
+    diff = due_dt - now_dt.replace(tzinfo=None)
+    total = int(diff.total_seconds())
+    if total < 0:
+        total = -total
+        h, m = divmod(total // 60, 60)
+        s = f"{h}h{m:02d}m" if h else f"{m}m"
+        return f"{ANSI.GREY}overdue {s}{_R}"
+    h, m = divmod(total // 60, 60)
+    s = f"{h}h{m:02d}m" if h else f"{m}m"
+    return f"{ANSI.GREY}in {s}{_R}"
+
+
+def _fmt_rel_date(due: date, today: date) -> str:
+    delta = (due - today).days
+    if delta <= 7:
+        day_label = due.strftime("%a").lower()
+        return f"{day_label}·{delta}d"
+    return f"+{delta}d"
+
+
 def _fmt_tags(tags: list[str], tag_colors: dict[str, str]) -> str:
     if not tags:
         return ""
@@ -174,6 +197,7 @@ def _render_upcoming_date(dates_list: list, today: date) -> list[str]:
 def _render_today_tasks(
     due_today: list[Task],
     current_time: str,
+    now_dt,
     tag_colors: dict[str, str],
     linked_peers: dict[str, list[str]],
     task_id_to_content: dict[str, str],
@@ -206,7 +230,7 @@ def _render_today_tasks(
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         link_str = _link_hint(task.id, linked_peers)
-        time_str = f"{_fmt_time(task.due_time)} " if task.due_time else ""
+        time_str = f"{_fmt_countdown(task.due_time, now_dt)} " if task.due_time else ""
 
         if task.blocked_by:
             blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
@@ -309,11 +333,8 @@ def _render_task_row(
 
     date_str = ""
     if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
-        label = _short_date(task.due_date, today)
-        if task.due_time:
-            date_str = f"{dim(label)}{dim('·')}{_fmt_time(task.due_time)} "
-        else:
-            date_str = f"{dim(label)} "
+        label = _fmt_rel_date(task.due_date, today)
+        date_str = f"{dim(label)} "
 
     if task.blocked_by:
         blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
@@ -379,11 +400,8 @@ def _render_clusters(
         id_str = f" {_GREY}[{focus.id[:8]}]{_R}"
         date_str = ""
         if focus.due_date and focus.due_date.isoformat() not in (today_str, tomorrow_str):
-            label = _short_date(focus.due_date, today)
-            if focus.due_time:
-                date_str = f"{dim(label)}{dim('·')}{_fmt_time(focus.due_time)} "
-            else:
-                date_str = f"{dim(label)} "
+            label = _fmt_rel_date(focus.due_date, today)
+            date_str = f"{dim(label)} "
         lines.append(f"\n{bold('⦿')} {date_str}{focus.content.lower()}{tags_str}{id_str}")
 
         for sub in sorted(subtasks_by_parent.get(focus.id, []), key=_task_sort_key):
@@ -407,11 +425,8 @@ def _render_clusters(
             peer_id_str = f" {_GREY}[{peer.id[:8]}]{_R}"
             peer_date_str = ""
             if peer.due_date and peer.due_date.isoformat() not in (today_str, tomorrow_str):
-                label = _short_date(peer.due_date, today)
-                if peer.due_time:
-                    peer_date_str = f"{dim(label)}{dim('·')}{_fmt_time(peer.due_time)} "
-                else:
-                    peer_date_str = f"{dim(label)} "
+                label = _fmt_rel_date(peer.due_date, today)
+                peer_date_str = f"{dim(label)} "
             lines.append(
                 f"  {_GREY}~{_R} {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}"
             )
@@ -429,11 +444,8 @@ def _render_clusters(
             peer_id_str = f" {_GREY}[{peer.id[:8]}]{_R}"
             peer_date_str = ""
             if peer.due_date and peer.due_date.isoformat() not in (today_str, tomorrow_str):
-                label = _short_date(peer.due_date, today)
-                if peer.due_time:
-                    peer_date_str = f"{dim(label)}{dim('·')}{_fmt_time(peer.due_time)} "
-                else:
-                    peer_date_str = f"{dim(label)} "
+                label = _fmt_rel_date(peer.due_date, today)
+                peer_date_str = f"{label} "
             lines.append(
                 f"  {dim('~ ' + peer_date_str + peer.content.lower())}{peer_tags_str}{peer_id_str}"
             )
@@ -513,6 +525,7 @@ def render_dashboard(
     today_lines, scheduled_ids = _render_today_tasks(
         due_today,
         current_time,
+        now,
         tag_colors,
         linked_peers,
         task_id_to_content,

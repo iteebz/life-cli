@@ -694,9 +694,13 @@ def cmd_due(args: list[str], remove: bool = False) -> None:
         echo(format_status("□", task.content, task.id))
     elif date_str:
         update_task(task.id, due=date_str)
+        from .lib.clock import today as _today
+        from datetime import date as _date
+        _due = _date.fromisoformat(date_str)
+        _delta = (_due - _today()).days
         echo(
             format_status(
-                f"{ANSI.GREY}{date_str.split('-')[2]}d:{ANSI.RESET}", task.content, task.id
+                f"{ANSI.GREY}+{_delta}d{ANSI.RESET}", task.content, task.id
             )
         )
     else:
