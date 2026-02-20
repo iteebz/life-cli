@@ -45,15 +45,14 @@ def build_feedback_snapshot(
     admin_created = sum(
         1
         for t in all_tasks
-        if t.due_date and window_start <= t.created.date() <= today and t.due_date < today
+        if set(t.tags or []).intersection(DISCOMFORT_TAGS)
+        and window_start <= t.created.date() <= today
     )
     admin_closed = sum(
         1
         for t in all_tasks
-        if t.due_date
+        if set(t.tags or []).intersection(DISCOMFORT_TAGS)
         and _in_window(t.completed_at, window_start, today)
-        and t.completed_at is not None
-        and t.due_date < t.completed_at.date()
     )
 
     janice_created = sum(

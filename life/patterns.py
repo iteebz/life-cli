@@ -17,6 +17,12 @@ def add_pattern(body: str) -> int:
         return cursor.lastrowid or 0
 
 
+def delete_pattern(pattern_id: int) -> bool:
+    with get_db() as conn:
+        cursor = conn.execute("DELETE FROM patterns WHERE id = ?", (pattern_id,))
+        return cursor.rowcount > 0
+
+
 def get_patterns(limit: int = 20) -> list[Pattern]:
     with get_db() as conn:
         rows = conn.execute(

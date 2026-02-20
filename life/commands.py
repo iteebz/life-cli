@@ -51,7 +51,7 @@ from .loop import (
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
-from .patterns import add_pattern, get_patterns
+from .patterns import add_pattern, delete_pattern, get_patterns
 from .steward import Observation
 from .tags import add_tag, remove_tag
 from .tasks import (
@@ -662,6 +662,23 @@ def cmd_steward_dash() -> None:
             tag_str = f" #{o.tag}" if o.tag else ""
             echo(f"  {rel:<10}  {o.body}{tag_str}")
 
+    from .steward import get_sessions
+
+    sessions = get_sessions(limit=5)
+    if sessions:
+        echo("\nRECENT SESSIONS:")
+        now_dt = datetime.now()
+        for s in sessions:
+            delta = now_dt - s.logged_at
+            secs = delta.total_seconds()
+            if secs < 3600:
+                rel = f"{int(secs // 60)}m ago"
+            elif secs < 86400:
+                rel = f"{int(secs // 3600)}h ago"
+            else:
+                rel = f"{int(secs // 86400)}d ago"
+            echo(f"  {rel:<10}  {s.summary[:90]}")
+
 
 def cmd_steward() -> None:
     tasks_before = get_tasks()
@@ -787,7 +804,27 @@ def cmd_pattern(
     body: str | None = None,
     show_log: bool = False,
     limit: int = 20,
+    rm: str | None = None,
 ) -> None:
+    if rm is not None:
+        patterns = get_patterns(limit=50)
+        if not patterns:
+            exit_error("no patterns to remove")
+        if rm == "":
+            target = patterns[0]
+        else:
+            q = rm.lower()
+            matches = [p for p in patterns if q in p.body.lower()]
+            if not matches:
+                exit_error(f"no pattern matching '{rm}'")
+            target = matches[0]
+        deleted = delete_pattern(target.id)
+        if deleted:
+            echo(f"→ removed: {target.body[:80]}")
+        else:
+            exit_error("delete failed")
+        return
+
     if show_log:
         patterns = get_patterns(limit)
         if not patterns:

@@ -59,6 +59,12 @@ def get_observations(limit: int = 20, tag: str | None = None) -> list[Observatio
         ]
 
 
+def delete_observation(obs_id: int) -> bool:
+    with get_db() as conn:
+        cursor = conn.execute("DELETE FROM steward_observations WHERE id = ?", (obs_id,))
+        return cursor.rowcount > 0
+
+
 def get_sessions(limit: int = 10) -> list[StewardSession]:
     with get_db() as conn:
         rows = conn.execute(

@@ -391,6 +391,7 @@ app.add_typer(db_app, name="db")
 def db_migrate():
     """Run pending database migrations"""
     from .lib.errors import echo
+
     db.migrate()
     echo("migrations applied")
 
@@ -400,6 +401,7 @@ def db_backup():
     """Create database backup"""
     from .lib.backup import backup as _backup
     from .lib.errors import echo
+
     result = _backup()
     path = result["path"]
     rows = result["rows"]
@@ -458,7 +460,9 @@ def steward_close(
 def steward_observe(
     body: str = typer.Argument(..., help="Raw observation to store"),
     tag: str = typer.Option(None, "--tag", "-t", help="Tag for retrieval (e.g. janice, finance)"),
-    about: str = typer.Option(None, "--about", help="Date this observation is about (YYYY-MM-DD or 'sunday')"),
+    about: str = typer.Option(
+        None, "--about", help="Date this observation is about (YYYY-MM-DD or 'sunday')"
+    ),
 ):
     """Log a raw observation — things Tyson says that should persist as context"""
     from datetime import date
@@ -476,6 +480,34 @@ def steward_observe(
     suffix = f" #{tag}" if tag else ""
     about_str = f" (about {about_date})" if about_date else ""
     echo(f"→ {body}{suffix}{about_str}")
+
+
+@steward_app.command(name="rm")
+def steward_rm(
+    query: str = typer.Argument(None, help="Fuzzy match on observation body (omit to rm latest)"),
+):
+    """Delete an observation — fuzzy match or latest"""
+    from .lib.errors import echo, exit_error
+    from .steward import delete_observation, get_observations
+
+    observations = get_observations(limit=50)
+    if not observations:
+        exit_error("no observations to remove")
+
+    if query is None:
+        target = observations[0]
+    else:
+        q = query.lower()
+        matches = [o for o in observations if q in o.body.lower()]
+        if not matches:
+            exit_error(f"no observation matching '{query}'")
+        target = matches[0]
+
+    deleted = delete_observation(target.id)
+    if deleted:
+        echo(f"→ removed: {target.body[:80]}")
+    else:
+        exit_error("delete failed")
 
 
 @steward_app.command(name="dash")
@@ -615,8 +647,12 @@ def pattern(
     body: list[str] = typer.Argument(None, help="Pattern observation to log"),
     log: bool = typer.Option(False, "--log", "-l", help="Show recent patterns"),
     limit: int = typer.Option(20, "--limit", "-n", help="Number of patterns to show"),
+    rm: str = typer.Option(None, "--rm", help="Remove pattern by fuzzy match (empty string = latest)"),
 ):
     """Log or review Steward observations about Tyson"""
+    if rm is not None:
+        cmd_pattern(rm=rm)
+        return
     if log:
         cmd_pattern(show_log=True, limit=limit)
         return
@@ -637,6 +673,7 @@ def mood(
         return
     if args[0] == "rm":
         from .mood import delete_latest_mood
+
         try:
             entry = delete_latest_mood()
         except ValueError as e:
