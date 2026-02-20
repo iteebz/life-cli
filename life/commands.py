@@ -25,10 +25,8 @@ from .interventions import (
 from .interventions import (
     get_stats as get_intervention_stats,
 )
-from .patterns import add_pattern, get_patterns
 from .lib.ansi import ANSI
 from .lib.ansi import strip as ansi_strip
-from .lib.backup import backup as backup_life
 from .lib.clock import now, today
 from .lib.dates import add_date, list_dates, parse_due_date, remove_date
 from .lib.errors import echo, exit_error
@@ -53,6 +51,7 @@ from .loop import (
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
+from .patterns import add_pattern, get_patterns
 from .tags import add_tag, remove_tag
 from .tasks import (
     add_link,
@@ -76,7 +75,6 @@ from .tasks import (
 
 __all__ = [
     "cmd_archive",
-    "cmd_backup",
     "cmd_block",
     "cmd_cancel",
     "cmd_check",
@@ -89,7 +87,6 @@ __all__ = [
     "cmd_habit",
     "cmd_habits",
     "cmd_link",
-    "cmd_migrate",
     "cmd_momentum",
     "cmd_now",
     "cmd_pattern",
@@ -418,6 +415,7 @@ def cmd_unblock(args: list[str]) -> None:
 
 def cmd_steward_boot() -> None:
     from .steward import get_sessions
+
     tasks = get_tasks()
     all_tasks = get_all_tasks()
     today_date = today()
@@ -436,15 +434,16 @@ def cmd_steward_boot() -> None:
         else:
             rel = f"{int(secs // 86400)}d ago"
         echo(f"\nLAST SESSION ({rel}): {s.summary}")
-    
+
     steward_tasks = get_tasks(include_steward=True)
     steward_tasks = [t for t in steward_tasks if t.steward]
     if steward_tasks:
         echo("\nSTEWARD IN PROGRESS:")
         for t in steward_tasks[:3]:
             echo(f"  → {t.content}")
-    
+
     from .steward import get_observations
+
     now = datetime.utcnow()
     recent = get_observations(limit=20)
     cutoff_24h = 86400
@@ -513,15 +512,17 @@ def cmd_steward_boot() -> None:
 
 def cmd_steward_close(summary: str) -> None:
     from .steward import add_session
+
     add_session(summary)
-    echo(f"→ session logged")
+    echo("→ session logged")
 
 
 def cmd_steward_dash() -> None:
-    from .steward import get_observations
-    from .patterns import get_patterns
     from datetime import datetime
-    
+
+    from .patterns import get_patterns
+    from .steward import get_observations
+
     steward_tasks = get_tasks(include_steward=True)
     steward_tasks = [t for t in steward_tasks if t.steward]
 
@@ -532,7 +533,7 @@ def cmd_steward_dash() -> None:
             echo(f"  {status} {t.content}")
     else:
         echo("STEWARD TASKS: none")
-    
+
     patterns = get_patterns(limit=5)
     if patterns:
         echo("\nRECENT PATTERNS:")
@@ -549,7 +550,7 @@ def cmd_steward_dash() -> None:
             else:
                 rel = p.logged_at.strftime("%Y-%m-%d")
             echo(f"  {rel:<10}  {p.body}")
-    
+
     observations = get_observations(limit=10)
     if observations:
         echo("\nRECENT OBSERVATIONS:")
@@ -713,7 +714,7 @@ def cmd_pattern(
         return
 
     if not body:
-        exit_error("Usage: life pattern \"observation\" or life pattern --log")
+        exit_error('Usage: life pattern "observation" or life pattern --log')
 
     add_pattern(body)
     echo(f"→ {body}")
@@ -889,13 +890,10 @@ def cmd_due(args: list[str], remove: bool = False) -> None:
         from datetime import date as _date
 
         from .lib.clock import today as _today
+
         _due = _date.fromisoformat(date_str)
         _delta = (_due - _today()).days
-        echo(
-            format_status(
-                f"{ANSI.GREY}+{_delta}d{ANSI.RESET}", task.content, task.id
-            )
-        )
+        echo(format_status(f"{ANSI.GREY}+{_delta}d{ANSI.RESET}", task.content, task.id))
     else:
         exit_error(
             "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
@@ -1047,7 +1045,9 @@ def cmd_status() -> None:
     last_check_str = _format_elapsed(lc) if lc else "never"
 
     lines = []
-    lines.append(f"tasks: {len(tasks)}  habits: {len(habits)}  focused: {len(focused)}  last check: {last_check_str}")
+    lines.append(
+        f"tasks: {len(tasks)}  habits: {len(habits)}  focused: {len(focused)}  last check: {last_check_str}"
+    )
     lines.append("\nHEALTH:")
     lines.append(f"  untagged: {len(untagged)}")
     lines.append(f"  overdue: {len(overdue)}")
@@ -1073,25 +1073,6 @@ def cmd_stats() -> None:
     today_date = today()
     snapshot = build_feedback_snapshot(all_tasks=all_tasks, pending_tasks=tasks, today=today_date)
     echo("\n".join(render_feedback_snapshot(snapshot)))
-
-
-def cmd_backup() -> None:
-    result = backup_life()
-    path = result["path"]
-    rows = result["rows"]
-    delta_total = result["delta_total"]
-    delta_by_table = result["delta_by_table"]
-
-    delta_str = ""
-    if delta_total is not None and delta_total != 0:
-        delta_str = f" (+{delta_total})" if delta_total > 0 else f" ({delta_total})"
-
-    echo(str(path))
-    echo(f"  {rows} rows{delta_str}")
-
-    for table, delta in sorted(delta_by_table.items(), key=lambda x: abs(x[1]), reverse=True):
-        sign = "+" if delta > 0 else ""
-        echo(f"    {table} {sign}{delta}")
 
 
 def cmd_momentum() -> None:
@@ -1174,8 +1155,3 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
     echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content, task.id))
 
 
-def cmd_migrate() -> None:
-    from . import db
-
-    db.migrate()
-    echo("migrations applied")

@@ -3,7 +3,6 @@ import typer
 from . import db
 from .commands import (
     cmd_archive,
-    cmd_backup,
     cmd_block,
     cmd_cancel,
     cmd_check,
@@ -16,7 +15,6 @@ from .commands import (
     cmd_habit,
     cmd_habits,
     cmd_link,
-    cmd_migrate,
     cmd_momentum,
     cmd_now,
     cmd_pattern,
@@ -272,12 +270,6 @@ def stats():
 
 
 @app.command()
-def backup():
-    """Create database backup"""
-    cmd_backup()
-
-
-@app.command()
 def momentum():
     """Show momentum and weekly trends"""
     cmd_momentum()
@@ -395,13 +387,29 @@ app.add_typer(db_app, name="db")
 @db_app.command(name="migrate")
 def db_migrate():
     """Run pending database migrations"""
-    cmd_migrate()
+    from .lib.errors import echo
+    db.migrate()
+    echo("migrations applied")
 
 
 @db_app.command(name="backup")
 def db_backup():
     """Create database backup"""
-    cmd_backup()
+    from .lib.backup import backup as _backup
+    from .lib.errors import echo
+    result = _backup()
+    path = result["path"]
+    rows = result["rows"]
+    delta_total = result["delta_total"]
+    delta_by_table = result["delta_by_table"]
+    delta_str = ""
+    if delta_total is not None and delta_total != 0:
+        delta_str = f" (+{delta_total})" if delta_total > 0 else f" ({delta_total})"
+    echo(str(path))
+    echo(f"  {rows} rows{delta_str}")
+    for table, delta in sorted(delta_by_table.items(), key=lambda x: abs(x[1]), reverse=True):
+        sign = "+" if delta > 0 else ""
+        echo(f"    {table} {sign}{delta}")
 
 
 @db_app.command(name="health")
@@ -601,12 +609,6 @@ def pattern(
         return
     text = " ".join(body) if body else None
     cmd_pattern(body=text)
-
-
-@app.command()
-def migrate():
-    """Run database migrations"""
-    cmd_migrate()
 
 
 def main():
