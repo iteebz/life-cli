@@ -449,8 +449,14 @@ def cmd_mood(
     echo(f"→ {bar}  {score}/5{label_str}")
 
 
+STEWARD_BIRTHDAY = datetime(2026, 2, 18)
+
+
 def cmd_steward_boot() -> None:
     from .steward import get_sessions
+
+    age_days = (datetime.utcnow() - STEWARD_BIRTHDAY).days
+    echo(f"STEWARD — day {age_days}\n")
 
     tasks = get_tasks()
     all_tasks = get_all_tasks()
