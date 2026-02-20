@@ -77,10 +77,10 @@ __all__ = [
     "cmd_archive",
     "cmd_backup",
     "cmd_block",
+    "cmd_cancel",
     "cmd_check",
     "cmd_dashboard",
     "cmd_dates",
-    "cmd_cancel",
     "cmd_defer",
     "cmd_done",
     "cmd_due",
@@ -100,6 +100,8 @@ __all__ = [
     "cmd_stats",
     "cmd_status",
     "cmd_steward",
+    "cmd_steward_boot",
+    "cmd_steward_close",
     "cmd_tag",
     "cmd_tail",
     "cmd_task",
@@ -411,6 +413,28 @@ def cmd_unblock(args: list[str]) -> None:
     echo(f"□ {task.content.lower()}  unblocked")
 
 
+def cmd_steward_boot() -> None:
+    tasks = get_tasks()
+    all_tasks = get_all_tasks()
+    today_date = today()
+    snapshot = build_feedback_snapshot(all_tasks=all_tasks, pending_tasks=tasks, today=today_date)
+    echo("\n".join(render_feedback_snapshot(snapshot)))
+
+
+def cmd_steward_close(summary: str) -> None:
+    life_dir = Path.home() / "life"
+    sessions_dir = life_dir / "brr" / "sessions"
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+    date_str = today().isoformat()
+    session_file = sessions_dir / f"{date_str}.md"
+    content = f"# {date_str}\n\n{summary}\n"
+    if session_file.exists():
+        existing = session_file.read_text()
+        content = existing.rstrip() + "\n\n---\n\n" + summary + "\n"
+    session_file.write_text(content)
+    echo(f"session logged -> brr/sessions/{date_str}.md")
+
+
 def cmd_steward() -> None:
     tasks_before = get_tasks()
     all_before = get_all_tasks()
@@ -696,8 +720,9 @@ def cmd_due(args: list[str], remove: bool = False) -> None:
         echo(format_status("□", task.content, task.id))
     elif date_str:
         update_task(task.id, due=date_str)
-        from .lib.clock import today as _today
         from datetime import date as _date
+
+        from .lib.clock import today as _today
         _due = _date.fromisoformat(date_str)
         _delta = (_due - _today()).days
         echo(

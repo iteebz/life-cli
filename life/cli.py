@@ -5,10 +5,10 @@ from .commands import (
     cmd_archive,
     cmd_backup,
     cmd_block,
+    cmd_cancel,
     cmd_check,
     cmd_dashboard,
     cmd_dates,
-    cmd_cancel,
     cmd_defer,
     cmd_done,
     cmd_due,
@@ -28,6 +28,8 @@ from .commands import (
     cmd_stats,
     cmd_status,
     cmd_steward,
+    cmd_steward_boot,
+    cmd_steward_close,
     cmd_tag,
     cmd_tail,
     cmd_task,
@@ -377,10 +379,35 @@ def unlink(
     cmd_unlink([a], [b])
 
 
-@app.command()
-def steward():
-    """Print autonomous Steward boot prompt"""
-    cmd_steward()
+steward_app = typer.Typer(
+    name="steward",
+    help="Steward session commands (interactive)",
+    no_args_is_help=True,
+    add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+app.add_typer(steward_app, name="steward")
+
+
+@steward_app.callback(invoke_without_command=True)
+def steward_cb(ctx: typer.Context):
+    """Steward session commands — boot, close, or run autonomous loop"""
+    if ctx.invoked_subcommand is None:
+        cmd_steward()
+
+
+@steward_app.command(name="boot")
+def steward_boot():
+    """Load life state and emit sitrep for interactive session start"""
+    cmd_steward_boot()
+
+
+@steward_app.command(name="close")
+def steward_close(
+    summary: str = typer.Argument(..., help="Session summary"),
+):
+    """Write session log and close interactive session"""
+    cmd_steward_close(summary)
 
 
 @app.command(name="tail", hidden=True)
