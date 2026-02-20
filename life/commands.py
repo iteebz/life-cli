@@ -25,6 +25,7 @@ from .interventions import (
 from .interventions import (
     get_stats as get_intervention_stats,
 )
+from .patterns import add_pattern, get_patterns
 from .lib.ansi import ANSI
 from .lib.ansi import strip as ansi_strip
 from .lib.backup import backup as backup_life
@@ -91,6 +92,7 @@ __all__ = [
     "cmd_migrate",
     "cmd_momentum",
     "cmd_now",
+    "cmd_pattern",
     "cmd_profile",
     "cmd_rename",
     "cmd_rm",
@@ -553,6 +555,28 @@ def cmd_track(
     add_intervention(description, result, note)
     symbol = {"won": "✓", "lost": "✗", "deferred": "→"}[result]
     echo(f"{symbol} {description}")
+
+
+def cmd_pattern(
+    body: str | None = None,
+    show_log: bool = False,
+    limit: int = 20,
+) -> None:
+    if show_log:
+        patterns = get_patterns(limit)
+        if not patterns:
+            echo("no patterns logged")
+            return
+        for p in patterns:
+            ts = p.logged_at.strftime("%Y-%m-%d")
+            echo(f"{ts}  {p.body}")
+        return
+
+    if not body:
+        exit_error("Usage: life pattern \"observation\" or life pattern --log")
+
+    add_pattern(body)
+    echo(f"→ {body}")
 
 
 def cmd_dashboard(verbose: bool = False) -> None:

@@ -19,6 +19,7 @@ from .commands import (
     cmd_migrate,
     cmd_momentum,
     cmd_now,
+    cmd_pattern,
     cmd_profile,
     cmd_rename,
     cmd_rm,
@@ -504,6 +505,20 @@ def track(
         result = "deferred"
     desc = " ".join(description) if description else None
     cmd_track(description=desc, result=result, note=note)
+
+
+@app.command()
+def pattern(
+    body: list[str] = typer.Argument(None, help="Pattern observation to log"),
+    log: bool = typer.Option(False, "--log", "-l", help="Show recent patterns"),
+    limit: int = typer.Option(20, "--limit", "-n", help="Number of patterns to show"),
+):
+    """Log or review Steward observations about Tyson"""
+    if log:
+        cmd_pattern(show_log=True, limit=limit)
+        return
+    text = " ".join(body) if body else None
+    cmd_pattern(body=text)
 
 
 @app.command()
