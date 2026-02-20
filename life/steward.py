@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from .db import get_db
 
@@ -23,13 +23,14 @@ class Observation:
     body: str
     tag: str | None
     logged_at: datetime
+    about_date: date | None = None
 
 
-def add_observation(body: str, tag: str | None = None) -> int:
+def add_observation(body: str, tag: str | None = None, about_date: date | None = None) -> int:
     with get_db() as conn:
         cursor = conn.execute(
-            "INSERT INTO steward_observations (body, tag) VALUES (?, ?)",
-            (body, tag),
+            "INSERT INTO steward_observations (body, tag, about_date) VALUES (?, ?, ?)",
+            (body, tag, about_date.isoformat() if about_date else None),
         )
         return cursor.lastrowid or 0
 
@@ -38,16 +39,22 @@ def get_observations(limit: int = 20, tag: str | None = None) -> list[Observatio
     with get_db() as conn:
         if tag:
             rows = conn.execute(
-                "SELECT id, body, tag, logged_at FROM steward_observations WHERE tag = ? ORDER BY logged_at DESC LIMIT ?",
+                "SELECT id, body, tag, logged_at, about_date FROM steward_observations WHERE tag = ? ORDER BY logged_at DESC LIMIT ?",
                 (tag, limit),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT id, body, tag, logged_at FROM steward_observations ORDER BY logged_at DESC LIMIT ?",
+                "SELECT id, body, tag, logged_at, about_date FROM steward_observations ORDER BY logged_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
         return [
-            Observation(id=row[0], body=row[1], tag=row[2], logged_at=datetime.fromisoformat(row[3]))
+            Observation(
+                id=row[0],
+                body=row[1],
+                tag=row[2],
+                logged_at=datetime.fromisoformat(row[3]),
+                about_date=date.fromisoformat(row[4]) if row[4] else None,
+            )
             for row in rows
         ]
 

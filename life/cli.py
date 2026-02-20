@@ -458,14 +458,24 @@ def steward_close(
 def steward_observe(
     body: str = typer.Argument(..., help="Raw observation to store"),
     tag: str = typer.Option(None, "--tag", "-t", help="Tag for retrieval (e.g. janice, finance)"),
+    about: str = typer.Option(None, "--about", help="Date this observation is about (YYYY-MM-DD or 'sunday')"),
 ):
     """Log a raw observation — things Tyson says that should persist as context"""
+    from datetime import date
+
+    from .lib.dates import parse_due_date
     from .lib.errors import echo
     from .steward import add_observation
 
-    add_observation(body, tag=tag)
+    about_date: date | None = None
+    if about:
+        parsed_str = parse_due_date(about)
+        about_date = date.fromisoformat(parsed_str) if parsed_str else None
+
+    add_observation(body, tag=tag, about_date=about_date)
     suffix = f" #{tag}" if tag else ""
-    echo(f"→ {body}{suffix}")
+    about_str = f" (about {about_date})" if about_date else ""
+    echo(f"→ {body}{suffix}{about_str}")
 
 
 @steward_app.command(name="dash")

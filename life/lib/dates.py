@@ -28,6 +28,11 @@ def parse_due_date(due_str: str) -> str | None:
         return today.isoformat()
     if due_str_lower == "tomorrow":
         return (today + timedelta(days=1)).isoformat()
+    _day_aliases = {
+        "monday": "mon", "tuesday": "tue", "wednesday": "wed",
+        "thursday": "thu", "friday": "fri", "saturday": "sat", "sunday": "sun",
+    }
+    due_str_lower = _day_aliases.get(due_str_lower, due_str_lower)
     if due_str_lower in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:
         day_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
         current_weekday = today.weekday()  # Monday is 0, Sunday is 6
