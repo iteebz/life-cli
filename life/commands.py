@@ -61,6 +61,7 @@ from .tasks import (
     delete_task,
     get_all_tasks,
     get_links,
+    get_mutations,
     get_subtasks,
     get_tasks,
     last_completion,
@@ -369,7 +370,8 @@ def cmd_show(args: list[str]) -> None:
     task = resolve_task(ref)
     subtasks = get_subtasks(task.id)
     linked = get_links(task.id)
-    echo(render_task_detail(task, subtasks, linked))
+    mutations = get_mutations(task.id)
+    echo(render_task_detail(task, subtasks, linked, mutations))
 
 
 def cmd_link(a_args: list[str], b_args: list[str]) -> None:

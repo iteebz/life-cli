@@ -645,7 +645,7 @@ def render_habit_matrix(habits: list[Habit]) -> str:
     return "\n".join(lines)
 
 
-def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> str:
+def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task], mutations: list | None = None) -> str:
     lines = []
 
     all_tasks = [task, *subtasks, *linked]
@@ -691,5 +691,13 @@ def render_task_detail(task: Task, subtasks: list[Task], linked: list[Task]) -> 
             lines.append(
                 f"    {lt_status} {lt_id_str}  {lt_time_str}{lt.content.lower()}{lt_tags_str}"
             )
+
+    deferrals = [m for m in (mutations or []) if m.field == "defer" or m.reason == "overdue_reset"]
+    if deferrals:
+        lines.append("  deferrals:")
+        for m in deferrals:
+            when = m.mutated_at.strftime("%Y-%m-%d")
+            reason = f" — {m.reason}" if m.reason else ""
+            lines.append(f"    {when}{reason}")
 
     return "\n".join(lines)
