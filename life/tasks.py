@@ -394,7 +394,7 @@ def toggle_focus(task_id: str) -> Task | None:
 def find_task(ref: str) -> Task | None:
     from .dashboard import _get_completed_today
 
-    pending = get_tasks()
+    pending = get_tasks(include_steward=True)
     completed_today = _get_completed_today()
     return find_in_pool(ref, pending + completed_today)
 
@@ -406,7 +406,7 @@ def find_task_any(ref: str) -> Task | None:
 def find_task_exact(ref: str) -> Task | None:
     from .dashboard import _get_completed_today
 
-    pending = get_tasks()
+    pending = get_tasks(include_steward=True)
     completed_today = _get_completed_today()
     return find_in_pool_exact(ref, pending + completed_today)
 
