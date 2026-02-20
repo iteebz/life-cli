@@ -40,7 +40,13 @@ def _create_backup(db_path: Path) -> Path:
     dst = sqlite3.connect(backup_path)
     try:
         src.backup(dst)
-    finally:
+    except Exception:
+        dst.close()
+        src.close()
+        if backup_path.exists():
+            backup_path.unlink()
+        raise
+    else:
         dst.close()
         src.close()
     return backup_path
