@@ -8,6 +8,7 @@ from .commands import (
     cmd_check,
     cmd_dashboard,
     cmd_dates,
+    cmd_cancel,
     cmd_defer,
     cmd_done,
     cmd_due,
@@ -275,6 +276,15 @@ def backup():
 def momentum():
     """Show momentum and weekly trends"""
     cmd_momentum()
+
+
+@app.command(name="cancel")
+def cancel_cmd(
+    args: list[str] = typer.Argument(..., help="Task to cancel (fuzzy)"),
+    reason: str = typer.Option(..., "--reason", "--why", help="Why are you cancelling this?"),
+):
+    """Cancel a task with a reason (preserved for analytics)"""
+    cmd_cancel(args, reason)
 
 
 @app.command(name="defer")

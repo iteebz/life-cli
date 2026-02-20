@@ -56,6 +56,7 @@ from .tags import add_tag, remove_tag
 from .tasks import (
     add_link,
     add_task,
+    cancel_task,
     check_task,
     defer_task,
     delete_task,
@@ -79,6 +80,7 @@ __all__ = [
     "cmd_check",
     "cmd_dashboard",
     "cmd_dates",
+    "cmd_cancel",
     "cmd_defer",
     "cmd_done",
     "cmd_due",
@@ -924,6 +926,17 @@ def cmd_today(args: list[str]) -> None:
 
 def cmd_tomorrow(args: list[str]) -> None:
     _set_due_relative(args, 1, "tomorrow")
+
+
+def cmd_cancel(args: list[str], reason: str | None) -> None:
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life cancel <task> --reason <why>")
+    if not reason:
+        exit_error("--reason required. Why are you cancelling this?")
+    task = resolve_task(ref)
+    cancel_task(task.id, reason)
+    echo(f"✗ {task.content.lower()} — {reason}")
 
 
 def cmd_defer(args: list[str], reason: str | None) -> None:

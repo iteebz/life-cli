@@ -34,6 +34,7 @@ __all__ = [
     "toggle_completed",
     "toggle_focus",
     "uncheck_task",
+    "cancel_task",
     "update_task",
 ]
 
@@ -283,6 +284,20 @@ def count_overdue_resets(window_start: str, window_end: str) -> int:
             (window_start, window_end),
         ).fetchone()
     return row[0] if row else 0
+
+
+def cancel_task(task_id: str, reason: str) -> None:
+    """Cancel a task: preserved in deleted_tasks with cancel_reason for analytics."""
+    with db.get_db() as conn:
+        row = conn.execute("SELECT id, content FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        if row:
+            tag_rows = conn.execute("SELECT tag FROM tags WHERE task_id = ?", (task_id,)).fetchall()
+            tags_str = ",".join(r[0] for r in tag_rows) if tag_rows else None
+            conn.execute(
+                "INSERT INTO deleted_tasks (task_id, content, tags, cancel_reason, cancelled) VALUES (?, ?, ?, ?, 1)",
+                (row[0], row[1], tags_str, reason),
+            )
+        conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
 
 
 def delete_task(task_id: str) -> None:
