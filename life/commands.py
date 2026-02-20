@@ -437,7 +437,7 @@ def cmd_mood(
         if not entries:
             echo("no mood logged in the last 24h")
             return
-        now_dt = datetime.now(UTC)
+        now_dt = datetime.now()
         for e in entries:
             delta = now_dt - e.logged_at
             secs = delta.total_seconds()
@@ -460,13 +460,13 @@ def cmd_mood(
     echo(f"→ {bar}  {score}/5{label_str}")
 
 
-STEWARD_BIRTHDAY = datetime(2026, 2, 18, tzinfo=UTC)
+STEWARD_BIRTHDAY = datetime(2026, 2, 18)
 
 
 def cmd_steward_boot() -> None:
     from .steward import get_sessions
 
-    age_days = (datetime.now(UTC) - STEWARD_BIRTHDAY).days
+    age_days = (datetime.now() - STEWARD_BIRTHDAY).days
     now_local = datetime.now()
     echo(f"STEWARD — day {age_days}  |  {now_local.strftime('%a %d %b %Y  %I:%M%p').lower()}\n")
 
@@ -478,7 +478,7 @@ def cmd_steward_boot() -> None:
     sessions = get_sessions(limit=1)
     if sessions:
         s = sessions[0]
-        now = datetime.now(UTC)
+        now = datetime.now()
         delta = now - s.logged_at
         secs = delta.total_seconds()
         if secs < 3600:
@@ -500,7 +500,7 @@ def cmd_steward_boot() -> None:
 
     from .steward import get_observations
 
-    now = datetime.now(UTC)
+    now = datetime.now()
     today_d = date.today()
     recent = get_observations(limit=40)
     cutoff_24h = 86400
@@ -551,7 +551,7 @@ def cmd_steward_boot() -> None:
     recent_moods = get_recent_moods(hours=24)
     if recent_moods:
         latest = recent_moods[0]
-        now_dt = datetime.now(UTC)
+        now_dt = datetime.now()
         delta = now_dt - latest.logged_at
         secs = delta.total_seconds()
         if secs < 3600:
@@ -632,7 +632,7 @@ def cmd_steward_dash() -> None:
     patterns = get_patterns(limit=5)
     if patterns:
         echo("\nRECENT PATTERNS:")
-        now = datetime.now(UTC)
+        now = datetime.now()
         for p in patterns:
             delta = now - p.logged_at
             s = delta.total_seconds()
@@ -649,7 +649,7 @@ def cmd_steward_dash() -> None:
     observations = get_observations(limit=10)
     if observations:
         echo("\nRECENT OBSERVATIONS:")
-        now = datetime.now(UTC)
+        now = datetime.now()
         for o in observations:
             delta = now - o.logged_at
             s = delta.total_seconds()
@@ -793,7 +793,7 @@ def cmd_pattern(
         if not patterns:
             echo("no patterns logged")
             return
-        now = datetime.now(UTC)
+        now = datetime.now()
         for p in patterns:
             delta = now - p.logged_at
             s = delta.total_seconds()
