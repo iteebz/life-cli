@@ -382,6 +382,36 @@ def unlink(
     cmd_unlink([a], [b])
 
 
+db_app = typer.Typer(
+    name="db",
+    help="Database management commands",
+    no_args_is_help=True,
+    add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+app.add_typer(db_app, name="db")
+
+
+@db_app.command(name="migrate")
+def db_migrate():
+    """Run pending database migrations"""
+    cmd_migrate()
+
+
+@db_app.command(name="backup")
+def db_backup():
+    """Create database backup"""
+    cmd_backup()
+
+
+@db_app.command(name="health")
+def db_health():
+    """Check database integrity"""
+    from .health import cli as health_cli
+
+    health_cli()
+
+
 steward_app = typer.Typer(
     name="steward",
     help="Steward session commands (interactive)",
@@ -419,8 +449,9 @@ def steward_observe(
     tag: str = typer.Option(None, "--tag", "-t", help="Tag for retrieval (e.g. janice, finance)"),
 ):
     """Log a raw observation — things Tyson says that should persist as context"""
-    from .steward import add_observation
     from .lib.errors import echo
+    from .steward import add_observation
+
     add_observation(body, tag=tag)
     suffix = f" #{tag}" if tag else ""
     echo(f"→ {body}{suffix}")
@@ -430,6 +461,7 @@ def steward_observe(
 def steward_dash():
     """Steward dashboard — tasks, patterns, observations, sessions"""
     from .commands import cmd_steward_dash
+
     cmd_steward_dash()
 
 
@@ -439,13 +471,16 @@ def steward_log(
 ):
     """Show recent steward session logs"""
     from .steward import get_sessions
+
     sessions = get_sessions(limit=limit)
     if not sessions:
         from .lib.errors import echo
+
         echo("no sessions logged")
         return
     now = __import__("datetime").datetime.utcnow()
     from .lib.errors import echo
+
     for s in sessions:
         delta = now - s.logged_at
         secs = delta.total_seconds()
