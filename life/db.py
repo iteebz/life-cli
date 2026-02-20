@@ -21,6 +21,7 @@ Migration = tuple[str, str | MigrationFn]
 def get_db(db_path: Path | None = None):
     db_path = db_path if db_path else config.DB_PATH
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys = ON;")
     try:
         yield conn
@@ -56,7 +57,9 @@ def _table_count(conn: sqlite3.Connection, table: str) -> int:
         return 0
 
 
-def _check_data_loss(conn: sqlite3.Connection, before: dict[str, int], exempt: set[str] | None = None) -> None:
+def _check_data_loss(
+    conn: sqlite3.Connection, before: dict[str, int], exempt: set[str] | None = None
+) -> None:
     for table, count in before.items():
         if exempt and table in exempt:
             continue
@@ -142,6 +145,7 @@ def init(db_path: Path | None = None) -> None:
     db_path = db_path if db_path else config.DB_PATH
     db_path.parent.mkdir(exist_ok=True)
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys = ON;")
     try:
         _apply_migrations(conn, db_path)
