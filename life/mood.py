@@ -53,9 +53,10 @@ def delete_latest_mood(within_seconds: int = 3600) -> MoodEntry | None:
         ).fetchone()
         if not row:
             return None
-        entry = MoodEntry(
-            id=row[0], score=row[1], label=row[2], logged_at=datetime.fromisoformat(row[3])
-        )
+        logged_at = datetime.fromisoformat(row[3])
+        if logged_at.tzinfo is None:
+            logged_at = logged_at.replace(tzinfo=UTC)
+        entry = MoodEntry(id=row[0], score=row[1], label=row[2], logged_at=logged_at)
         age = (datetime.now(UTC) - entry.logged_at).total_seconds()
         if age > within_seconds:
             raise ValueError(f"latest entry is {int(age // 60)}m old — too old to remove")
