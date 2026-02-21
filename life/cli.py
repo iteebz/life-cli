@@ -2,44 +2,39 @@ import typer
 
 from . import db
 from .commands import (
-    cmd_archive,
-    cmd_block,
-    cmd_cancel,
-    cmd_check,
     cmd_dashboard,
     cmd_dates,
-    cmd_defer,
-    cmd_done,
-    cmd_due,
-    cmd_focus,
-    cmd_habit,
-    cmd_habits,
-    cmd_link,
     cmd_momentum,
     cmd_mood,
-    cmd_now,
     cmd_pattern,
     cmd_profile,
-    cmd_rename,
-    cmd_rm,
+    cmd_stats,
+    cmd_status,
+    cmd_tail,
+    cmd_track,
+)
+from .habits import cmd_archive, cmd_habit, cmd_habits
+from .items import cmd_check, cmd_rename, cmd_rm, cmd_uncheck
+from .steward import app as steward_app
+from .tags import cmd_tag, cmd_untag
+from .tasks import (
+    cmd_block,
+    cmd_cancel,
+    cmd_defer,
+    cmd_due,
+    cmd_focus,
+    cmd_link,
+    cmd_now,
     cmd_schedule,
     cmd_set,
     cmd_show,
-    cmd_stats,
-    cmd_status,
-    cmd_tag,
-    cmd_tail,
     cmd_task,
     cmd_today,
     cmd_tomorrow,
-    cmd_track,
     cmd_unblock,
-    cmd_uncheck,
     cmd_unfocus,
     cmd_unlink,
-    cmd_untag,
 )
-from .steward import app as steward_app
 
 app = typer.Typer(
     name="life",
@@ -160,7 +155,7 @@ def done(
     args: list[str] = typer.Argument(..., help="Partial match for the item to mark done"),
 ):
     """Alias for check"""
-    cmd_done(args)
+    cmd_check(args)
 
 
 @app.command()

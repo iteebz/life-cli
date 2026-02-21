@@ -1,13 +1,20 @@
 import contextlib
 import re
 import sqlite3
+import sys
+import time
 import uuid
-from datetime import datetime
+from datetime import date as _date
+from datetime import datetime, timedelta
 
 from . import db
 from .lib import clock
+from .lib.ansi import ANSI
 from .lib.converters import row_to_task
+from .lib.errors import echo, exit_error
+from .lib.format import format_status
 from .lib.fuzzy import find_in_pool, find_in_pool_exact
+from .lib.parsing import parse_due_and_item, validate_content
 from .models import Task, TaskMutation
 from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
@@ -16,6 +23,23 @@ __all__ = [
     "add_task",
     "cancel_task",
     "check_task",
+    "cmd_block",
+    "cmd_cancel",
+    "cmd_defer",
+    "cmd_due",
+    "cmd_focus",
+    "cmd_link",
+    "cmd_now",
+    "cmd_rename_task",
+    "cmd_schedule",
+    "cmd_set",
+    "cmd_show",
+    "cmd_task",
+    "cmd_today",
+    "cmd_tomorrow",
+    "cmd_unblock",
+    "cmd_unfocus",
+    "cmd_unlink",
     "count_overdue_resets",
     "defer_task",
     "delete_task",
@@ -485,3 +509,268 @@ def last_completion() -> datetime | None:
             with contextlib.suppress(ValueError):
                 candidates.append(datetime.fromisoformat(row[0]))
     return max(candidates) if candidates else None
+
+
+def _animate_check(label: str) -> None:
+    sys.stdout.write(f"  \u25a1 {label}")
+    sys.stdout.flush()
+    time.sleep(0.18)
+    sys.stdout.write(f"\r  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
+    sys.stdout.flush()
+
+
+def cmd_task(
+    content_args: list[str],
+    focus: bool = False,
+    due: str | None = None,
+    tags: list[str] | None = None,
+    under: str | None = None,
+    description: str | None = None,
+    done: bool = False,
+    steward: bool = False,
+    source: str | None = None,
+) -> None:
+    from .lib.resolve import resolve_task
+    content = " ".join(content_args) if content_args else ""
+    try:
+        validate_content(content)
+    except ValueError as e:
+        exit_error(f"Error: {e}")
+    resolved_due = None
+    if due:
+        from .lib.dates import parse_due_date
+        resolved_due = parse_due_date(due)
+    parent_id = None
+    if under:
+        parent_task = resolve_task(under)
+        if parent_task.parent_id:
+            exit_error("Error: subtasks cannot have subtasks")
+        parent_id = parent_task.id
+    if focus and parent_id:
+        exit_error("Error: cannot focus a subtask — set focus on the parent")
+    task_id = add_task(
+        content,
+        focus=focus,
+        due=resolved_due,
+        tags=tags,
+        parent_id=parent_id,
+        description=description,
+        steward=steward,
+        source=source,
+    )
+    if done:
+        check_task(task_id)
+        echo(format_status("\u2713", content, task_id))
+        return
+    symbol = f"{ANSI.BOLD}\u29bf{ANSI.RESET}" if focus else "\u25a1"
+    prefix = "  \u2514 " if parent_id else ""
+    echo(f"{prefix}{format_status(symbol, content, task_id)}")
+
+
+def cmd_check_task(task: Task) -> None:
+    if task.completed_at:
+        exit_error(f"'{task.content}' is already done")
+    _, parent_completed = check_task(task.id)
+    _animate_check(task.content.lower())
+    if parent_completed:
+        _animate_check(parent_completed.content.lower())
+
+
+def cmd_focus(args: list[str]) -> None:
+    from .lib.resolve import resolve_task
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life focus <item>")
+    task = resolve_task(ref)
+    toggle_focus(task.id)
+    symbol = f"{ANSI.BOLD}\u29bf{ANSI.RESET}" if not task.focus else "\u25a1"
+    echo(format_status(symbol, task.content, task.id))
+
+
+def cmd_unfocus(args: list[str]) -> None:
+    from .lib.resolve import resolve_task
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life unfocus <item>")
+    task = resolve_task(ref)
+    if not task.focus:
+        exit_error(f"'{task.content}' is not focused")
+    toggle_focus(task.id)
+    echo(format_status("\u25a1", task.content, task.id))
+
+
+def cmd_due(args: list[str], remove: bool = False) -> None:
+    from .lib.resolve import resolve_task
+    try:
+        date_str, time_str, item_name = parse_due_and_item(args, remove=remove)
+    except ValueError as e:
+        exit_error(str(e))
+    task = resolve_task(item_name)
+    if remove:
+        update_task(task.id, due=None, due_time=None)
+        echo(format_status("\u25a1", task.content, task.id))
+        return
+    if not date_str and not time_str:
+        exit_error(
+            "Due spec required: today, tomorrow, day name, YYYY-MM-DD, HH:MM, 'now', or -r to clear"
+        )
+    updates: dict = {}
+    if date_str:
+        updates["due"] = date_str
+    if time_str:
+        updates["due_time"] = time_str
+    update_task(task.id, **updates)
+    if time_str:
+        label = f"{ANSI.GREY}{time_str}{ANSI.RESET}"
+    else:
+        due = _date.fromisoformat(date_str)
+        delta = (due - clock.today()).days
+        label = f"{ANSI.GREY}+{delta}d{ANSI.RESET}"
+    echo(format_status(label, task.content, task.id))
+
+
+def cmd_set(
+    args: list[str],
+    parent: str | None = None,
+    content: str | None = None,
+    description: str | None = None,
+) -> None:
+    from .lib.resolve import resolve_task
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life set <task> [-p parent] [-c content]")
+    task = resolve_task(ref)
+    parent_id: str | None = None
+    has_update = False
+    if parent is not None:
+        parent_task = resolve_task(parent)
+        if parent_task.parent_id:
+            exit_error("Error: subtasks cannot have subtasks")
+        if parent_task.id == task.id:
+            exit_error("Error: a task cannot be its own parent")
+        if task.focus:
+            exit_error("Error: cannot parent a focused task — unfocus first")
+        parent_id = parent_task.id
+        has_update = True
+    if content is not None:
+        if not content.strip():
+            exit_error("Error: content cannot be empty")
+        has_update = True
+    desc: str | None = None
+    if description is not None:
+        desc = description if description != "" else None
+        has_update = True
+    if not has_update:
+        exit_error("Nothing to set. Use -p for parent, -c for content, or -d for description.")
+    update_task(
+        task.id,
+        content=content,
+        parent_id=parent_id if parent is not None else UNSET,
+        description=desc if description is not None else UNSET,
+    )
+    updated = resolve_task(content or ref)
+    prefix = "  \u2514 " if updated.parent_id else ""
+    from .lib.format import format_status as _fs
+    echo(f"{prefix}{_fs('\u25a1', updated.content, updated.id)}")
+
+
+def cmd_show(args: list[str]) -> None:
+    from .lib.render import render_task_detail
+    from .lib.resolve import resolve_task
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life show <task>")
+    task = resolve_task(ref)
+    subtasks = get_subtasks(task.id)
+    linked = get_links(task.id)
+    mutations = get_mutations(task.id)
+    echo(render_task_detail(task, subtasks, linked, mutations))
+
+
+def cmd_link(a_args: list[str], b_args: list[str]) -> None:
+    from .lib.resolve import resolve_task
+    a = resolve_task(" ".join(a_args))
+    b = resolve_task(" ".join(b_args))
+    if a.id == b.id:
+        exit_error("Cannot link a task to itself")
+    add_link(a.id, b.id)
+    echo(f"{a.content.lower()} {ANSI.GREY}~ {b.content.lower()}{ANSI.RESET}")
+
+
+def cmd_unlink(a_args: list[str], b_args: list[str]) -> None:
+    from .lib.resolve import resolve_task
+    a = resolve_task(" ".join(a_args))
+    b = resolve_task(" ".join(b_args))
+    remove_link(a.id, b.id)
+    echo(f"{a.content.lower()} {ANSI.GREY}\u2717 {b.content.lower()}{ANSI.RESET}")
+
+
+def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:
+    from .lib.resolve import resolve_task
+    blocked = resolve_task(" ".join(blocked_args))
+    blocker = resolve_task(" ".join(blocker_args))
+    if blocker.id == blocked.id:
+        exit_error("A task cannot block itself")
+    set_blocked_by(blocked.id, blocker.id)
+    echo(f"\u2298 {blocked.content.lower()}  \u2190  {blocker.content.lower()}")
+
+
+def cmd_unblock(args: list[str]) -> None:
+    from .lib.resolve import resolve_task
+    task = resolve_task(" ".join(args))
+    if not task.blocked_by:
+        exit_error(f"'{task.content}' is not blocked")
+    set_blocked_by(task.id, None)
+    echo(f"\u25a1 {task.content.lower()}  unblocked")
+
+
+def cmd_cancel(args: list[str], reason: str | None) -> None:
+    from .lib.resolve import resolve_task
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life cancel <task> --reason <why>")
+    if not reason:
+        exit_error("--reason required. Why are you cancelling this?")
+    task = resolve_task(ref)
+    cancel_task(task.id, reason)
+    echo(f"\u2717 {task.content.lower()} \u2014 {reason}")
+
+
+def cmd_defer(args: list[str], reason: str | None) -> None:
+    from .lib.resolve import resolve_task
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life defer <task> --reason <why>")
+    if not reason:
+        exit_error("--reason required. Why are you deferring this?")
+    task = resolve_task(ref)
+    defer_task(task.id, reason)
+    echo(f"\u2192 {task.content.lower()} deferred: {reason}")
+
+
+def cmd_rename_task(task: Task, to_content: str) -> None:
+    if task.content == to_content:
+        exit_error(f"Error: Cannot rename '{task.content}' to itself.")
+    update_task(task.id, content=to_content)
+    echo(f"\u2192 {to_content}")
+
+
+def cmd_now(args: list[str]) -> None:
+    cmd_due(["now"] + list(args))
+
+
+def cmd_today(args: list[str]) -> None:
+    cmd_due(["today"] + list(args))
+
+
+def cmd_tomorrow(args: list[str]) -> None:
+    cmd_due(["tomorrow"] + list(args))
+
+
+def cmd_schedule(args: list[str], remove: bool = False) -> None:
+    if remove:
+        if not args:
+            exit_error("Usage: life schedule -r <task>")
+        cmd_due(list(args), remove=True)
+        return
+    cmd_due(list(args))

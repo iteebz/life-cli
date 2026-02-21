@@ -6,8 +6,12 @@ from datetime import datetime
 
 from . import db
 from .lib import clock
+from .lib.ansi import ANSI
 from .lib.converters import row_to_habit
+from .lib.errors import echo, exit_error
+from .lib.format import format_status
 from .lib.fuzzy import find_in_pool, find_in_pool_exact
+from .lib.parsing import validate_content
 from .models import Habit
 from .tags import get_tags_for_habit, load_tags_for_habits
 
@@ -15,6 +19,11 @@ __all__ = [
     "add_habit",
     "archive_habit",
     "check_habit",
+    "cmd_archive",
+    "cmd_habit",
+    "cmd_habits",
+    "cmd_check_habit",
+    "cmd_rename_habit",
     "delete_habit",
     "find_habit",
     "get_archived_habits",
@@ -274,3 +283,75 @@ def toggle_check(habit_id: str) -> Habit | None:
         if cursor.fetchone():
             return uncheck_habit(habit_id)
     return check_habit(habit_id)
+
+
+def cmd_habit(
+    content_args: list[str],
+    tags: list[str] | None = None,
+    under: str | None = None,
+    private: bool = False,
+) -> None:
+    from .lib.resolve import resolve_habit
+    content = " ".join(content_args) if content_args else ""
+    try:
+        validate_content(content)
+    except ValueError as e:
+        exit_error(f"Error: {e}")
+    parent_id = None
+    if under:
+        parent = resolve_habit(under)
+        if not parent:
+            exit_error(f"No habit found matching '{under}'")
+        parent_id = parent.id
+    habit_id = add_habit(content, tags=tags, parent_id=parent_id, private=private)
+    echo(format_status("\u25a1", content, habit_id))
+
+
+def cmd_check_habit(habit: Habit) -> None:
+    from .lib.clock import today
+    updated = toggle_check(habit.id)
+    if updated:
+        checked_today = any(c.date() == today() for c in updated.checks)
+        if checked_today:
+            _animate_check(habit.content.lower())
+
+
+def _animate_check(label: str) -> None:
+    import sys
+    import time
+    sys.stdout.write(f"  \u25a1 {label}")
+    sys.stdout.flush()
+    time.sleep(0.18)
+    sys.stdout.write(f"\r  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
+    sys.stdout.flush()
+
+
+def cmd_archive(args: list[str], show_list: bool = False) -> None:
+    from .lib.resolve import resolve_habit
+    if show_list:
+        habits = get_archived_habits()
+        if not habits:
+            echo("no archived habits")
+            return
+        for habit in habits:
+            archived = habit.archived_at.strftime("%Y-%m-%d") if habit.archived_at else "?"
+            echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}  archived {archived}")
+        return
+    ref = " ".join(args) if args else ""
+    if not ref:
+        exit_error("Usage: life archive <habit>")
+    habit = resolve_habit(ref)
+    archive_habit(habit.id)
+    echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}  archived")
+
+
+def cmd_habits() -> None:
+    from .lib.render import render_habit_matrix
+    echo(render_habit_matrix(get_habits()))
+
+
+def cmd_rename_habit(habit: Habit, to_content: str) -> None:
+    if habit.content == to_content:
+        exit_error(f"Error: Cannot rename '{habit.content}' to itself.")
+    update_habit(habit.id, content=to_content)
+    echo(f"\u2192 {to_content}")

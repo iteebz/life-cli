@@ -3,13 +3,17 @@ from collections import defaultdict
 from typing import TypeVar
 
 from . import db
+from .lib.ansi import ANSI
 from .lib.converters import hydrate_tags_onto, row_to_habit, row_to_task
+from .lib.errors import echo, exit_error
 from .models import Habit, Task
 
 T = TypeVar("T", Task, Habit)
 
 __all__ = [
     "add_tag",
+    "cmd_tag",
+    "cmd_untag",
     "get_habits_by_tag",
     "get_tags_for_habit",
     "get_tags_for_task",
@@ -152,6 +156,47 @@ def load_tags_for_habits(
         return _run(conn)
     with db.get_db() as c:
         return _run(c)
+
+
+def cmd_tag(
+    tag_name: str | None,
+    args: list[str] | None,
+    tag_opt: str | None = None,
+    remove: bool = False,
+) -> None:
+    from .lib.resolve import resolve_item_exact
+    positionals = args or []
+    if tag_opt:
+        tag_name_final = tag_opt
+        item_ref = " ".join(positionals)
+    else:
+        if not positionals or len(positionals) < 2:
+            exit_error('Usage: life tag "ITEM" TAG  or  life tag "ITEM" --tag TAG')
+        tag_name_final = positionals[-1]
+        item_ref = " ".join(positionals[:-1])
+    task, habit = resolve_item_exact(item_ref)
+    if task:
+        if remove:
+            remove_tag(task.id, None, tag_name_final)
+            echo(f"{task.content} \u2190 {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+        else:
+            add_tag(task.id, None, tag_name_final)
+            echo(f"{task.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+    elif habit:
+        if remove:
+            remove_tag(None, habit.id, tag_name_final)
+            echo(f"{habit.content} \u2190 {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+        else:
+            add_tag(None, habit.id, tag_name_final)
+            echo(f"{habit.content} {ANSI.GREY}#{tag_name_final}{ANSI.RESET}")
+
+
+def cmd_untag(
+    tag_name: str | None,
+    args: list[str] | None,
+    tag_opt: str | None = None,
+) -> None:
+    cmd_tag(tag_name, args, tag_opt=tag_opt, remove=True)
 
 
 def hydrate_tags[T: (Task, Habit)](items: list[T], tag_map: dict[str, list[str]]) -> list[T]:
