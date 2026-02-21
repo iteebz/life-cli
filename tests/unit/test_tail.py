@@ -1,7 +1,7 @@
 import io
 from pathlib import Path
 
-from life.commands import cmd_tail
+from life.steward import cmd_tail
 from life.lib.ansi import strip
 from life.lib.tail import StreamParser, format_entry
 
@@ -131,7 +131,7 @@ def test_cmd_tail_streams_pretty_output(monkeypatch, tmp_path):
     life_dir.mkdir()
     monkeypatch.setenv("ZAI_API_KEY", "test-key")
     monkeypatch.setattr(Path, "home", lambda: home)
-    monkeypatch.setattr("life.commands.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr("life.steward.time.sleep", lambda _seconds: None)
 
     calls: list[tuple[list[str], Path, dict | None, int | None]] = []
     outputs: list[str] = []
@@ -144,8 +144,8 @@ def test_cmd_tail_streams_pretty_output(monkeypatch, tmp_path):
             0,
         )
 
-    monkeypatch.setattr("life.commands.subprocess.Popen", fake_popen)
-    monkeypatch.setattr("life.commands.echo", lambda msg="", err=False: outputs.append(msg))
+    monkeypatch.setattr("life.steward.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("life.steward.echo", lambda msg="", err=False: outputs.append(msg))
 
     cmd_tail(cycles=1, interval_seconds=0, dry_run=False)
 
@@ -170,8 +170,8 @@ def test_cmd_tail_raw_mode_prints_raw_lines(monkeypatch, tmp_path):
     def fake_popen(cmd, cwd=None, env=None, stdout=None, stderr=None, text=None, bufsize=None):
         return _FakePopen('{"type":"assistant"}\n', "", 0)
 
-    monkeypatch.setattr("life.commands.subprocess.Popen", fake_popen)
-    monkeypatch.setattr("life.commands.echo", lambda msg="", err=False: outputs.append(msg))
+    monkeypatch.setattr("life.steward.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("life.steward.echo", lambda msg="", err=False: outputs.append(msg))
 
     cmd_tail(cycles=1, raw=True)
     assert '{"type":"assistant"}' in outputs
@@ -183,7 +183,7 @@ def test_cmd_tail_retries_then_succeeds(monkeypatch, tmp_path):
     life_dir.mkdir()
     monkeypatch.setenv("ZAI_API_KEY", "test-key")
     monkeypatch.setattr(Path, "home", lambda: home)
-    monkeypatch.setattr("life.commands.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr("life.steward.time.sleep", lambda _seconds: None)
 
     calls = {"n": 0}
 
@@ -191,7 +191,7 @@ def test_cmd_tail_retries_then_succeeds(monkeypatch, tmp_path):
         calls["n"] += 1
         return _FakePopen("", "boom\n", 1 if calls["n"] == 1 else 0)
 
-    monkeypatch.setattr("life.commands.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("life.steward.subprocess.Popen", fake_popen)
     cmd_tail(cycles=1, retries=2, retry_delay_seconds=0)
     assert calls["n"] == 2
 
@@ -215,8 +215,8 @@ def test_cmd_tail_suppresses_duplicate_usage_and_errors(monkeypatch, tmp_path):
             0,
         )
 
-    monkeypatch.setattr("life.commands.subprocess.Popen", fake_popen)
-    monkeypatch.setattr("life.commands.echo", lambda msg="", err=False: outputs.append(msg))
+    monkeypatch.setattr("life.steward.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("life.steward.echo", lambda msg="", err=False: outputs.append(msg))
 
     cmd_tail(cycles=1)
     plain = [strip(o) for o in outputs]
@@ -236,7 +236,7 @@ def test_cmd_tail_dry_run_does_not_execute(monkeypatch, tmp_path):
         called["popen"] += 1
         raise AssertionError("subprocess.Popen should not be called in dry-run")
 
-    monkeypatch.setattr("life.commands.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("life.steward.subprocess.Popen", fake_popen)
 
     cmd_tail(cycles=1, dry_run=True)
     assert called["popen"] == 0

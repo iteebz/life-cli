@@ -27,9 +27,6 @@ from .commands import (
     cmd_show,
     cmd_stats,
     cmd_status,
-    cmd_steward,
-    cmd_steward_boot,
-    cmd_steward_close,
     cmd_tag,
     cmd_tail,
     cmd_task,
@@ -42,6 +39,7 @@ from .commands import (
     cmd_unlink,
     cmd_untag,
 )
+from .steward import app as steward_app
 
 app = typer.Typer(
     name="life",
@@ -431,125 +429,7 @@ def db_health():
     health_cli()
 
 
-steward_app = typer.Typer(
-    name="steward",
-    help="Steward session commands (interactive)",
-    no_args_is_help=True,
-    add_completion=False,
-    context_settings={"help_option_names": ["-h", "--help"]},
-)
 app.add_typer(steward_app, name="steward")
-
-
-@steward_app.callback(invoke_without_command=True)
-def steward_cb(ctx: typer.Context):
-    """Steward session commands — boot, close, or run autonomous loop"""
-    if ctx.invoked_subcommand is None:
-        cmd_steward()
-
-
-@steward_app.command(name="boot")
-def steward_boot():
-    """Load life state and emit sitrep for interactive session start"""
-    cmd_steward_boot()
-
-
-@steward_app.command(name="close")
-def steward_close(
-    summary: str = typer.Argument(..., help="Session summary"),
-):
-    """Write session log and close interactive session"""
-    cmd_steward_close(summary)
-
-
-@steward_app.command(name="observe")
-def steward_observe(
-    body: str = typer.Argument(..., help="Raw observation to store"),
-    tag: str = typer.Option(None, "--tag", "-t", help="Tag for retrieval (e.g. janice, finance)"),
-    about: str = typer.Option(
-        None, "--about", help="Date this observation is about (YYYY-MM-DD or 'sunday')"
-    ),
-):
-    """Log a raw observation — things Tyson says that should persist as context"""
-    from datetime import date
-
-    from .lib.dates import parse_due_date
-    from .lib.errors import echo
-    from .steward import add_observation
-
-    about_date: date | None = None
-    if about:
-        parsed_str = parse_due_date(about)
-        about_date = date.fromisoformat(parsed_str) if parsed_str else None
-
-    add_observation(body, tag=tag, about_date=about_date)
-    suffix = f" #{tag}" if tag else ""
-    about_str = f" (about {about_date})" if about_date else ""
-    echo(f"→ {body}{suffix}{about_str}")
-
-
-@steward_app.command(name="rm")
-def steward_rm(
-    query: str = typer.Argument(None, help="Fuzzy match on observation body (omit to rm latest)"),
-):
-    """Delete an observation — fuzzy match or latest"""
-    from .lib.errors import echo, exit_error
-    from .steward import delete_observation, get_observations
-
-    observations = get_observations(limit=50)
-    if not observations:
-        exit_error("no observations to remove")
-
-    if query is None:
-        target = observations[0]
-    else:
-        q = query.lower()
-        matches = [o for o in observations if q in o.body.lower()]
-        if not matches:
-            exit_error(f"no observation matching '{query}'")
-        target = matches[0]
-
-    deleted = delete_observation(target.id)
-    if deleted:
-        echo(f"→ removed: {target.body[:80]}")
-    else:
-        exit_error("delete failed")
-
-
-@steward_app.command(name="dash")
-def steward_dash():
-    """Steward dashboard — tasks, patterns, observations, sessions"""
-    from .commands import cmd_steward_dash
-
-    cmd_steward_dash()
-
-
-@steward_app.command(name="log")
-def steward_log(
-    limit: int = typer.Option(10, "--limit", "-n", help="Number of sessions to show"),
-):
-    """Show recent steward session logs"""
-    from .steward import get_sessions
-
-    sessions = get_sessions(limit=limit)
-    if not sessions:
-        from .lib.errors import echo
-
-        echo("no sessions logged")
-        return
-    now = __import__("datetime").datetime.utcnow()
-    from .lib.errors import echo
-
-    for s in sessions:
-        delta = now - s.logged_at
-        secs = delta.total_seconds()
-        if secs < 3600:
-            rel = f"{int(secs // 60)}m ago"
-        elif secs < 86400:
-            rel = f"{int(secs // 3600)}h ago"
-        else:
-            rel = f"{int(secs // 86400)}d ago"
-        echo(f"{rel:<10}  {s.summary}")
 
 
 @app.command(name="tail", hidden=True)
