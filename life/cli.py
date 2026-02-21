@@ -64,7 +64,7 @@ def dash(
 
 
 @app.command()
-def task(
+def add(
     content_args: list[str] = typer.Argument(..., help="Task content"),
     focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),
     due: str = typer.Option(
@@ -91,8 +91,8 @@ def task(
     )
 
 
-@app.command(name="add", hidden=True)
-def add(
+@app.command(name="task", hidden=True)
+def task(
     content_args: list[str] = typer.Argument(..., help="Task content"),
     focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),
     due: str = typer.Option(
@@ -102,16 +102,20 @@ def add(
     under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
     description: str = typer.Option(None, "--desc", help="Optional description"),
     done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
+    steward: bool = typer.Option(False, "--steward", help="Steward task (hidden from dash)"),
+    source: str = typer.Option(None, "--source", help="Task provenance: tyson, steward, scheduled"),
 ):
-    """Alias for task"""
+    """Alias for add"""
     cmd_task(
         content_args,
         focus=focus,
         due=due,
-        tags=tags,
+        tags=list(tags) if tags else [],
         under=under,
         description=description,
         done=done,
+        steward=steward,
+        source=source,
     )
 
 
@@ -125,12 +129,16 @@ def show(
 
 @app.command()
 def habit(
-    content_args: list[str] = typer.Argument(..., help="Habit content"),
+    content_args: list[str] = typer.Argument(None, help="Habit content"),
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to habit"),
     under: str = typer.Option(None, "--under", "-u", help="Parent habit (fuzzy match)"),
     private: bool = typer.Option(False, "--private", "-p", help="Hide from dash (steward still sees it)"),
+    log: bool = typer.Option(False, "--log", "-l", help="Show all habits and 7-day history"),
 ):
-    """Add daily habit (auto-resets on completion)"""
+    """Add daily habit or view history (--log)"""
+    if log or not content_args:
+        cmd_habits()
+        return
     cmd_habit(content_args, tags=tags, under=under, private=private)
 
 
@@ -234,9 +242,9 @@ def archive(
     cmd_archive(args or [], show_list=list_archived)
 
 
-@app.command()
+@app.command(name="habits", hidden=True)
 def habits():
-    """Show all habits and their checked off list for the last 7 days."""
+    """Alias for habit --log"""
     cmd_habits()
 
 
