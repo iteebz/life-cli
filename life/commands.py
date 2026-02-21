@@ -52,7 +52,7 @@ from .loop import (
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .models import Task
 from .momentum import weekly_momentum
-from .patterns import add_pattern, delete_pattern, get_patterns
+from .patterns import Pattern, add_pattern, delete_pattern, get_patterns
 from .steward import Observation
 from .tags import add_tag, remove_tag
 from .tasks import (
@@ -806,6 +806,7 @@ def cmd_pattern(
     show_log: bool = False,
     limit: int = 20,
     rm: str | None = None,
+    tag: str | None = None,
 ) -> None:
     if rm is not None:
         patterns = get_patterns(limit=50)
@@ -827,7 +828,7 @@ def cmd_pattern(
         return
 
     if show_log:
-        patterns = get_patterns(limit)
+        patterns = get_patterns(limit, tag=tag)
         if not patterns:
             echo("no patterns logged")
             return
@@ -843,13 +844,14 @@ def cmd_pattern(
                 rel = f"{int(s // 86400)}d ago"
             else:
                 rel = p.logged_at.strftime("%Y-%m-%d")
-            echo(f"{rel:<10}  {p.body}")
+            tag_suffix = f"  [{p.tag}]" if p.tag else ""
+            echo(f"{rel:<10}  {p.body}{tag_suffix}")
         return
 
     if not body:
         exit_error('Usage: life pattern "observation" or life pattern --log')
 
-    add_pattern(body)
+    add_pattern(body, tag=tag)
     echo(f"→ {body}")
 
 

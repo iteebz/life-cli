@@ -650,16 +650,17 @@ def pattern(
     log: bool = typer.Option(False, "--log", "-l", help="Show recent patterns"),
     limit: int = typer.Option(20, "--limit", "-n", help="Number of patterns to show"),
     rm: str = typer.Option(None, "--rm", help="Remove pattern by fuzzy match (empty string = latest)"),
+    tag: str = typer.Option(None, "--tag", "-t", help="Tag to attach or filter by"),
 ):
     """Log or review Steward observations about Tyson"""
     if rm is not None:
         cmd_pattern(rm=rm)
         return
     if log:
-        cmd_pattern(show_log=True, limit=limit)
+        cmd_pattern(show_log=True, limit=limit, tag=tag)
         return
     text = " ".join(body) if body else None
-    cmd_pattern(body=text)
+    cmd_pattern(body=text, tag=tag)
 
 
 @app.command()
