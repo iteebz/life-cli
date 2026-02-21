@@ -22,6 +22,7 @@ __all__ = [
     "get_habit",
     "get_habits",
     "get_streak",
+    "get_subhabits",
     "toggle_check",
     "uncheck_habit",
     "update_habit",
@@ -41,14 +42,19 @@ def _get_habit_checks(conn, habit_id: str) -> list[datetime]:
     return [datetime.fromisoformat(row[0]) for row in cursor.fetchall()]
 
 
-def add_habit(content: str, tags: list[str] | None = None) -> str:
+def add_habit(
+    content: str,
+    tags: list[str] | None = None,
+    parent_id: str | None = None,
+    private: bool = False,
+) -> str:
     """Insert a habit and optionally add tags. Returns habit_id."""
     habit_id = str(uuid.uuid4())
     with db.get_db() as conn:
         try:
             conn.execute(
-                "INSERT INTO habits (id, content) VALUES (?, ?)",
-                (habit_id, content),
+                "INSERT INTO habits (id, content, parent_id, private) VALUES (?, ?, ?, ?)",
+                (habit_id, content, parent_id, int(private)),
             )
         except sqlite3.IntegrityError as e:
             raise ValueError(f"Failed to add habit: {e}") from e
@@ -67,7 +73,7 @@ def get_habit(habit_id: str) -> Habit | None:
     """SELECT from habits + LEFT JOIN checks + LEFT JOIN tags."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, created, archived_at FROM habits WHERE id = ?",
+            "SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE id = ?",
             (habit_id,),
         )
         row = cursor.fetchone()
@@ -103,12 +109,13 @@ def delete_habit(habit_id: str) -> None:
         conn.execute("DELETE FROM habits WHERE id = ?", (habit_id,))
 
 
-def get_habits(habit_ids: list[str] | None = None) -> list[Habit]:
+def get_habits(habit_ids: list[str] | None = None, include_private: bool = True) -> list[Habit]:
     """Get active (non-archived) habits by IDs, or all active habits if IDs is None."""
     if habit_ids is None:
+        private_filter = "" if include_private else " AND private = 0"
         with db.get_db() as conn:
             cursor = conn.execute(
-                "SELECT id, content, created, archived_at FROM habits WHERE archived_at IS NULL ORDER BY created DESC"
+                f"SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE archived_at IS NULL{private_filter} ORDER BY created DESC"
             )
             rows = cursor.fetchall()
             all_habit_ids = [row[0] for row in rows]
@@ -168,11 +175,31 @@ def get_streak(habit_id: str) -> int:
     return streak
 
 
+def get_subhabits(parent_id: str) -> list["Habit"]:
+    """Get active subhabits for a parent habit."""
+    with db.get_db() as conn:
+        cursor = conn.execute(
+            "SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE parent_id = ? AND archived_at IS NULL ORDER BY created ASC",
+            (parent_id,),
+        )
+        rows = cursor.fetchall()
+        all_habit_ids = [row[0] for row in rows]
+        tags_map = load_tags_for_habits(all_habit_ids, conn=conn)
+        habits = []
+        for row in rows:
+            habit_id = row[0]
+            checks = _get_habit_checks(conn, habit_id)
+            tags = tags_map.get(habit_id, [])
+            habit = row_to_habit(row)
+            habits.append(_hydrate_habit(habit, checks, tags))
+        return habits
+
+
 def get_archived_habits() -> list[Habit]:
     """Get archived habits."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, created, archived_at FROM habits WHERE archived_at IS NOT NULL ORDER BY archived_at DESC"
+            "SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE archived_at IS NOT NULL ORDER BY archived_at DESC"
         )
         rows = cursor.fetchall()
         all_habit_ids = [row[0] for row in rows]

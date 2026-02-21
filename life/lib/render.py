@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 
 from life.config import get_dates
+from life.habits import get_subhabits
 from life.models import Habit, Task, TaskMutation
 from life.tasks import _task_sort_key, get_all_links
 
@@ -283,31 +284,46 @@ def _render_day_tasks(
     return lines, scheduled_ids
 
 
+def _render_habit_row(
+    habit: Habit,
+    today_habit_ids: set[str],
+    tag_colors: dict[str, str],
+    indent: str = "  ",
+) -> list[str]:
+    tags_str = _fmt_tags(habit.tags, tag_colors)
+    trend = _get_habit_trend(habit.checks)
+    id_str = f" {_GREY}[{habit.id[:8]}]{_R}"
+    lines = []
+    if habit.id in today_habit_ids:
+        lines.append(f"{indent}{gray('✓ ' + trend + ' ' + habit.content.lower())}{tags_str}{id_str}")
+    else:
+        lines.append(f"{indent}□ {trend} {habit.content.lower()}{tags_str}{id_str}")
+    for sub in get_subhabits(habit.id):
+        lines.extend(_render_habit_row(sub, today_habit_ids, tag_colors, indent="    └ "))
+    return lines
+
+
 def _render_habits(
     habits: list[Habit], today_habit_ids: set[str], tag_colors: dict[str, str]
 ) -> list[str]:
-    if not habits:
+    visible = [h for h in habits if not h.private and not h.parent_id]
+    if not visible:
         return []
 
-    checked_count = len(today_habit_ids)
-    lines = [f"\n{bold(white(f'HABITS ({checked_count}/{len(habits)}):'))}"]
-    sorted_habits = sorted(habits, key=lambda x: x.content.lower())
+    checked_count = sum(1 for h in habits if h.id in today_habit_ids)
+    total = len(habits)
+    lines = [f"\n{bold(white(f'HABITS ({checked_count}/{total}):'))}"]
+    sorted_habits = sorted(visible, key=lambda x: x.content.lower())
 
     for habit in sorted_habits:
         if habit.id in today_habit_ids:
             continue
-        tags_str = _fmt_tags(habit.tags, tag_colors)
-        trend = _get_habit_trend(habit.checks)
-        id_str = f" {_GREY}[{habit.id[:8]}]{_R}"
-        lines.append(f"  □ {trend} {habit.content.lower()}{tags_str}{id_str}")
+        lines.extend(_render_habit_row(habit, today_habit_ids, tag_colors))
 
     for habit in sorted_habits:
         if habit.id not in today_habit_ids:
             continue
-        tags_str = _fmt_tags(habit.tags, tag_colors)
-        trend = _get_habit_trend(habit.checks)
-        id_str = f" {_GREY}[{habit.id[:8]}]{_R}"
-        lines.append(f"  {gray('✓ ' + trend + ' ' + habit.content.lower())}{tags_str}{id_str}")
+        lines.extend(_render_habit_row(habit, today_habit_ids, tag_colors))
 
     return lines
 

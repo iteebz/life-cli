@@ -15,6 +15,7 @@ from .habits import (
     get_archived_habits,
     get_checks,
     get_habits,
+    get_subhabits,
     toggle_check,
     update_habit,
 )
@@ -903,13 +904,24 @@ def cmd_task(
     echo(f"{prefix}{format_status(symbol, content, task_id)}")
 
 
-def cmd_habit(content_args: list[str], tags: list[str] | None = None) -> None:
+def cmd_habit(
+    content_args: list[str],
+    tags: list[str] | None = None,
+    under: str | None = None,
+    private: bool = False,
+) -> None:
     content = " ".join(content_args) if content_args else ""
     try:
         validate_content(content)
     except ValueError as e:
         exit_error(f"Error: {e}")
-    habit_id = add_habit(content, tags=tags)
+    parent_id = None
+    if under:
+        parent = resolve_habit(under)
+        if not parent:
+            exit_error(f"No habit found matching '{under}'")
+        parent_id = parent.id
+    habit_id = add_habit(content, tags=tags, parent_id=parent_id, private=private)
     echo(format_status("□", content, habit_id))
 
 

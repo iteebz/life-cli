@@ -134,9 +134,11 @@ def show(
 def habit(
     content_args: list[str] = typer.Argument(..., help="Habit content"),
     tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to habit"),
+    under: str = typer.Option(None, "--under", "-u", help="Parent habit (fuzzy match)"),
+    private: bool = typer.Option(False, "--private", "-p", help="Hide from dash (steward still sees it)"),
 ):
     """Add daily habit (auto-resets on completion)"""
-    cmd_habit(content_args, tags=tags)
+    cmd_habit(content_args, tags=tags, under=under, private=private)
 
 
 @app.command()
