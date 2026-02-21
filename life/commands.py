@@ -1026,26 +1026,34 @@ def cmd_unfocus(args: list[str]) -> None:
 
 def cmd_due(args: list[str], remove: bool = False) -> None:
     try:
-        date_str, item_name = parse_due_and_item(args, remove=remove)
+        date_str, time_str, item_name = parse_due_and_item(args, remove=remove)
     except ValueError as e:
         exit_error(str(e))
     task = resolve_task(item_name)
     if remove:
-        update_task(task.id, due=None)
+        update_task(task.id, due=None, due_time=None)
         echo(format_status("□", task.content, task.id))
-    elif date_str:
-        update_task(task.id, due=date_str)
-        from datetime import date as _date
-
-        from .lib.clock import today as _today
-
-        _due = _date.fromisoformat(date_str)
-        _delta = (_due - _today()).days
-        echo(format_status(f"{ANSI.GREY}+{_delta}d{ANSI.RESET}", task.content, task.id))
-    else:
+        return
+    if not date_str and not time_str:
         exit_error(
-            "Due date required (today, tomorrow, day name, or YYYY-MM-DD) or use -r/--remove to clear"
+            "Due spec required: today, tomorrow, day name, YYYY-MM-DD, HH:MM, 'now', or -r to clear"
         )
+    updates: dict = {}
+    if date_str:
+        updates["due"] = date_str
+    if time_str:
+        updates["due_time"] = time_str
+    update_task(task.id, **updates)
+    if time_str and date_str:
+        label = f"{ANSI.GREY}{time_str}{ANSI.RESET}"
+    elif time_str:
+        label = f"{ANSI.GREY}{time_str}{ANSI.RESET}"
+    else:
+        from datetime import date as _date
+        _due = _date.fromisoformat(date_str)
+        _delta = (_due - today()).days
+        label = f"{ANSI.GREY}+{_delta}d{ANSI.RESET}"
+    echo(format_status(label, task.content, task.id))
 
 
 def cmd_rename(from_args: list[str], to_content: str) -> None:
@@ -1244,11 +1252,11 @@ def _set_due_relative(args: list[str], offset_days: int, label: str) -> None:
 
 
 def cmd_today(args: list[str]) -> None:
-    _set_due_relative(args, 0, "today")
+    cmd_due(["today"] + list(args))
 
 
 def cmd_tomorrow(args: list[str]) -> None:
-    _set_due_relative(args, 1, "tomorrow")
+    cmd_due(["tomorrow"] + list(args))
 
 
 def cmd_cancel(args: list[str], reason: str | None) -> None:
@@ -1274,33 +1282,13 @@ def cmd_defer(args: list[str], reason: str | None) -> None:
 
 
 def cmd_now(args: list[str]) -> None:
-    ref = " ".join(args) if args else ""
-    if not ref:
-        exit_error("Usage: life now <task>")
-    task = resolve_task(ref)
-    current = now()
-    due_str = today().isoformat()
-    time_str = current.strftime("%H:%M")
-    update_task(task.id, due=due_str, due_time=time_str)
-    echo(format_status(f"{ANSI.GREY}{time_str}{ANSI.RESET}", task.content.lower(), task.id))
+    cmd_due(["now"] + list(args))
 
 
 def cmd_schedule(args: list[str], remove: bool = False) -> None:
-    if not args:
-        exit_error("Usage: life schedule <HH:MM> <task> | life schedule -r <task>")
     if remove:
-        task = resolve_task(" ".join(args))
-        update_task(task.id, due_time=None)
-        echo(format_status("□", task.content, task.id))
+        if not args:
+            exit_error("Usage: life schedule -r <task>")
+        cmd_due(list(args), remove=True)
         return
-    time_str = args[0]
-    ref = " ".join(args[1:])
-    if not ref:
-        exit_error("Usage: life schedule <HH:MM> <task>")
-    try:
-        parsed = parse_time(time_str)
-    except ValueError as e:
-        exit_error(str(e))
-    task = resolve_task(ref)
-    update_task(task.id, due_time=parsed)
-    echo(format_status(f"{ANSI.GREY}{parsed}{ANSI.RESET}", task.content, task.id))
+    cmd_due(list(args))

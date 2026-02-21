@@ -62,11 +62,11 @@ def dashboard(
         cmd_dashboard(verbose=verbose)
 
 
-@app.command(name="dash")
+@app.command(name="dash", hidden=True)
 def dash(
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Show IDs"),
 ):
-    """Life dashboard"""
+    """Alias: life (root)"""
     cmd_dashboard(verbose=verbose)
 
 
@@ -176,25 +176,29 @@ def rm(
 @app.command()
 def focus(
     args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),
+    off: bool = typer.Option(False, "--off", help="Remove focus"),
 ):
-    """Toggle focus status on task (fuzzy match)"""
-    cmd_focus(args)
+    """Toggle focus on task; --off to remove"""
+    if off:
+        cmd_unfocus(args)
+    else:
+        cmd_focus(args)
 
 
-@app.command()
+@app.command(hidden=True)
 def unfocus(
     args: list[str] = typer.Argument(..., help="Item content for fuzzy matching"),
 ):
-    """Remove focus from task (fuzzy match)"""
+    """Alias: life focus --off <task>"""
     cmd_unfocus(args)
 
 
 @app.command()
 def due(
-    args: list[str] = typer.Argument(..., help="Due date (YYYY-MM-DD) and item content"),
-    remove: bool = typer.Option(False, "-r", "--remove", help="Remove due date"),
+    args: list[str] = typer.Argument(..., help="Time spec and item: today, tomorrow, HH:MM, now, YYYY-MM-DD"),
+    remove: bool = typer.Option(False, "-r", "--remove", help="Clear due date and time"),
 ):
-    """Set or remove due date on item (fuzzy match)"""
+    """Set due date/time — today, tomorrow, HH:MM, now, YYYY-MM-DD, or combined"""
     cmd_due(args, remove=remove)
 
 
@@ -219,12 +223,12 @@ def tag(
     cmd_tag(None, args, tag_opt=tag_opt, remove=remove)
 
 
-@app.command()
+@app.command(hidden=True)
 def untag(
     args: list[str] = typer.Argument(None, help='Item content then tag name: "ITEM" TAG'),
     tag_opt: str | None = typer.Option(None, "--tag", "-t", help="Tag name (option form)"),
 ):
-    """Remove tag: life untag \"ITEM\" TAG"""
+    """Alias: life tag "ITEM" TAG --remove"""
     cmd_untag(None, args, tag_opt=tag_opt)
 
 
@@ -298,36 +302,36 @@ def defer_cmd(
     cmd_defer(args, reason)
 
 
-@app.command(name="now")
+@app.command(name="now", hidden=True)
 def now_cmd(
     args: list[str] = typer.Argument(..., help="Task to schedule for right now"),
 ):
-    """Set a task due today at the current time"""
+    """Alias: life due now <task>"""
     cmd_now(args)
 
 
-@app.command(name="today")
+@app.command(name="today", hidden=True)
 def today_cmd(
     args: list[str] = typer.Argument(None, help="Partial task name to set due today"),
 ):
-    """Set due date to today on a task (fuzzy match)"""
+    """Alias: life due today <task>"""
     cmd_today(args)
 
 
-@app.command()
+@app.command(hidden=True)
 def tomorrow(
     args: list[str] = typer.Argument(None, help="Partial task name to set due tomorrow"),
 ):
-    """Set due date to tomorrow on a task (fuzzy match)"""
+    """Alias: life due tomorrow <task>"""
     cmd_tomorrow(args)
 
 
-@app.command()
+@app.command(hidden=True)
 def schedule(
     args: list[str] = typer.Argument(..., help="HH:MM and task name, or task name with -r"),
     remove: bool = typer.Option(False, "-r", "--remove", help="Clear scheduled time"),
 ):
-    """Set or clear scheduled time on a task (fuzzy match)"""
+    """Alias: life due HH:MM <task>"""
     cmd_schedule(args, remove=remove)
 
 
