@@ -6,6 +6,7 @@ from . import db
 from .commands import cmd_dashboard, cmd_momentum, cmd_stats, cmd_status
 from .habits import cmd_archive, cmd_habits
 from .lib.errors import echo, exit_error
+from . import interventions as _interventions
 from . import mood as _mood
 from . import patterns as _patterns
 from . import signal as _signal
@@ -19,7 +20,7 @@ from .steward import (
     rm,
 )
 
-_ = (boot, close, dash, improve, log, observe, rm, _mood, _patterns, _signal)
+_ = (boot, close, dash, improve, log, observe, rm, _interventions, _mood, _patterns, _signal)
 
 
 @cli("life")
@@ -388,46 +389,6 @@ def dates_list():
         days = d["days_until"]
         days_str = "today" if days == 0 else f"in {days}d"
         echo(f"  {d['name']} — {d['day']:02d}-{d['month']:02d}{type_label}  ({days_str})")
-
-
-@cli("life track", name="log")
-def track_log():
-    """Show recent intervention log"""
-    from .commands import cmd_track
-
-    cmd_track(show_log=True)
-
-
-@cli("life track", name="stats")
-def track_stats():
-    """Show intervention stats"""
-    from .commands import cmd_track
-
-    cmd_track(show_stats=True)
-
-
-@cli("life track", name="won")
-def track_won(description: str, note: str | None = None):
-    """Log a won intervention"""
-    from .commands import cmd_track
-
-    cmd_track(description=description, result="won", note=note)
-
-
-@cli("life track", name="lost")
-def track_lost(description: str, note: str | None = None):
-    """Log a lost intervention"""
-    from .commands import cmd_track
-
-    cmd_track(description=description, result="lost", note=note)
-
-
-@cli("life track", name="deferred")
-def track_deferred(description: str, note: str | None = None):
-    """Log a deferred intervention"""
-    from .commands import cmd_track
-
-    cmd_track(description=description, result="deferred", note=note)
 
 
 @cli("life db", name="migrate")

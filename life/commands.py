@@ -3,8 +3,6 @@ from datetime import datetime
 from .config import get_profile, set_profile
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import get_habits
-from .interventions import add_intervention, get_interventions
-from .interventions import get_stats as get_intervention_stats
 from .lib.clock import now, today
 from .lib.dates import add_date, list_dates, remove_date
 from .lib.errors import echo, exit_error
@@ -144,48 +142,5 @@ def cmd_momentum() -> None:
     echo(render_momentum(weekly_momentum()))
 
 
-
-def cmd_track(
-    description: str | None = None,
-    result: str | None = None,
-    note: str | None = None,
-    show_stats: bool = False,
-    show_log: bool = False,
-) -> None:
-    if show_stats:
-        stats = get_intervention_stats()
-        total = sum(stats.values())
-        if not total:
-            echo("no interventions logged")
-            return
-        won = stats.get("won", 0)
-        lost = stats.get("lost", 0)
-        deferred = stats.get("deferred", 0)
-        win_rate = int((won / total) * 100) if total else 0
-        echo(
-            f"won: {won}  lost: {lost}  deferred: {deferred}  total: {total}  win_rate: {win_rate}%"
-        )
-        return
-
-    if show_log:
-        interventions = get_interventions(20)
-        if not interventions:
-            echo("no interventions logged")
-            return
-        for intervention in interventions:
-            ts = intervention.timestamp.strftime("%m-%d %H:%M")
-            note_str = f"  ({intervention.note})" if intervention.note else ""
-            echo(f"{ts}  {intervention.result:<8}  {intervention.description}{note_str}")
-        return
-
-    if not description or not result:
-        exit_error("Usage: life track <description> --won|--lost|--deferred [--note 'text']")
-
-    if result not in ("won", "lost", "deferred"):
-        exit_error("Result must be --won, --lost, or --deferred")
-
-    add_intervention(description, result, note)
-    symbol = {"won": "\u2713", "lost": "\u2717", "deferred": "\u2192"}[result]
-    echo(f"{symbol} {description}")
 
 

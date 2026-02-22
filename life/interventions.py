@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from fncli import cli
+
 from .db import get_db
+from .lib.errors import echo, exit_error
 
 
 @dataclass(frozen=True)
@@ -44,3 +47,52 @@ def get_stats() -> dict[str, int]:
     with get_db() as conn:
         rows = conn.execute("SELECT result, COUNT(*) FROM interventions GROUP BY result").fetchall()
         return {row[0]: row[1] for row in rows}
+
+
+@cli("life track", name="log")
+def log():
+    """Show recent intervention log"""
+    interventions = get_interventions(20)
+    if not interventions:
+        echo("no interventions logged")
+        return
+    for intervention in interventions:
+        ts = intervention.timestamp.strftime("%m-%d %H:%M")
+        note_str = f"  ({intervention.note})" if intervention.note else ""
+        echo(f"{ts}  {intervention.result:<8}  {intervention.description}{note_str}")
+
+
+@cli("life track", name="stats")
+def stats():
+    """Show intervention stats"""
+    totals = get_stats()
+    total = sum(totals.values())
+    if not total:
+        echo("no interventions logged")
+        return
+    won = totals.get("won", 0)
+    lost = totals.get("lost", 0)
+    deferred = totals.get("deferred", 0)
+    win_rate = int((won / total) * 100) if total else 0
+    echo(f"won: {won}  lost: {lost}  deferred: {deferred}  total: {total}  win_rate: {win_rate}%")
+
+
+@cli("life track", name="won")
+def won(description: str, note: str | None = None):
+    """Log a won intervention"""
+    add_intervention(description, "won", note)
+    echo(f"✓ {description}")
+
+
+@cli("life track", name="lost")
+def lost(description: str, note: str | None = None):
+    """Log a lost intervention"""
+    add_intervention(description, "lost", note)
+    echo(f"✗ {description}")
+
+
+@cli("life track", name="deferred")
+def deferred(description: str, note: str | None = None):
+    """Log a deferred intervention"""
+    add_intervention(description, "deferred", note)
+    echo(f"→ {description}")
