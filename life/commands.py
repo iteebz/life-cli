@@ -49,29 +49,35 @@ def cmd_dates(
     action: str | None = None,
     name: str | None = None,
     date_str: str | None = None,
-    emoji: str = "📌",
+    type_: str = "other",
 ) -> None:
     if not action:
         dates_list = list_dates()
         if dates_list:
-            for date_item in dates_list:
-                echo(f"{date_item.get('emoji', '📌')} {date_item['name']} - {date_item['date']}")
+            for d in dates_list:
+                type_label = f"  [{d['type']}]" if d['type'] != 'other' else ""
+                days = d['days_until']
+                days_str = "today" if days == 0 else f"in {days}d"
+                echo(f"  {d['name']} — {d['day']:02d}-{d['month']:02d}{type_label}  ({days_str})")
         else:
             echo("No dates set")
         return
     if action == "add":
         if not name or not date_str:
-            exit_error("Error: add requires name and date (YYYY-MM-DD)")
-        add_date(name, date_str, emoji)
-        echo(f"Added date: {emoji} {name} on {date_str}")
+            exit_error("add requires name and date (DD-MM)")
+        try:
+            add_date(name, date_str, type_)
+        except ValueError as e:
+            exit_error(str(e))
+        echo(f"Added date: {name} on {date_str}")
     elif action == "remove":
         if not name:
-            exit_error("Error: remove requires a date name")
+            exit_error("remove requires a date name")
         remove_date(name)
         echo(f"Removed date: {name}")
     else:
         exit_error(
-            f"Error: unknown action '{action}'. Use 'add', 'remove', or no argument to list."
+            f"unknown action '{action}'. Use 'add', 'remove', or no argument to list."
         )
 
 

@@ -1,9 +1,5 @@
 from datetime import date, datetime, timedelta
 
-from life.config import add_date as add_date_config
-from life.config import get_dates
-from life.config import remove_date as remove_date_config
-
 from . import clock
 
 
@@ -40,31 +36,77 @@ def parse_due_date(due_str: str) -> str | None:
     due_str_lower = _day_aliases.get(due_str_lower, due_str_lower)
     if due_str_lower in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:
         day_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
-        current_weekday = today.weekday()  # Monday is 0, Sunday is 6
+        current_weekday = today.weekday()
         target_weekday = day_map[due_str_lower]
         days_ahead = (target_weekday - current_weekday + 7) % 7
         if days_ahead == 0 and due_str_lower != today.strftime("%a").lower():
-            days_ahead = 7  # If today is the target day, but we mean next week
+            days_ahead = 7
         return (today + timedelta(days=days_ahead)).isoformat()
     try:
-        # Attempt to parse as YYYY-MM-DD
         parsed_date = date.fromisoformat(due_str)
         return parsed_date.isoformat()
     except ValueError:
-        return None  # Invalid date format
+        return None
 
 
-def list_dates() -> list[dict[str, str]]:
-    """Get all dates, sorted by date."""
-    dates = get_dates()
-    return sorted(dates, key=lambda x: x["date"])
+def _days_until(month: int, day: int, today: date) -> int:
+    """Days until next occurrence of a recurring MM-DD date."""
+    this_year = today.replace(month=month, day=day)
+    if this_year >= today:
+        return (this_year - today).days
+    next_year = this_year.replace(year=today.year + 1)
+    return (next_year - today).days
 
 
-def add_date(name: str, date_str: str, emoji: str) -> None:
-    """Add a date to config."""
-    add_date_config(name, date_str, emoji)
+def list_dates() -> list[dict]:
+    """Get all special dates from DB, sorted by next occurrence."""
+    from life import db
+
+    today = clock.today()
+    with db.get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, name, month, day, type FROM special_dates ORDER BY name"
+        ).fetchall()
+
+    result = []
+    for row in rows:
+        id_, name, month, day, type_ = row
+        days = _days_until(month, day, today)
+        result.append({"id": id_, "name": name, "month": month, "day": day, "type": type_, "days_until": days})
+
+    return sorted(result, key=lambda x: x["days_until"])
+
+
+def add_date(name: str, date_str: str, type_: str = "other") -> None:
+    """Add a special date to DB. date_str is DD-MM."""
+    from life import db
+
+    parts = date_str.split("-")
+    if len(parts) != 2:
+        raise ValueError(f"Invalid date format '{date_str}' — use DD-MM")
+    try:
+        day, month = int(parts[0]), int(parts[1])
+    except ValueError:
+        raise ValueError(f"Invalid date format '{date_str}' — use DD-MM")
+    if not (1 <= month <= 12) or not (1 <= day <= 31):
+        raise ValueError(f"Invalid date '{date_str}'")
+
+    with db.get_db() as conn:
+        conn.execute(
+            "INSERT INTO special_dates (name, month, day, type) VALUES (?, ?, ?, ?)",
+            (name, month, day, type_),
+        )
 
 
 def remove_date(name: str) -> None:
-    """Remove a date from config."""
-    remove_date_config(name)
+    """Remove a special date by name."""
+    from life import db
+
+    with db.get_db() as conn:
+        conn.execute("DELETE FROM special_dates WHERE name = ?", (name,))
+
+
+def upcoming_dates(within_days: int = 14) -> list[dict]:
+    """Get dates occurring within the next N days."""
+    today = clock.today()
+    return [d for d in list_dates() if d["days_until"] <= within_days]

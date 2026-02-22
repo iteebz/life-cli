@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 
-from life.config import get_dates
 from life.habits import get_subhabits
 from life.models import Habit, Task, TaskMutation
 from life.tasks import _task_sort_key
@@ -159,20 +158,23 @@ def _render_done(
     return lines
 
 
-def _render_upcoming_date(dates_list: list[dict[str, str]], today: date) -> list[str]:
-    if not dates_list:
+def _render_upcoming_dates(today: date) -> list[str]:
+    from life.lib.dates import upcoming_dates
+
+    try:
+        upcoming = upcoming_dates(within_days=14)
+    except Exception:
         return []
-    upcoming = sorted(
-        [d for d in dates_list if date.fromisoformat(d["date"]) >= today],
-        key=lambda x: x["date"],
-    )
     if not upcoming:
         return []
-    next_date = upcoming[0]
-    days = (date.fromisoformat(next_date["date"]) - today).days
-    emoji = next_date.get("emoji", "📌")
-    name = next_date.get("name", "event")
-    return [f"{emoji} {days} days until {name}!"]
+    lines = []
+    type_emoji = {"birthday": "🎂", "anniversary": "💍", "deadline": "⚠️", "other": "📌"}
+    for d in upcoming:
+        emoji = type_emoji.get(d["type"], "📌")
+        days = d["days_until"]
+        days_str = "today!" if days == 0 else f"in {days}d"
+        lines.append(f"{emoji} {d['name']} — {days_str}")
+    return lines
 
 
 def _render_today_tasks(
@@ -421,7 +423,7 @@ def render_dashboard(
         lines.append("")
         lines.extend(done_lines)
 
-    lines.extend(_render_upcoming_date(get_dates(), today))
+    lines.extend(_render_upcoming_dates(today))
 
     all_subtask_ids = {t.id for t in all_pending if t.parent_id}
     subtasks_by_parent: dict[str, list[Task]] = {}

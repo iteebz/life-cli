@@ -264,11 +264,11 @@ def profile(
 def dates(
     action: str = typer.Argument(None, help="add, remove, or list"),
     name: str = typer.Argument(None, help="Date name"),
-    date_str: str = typer.Argument(None, help="Target date (YYYY-MM-DD)"),
-    emoji: str = typer.Option("📌", "-e", "--emoji", help="Emoji for date"),
+    date_str: str = typer.Argument(None, help="Target date (DD-MM)"),
+    type_: str = typer.Option("other", "--type", "-t", help="birthday, anniversary, deadline, other"),
 ):
-    """Add, remove, or list dates to track"""
-    cmd_dates(action, name, date_str, emoji)
+    """Add, remove, or list recurring dates (birthdays, anniversaries)"""
+    cmd_dates(action, name, date_str, type_)
 
 
 @app.command()
