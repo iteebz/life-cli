@@ -46,8 +46,9 @@ __all__ = [
 ]
 
 
+# ── domain ───────────────────────────────────────────────────────────────────
+
 def _task_sort_key(task: Task) -> tuple[bool, bool, object, object]:
-    """Canonical sort order: focus first, then by scheduled date, then by creation."""
     return (
         not task.focus,
         task.scheduled_date is None,
@@ -70,7 +71,6 @@ _AUTOTAG_PATTERNS = {
 
 
 def _autotag(content: str, existing_tags: list[str] | None) -> list[str]:
-    """Auto-add tags based on content patterns. Returns new tags to add."""
     if existing_tags is None:
         existing_tags = []
     existing_normalized = [t.lstrip("#") for t in existing_tags]
@@ -92,7 +92,6 @@ def add_task(
     steward: bool = False,
     source: str | None = None,
 ) -> str:
-    """Adds a new task. Returns task_id."""
     task_id = str(uuid.uuid4())
     with db.get_db() as conn:
         try:
@@ -122,7 +121,6 @@ def add_task(
 
 
 def get_task(task_id: str) -> Task | None:
-    """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE id = ?",
@@ -138,7 +136,6 @@ def get_task(task_id: str) -> Task | None:
 
 
 def get_tasks(include_steward: bool = False) -> list[Task]:
-    """SELECT pending (incomplete) tasks, sorted by (focus DESC, due_date ASC, created ASC)."""
     with db.get_db() as conn:
         if include_steward:
             cursor = conn.execute(
@@ -157,7 +154,6 @@ def get_tasks(include_steward: bool = False) -> list[Task]:
 
 
 def get_all_tasks() -> list[Task]:
-    """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE steward = 0"
@@ -171,7 +167,6 @@ def get_all_tasks() -> list[Task]:
 
 
 def get_subtasks(parent_id: str) -> list[Task]:
-    """Return all tasks with the given parent_id."""
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE parent_id = ?",
@@ -184,7 +179,6 @@ def get_subtasks(parent_id: str) -> list[Task]:
 
 
 def get_focus() -> list[Task]:
-    """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE focus = 1 AND completed_at IS NULL AND steward = 0"
@@ -239,7 +233,6 @@ def update_task(
     parent_id: str | object = _UNSET,
     description: str | object = _UNSET,
 ) -> Task | None:
-    """Partial update, return updated Task. Pass None to clear a nullable field."""
     updates = {}
     if content is not None:
         updates["content"] = content
@@ -277,7 +270,6 @@ def update_task(
 
 
 def get_mutations(task_id: str) -> list[TaskMutation]:
-    """Return all recorded mutations for a task, newest first."""
     with db.get_db() as conn:
         rows = conn.execute(
             "SELECT id, task_id, field, old_value, new_value, mutated_at, reason FROM task_mutations WHERE task_id = ? ORDER BY mutated_at DESC",
@@ -299,7 +291,6 @@ def get_mutations(task_id: str) -> list[TaskMutation]:
 
 
 def defer_task(task_id: str, reason: str) -> Task | None:
-    """Record an explicit deferral with reason. Does not reschedule."""
     task = get_task(task_id)
     if not task:
         return None
@@ -312,7 +303,6 @@ def defer_task(task_id: str, reason: str) -> Task | None:
 
 
 def count_overdue_resets(window_start: str, window_end: str) -> int:
-    """Count overdue_reset deferrals within a date window (ISO strings)."""
     with db.get_db() as conn:
         row = conn.execute(
             "SELECT COUNT(*) FROM task_mutations WHERE reason = 'overdue_reset' AND date(mutated_at) >= ? AND date(mutated_at) <= ?",
@@ -322,7 +312,6 @@ def count_overdue_resets(window_start: str, window_end: str) -> int:
 
 
 def cancel_task(task_id: str, reason: str) -> None:
-    """Cancel a task: preserved in deleted_tasks with cancel_reason for analytics."""
     with db.get_db() as conn:
         row = conn.execute("SELECT id, content FROM tasks WHERE id = ?", (task_id,)).fetchone()
         if row:
@@ -336,7 +325,6 @@ def cancel_task(task_id: str, reason: str) -> None:
 
 
 def delete_task(task_id: str) -> None:
-    """DELETE from tasks. Writes audit record to deleted_tasks first."""
     with db.get_db() as conn:
         row = conn.execute("SELECT id, content FROM tasks WHERE id = ?", (task_id,)).fetchone()
         if row:
@@ -350,7 +338,6 @@ def delete_task(task_id: str) -> None:
 
 
 def check_task(task_id: str) -> tuple[Task | None, Task | None]:
-    """Mark task as complete. Returns (task, parent_if_set_completed)."""
     task = get_task(task_id)
     if not task or task.completed_at:
         return task, None
@@ -383,7 +370,6 @@ def check_task(task_id: str) -> tuple[Task | None, Task | None]:
 
 
 def uncheck_task(task_id: str) -> Task | None:
-    """Mark task as pending. Reopens parent if set was complete."""
     task = get_task(task_id)
     if not task or not task.completed_at:
         return task
@@ -400,7 +386,6 @@ def uncheck_task(task_id: str) -> Task | None:
 
 
 def toggle_completed(task_id: str) -> Task | None:
-    """Toggle task completion."""
     task = get_task(task_id)
     if not task:
         return None
@@ -411,13 +396,10 @@ def toggle_completed(task_id: str) -> Task | None:
 
 
 def toggle_focus(task_id: str) -> Task | None:
-    """Toggle task focus status."""
     task = get_task(task_id)
     if not task:
         return None
-
-    new_focus = not task.focus
-    return update_task(task_id, focus=new_focus)
+    return update_task(task_id, focus=not task.focus)
 
 
 def find_task(ref: str) -> Task | None:
@@ -441,7 +423,6 @@ def find_task_exact(ref: str) -> Task | None:
 
 
 def set_blocked_by(task_id: str, blocker_id: str | None) -> Task | None:
-    """Set or clear the blocked_by pointer on a task."""
     with db.get_db() as conn:
         conn.execute(
             "UPDATE tasks SET blocked_by = ? WHERE id = ?",
@@ -451,7 +432,6 @@ def set_blocked_by(task_id: str, blocker_id: str | None) -> Task | None:
 
 
 def last_completion() -> datetime | None:
-    """Return the most recent completion timestamp across tasks and habit checks."""
     with db.get_db() as conn:
         task_row = conn.execute(
             "SELECT completed_at FROM tasks WHERE completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
@@ -467,10 +447,64 @@ def last_completion() -> datetime | None:
     return max(candidates) if candidates else None
 
 
+def rename_task(task: Task, to_content: str) -> None:
+    if task.content == to_content:
+        exit_error(f"Error: Cannot rename '{task.content}' to itself.")
+    update_task(task.id, content=to_content)
+    echo(f"→ {to_content}")
+
+
+def check_task_cmd(task: Task) -> None:
+    if task.completed_at:
+        exit_error(f"'{task.content}' is already done")
+    _, parent_completed = check_task(task.id)
+    _animate_check(task.content.lower())
+    if parent_completed:
+        _animate_check(parent_completed.content.lower())
+
+
 def _animate_check(label: str) -> None:
     sys.stdout.write(f"  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
     sys.stdout.flush()
 
+
+def _schedule(args: list[str], remove: bool = False) -> None:
+    from .lib.resolve import resolve_task
+
+    if remove:
+        if not args:
+            exit_error("Usage: life schedule --remove <task>")
+        try:
+            _, _, item_name = parse_due_and_item(list(args), remove=True)
+        except ValueError as e:
+            exit_error(str(e))
+        t = resolve_task(item_name)
+        update_task(t.id, scheduled_date=None, scheduled_time=None, is_deadline=False)
+        echo(format_status("\u25a1", t.content, t.id))
+        return
+    try:
+        date_str, time_str, item_name = parse_due_and_item(list(args))
+    except ValueError as e:
+        exit_error(str(e))
+    if not date_str and not time_str:
+        exit_error("Schedule spec required: today, tomorrow, day name, YYYY-MM-DD, HH:MM, or 'now'")
+    t = resolve_task(item_name)
+    updates: dict = {"is_deadline": False}
+    if date_str:
+        updates["scheduled_date"] = date_str
+    if time_str:
+        updates["scheduled_time"] = time_str
+    update_task(t.id, **updates)
+    if time_str:
+        label = f"{ANSI.GREY}{time_str}{ANSI.RESET}"
+    else:
+        d = _date.fromisoformat(date_str)
+        delta = (d - clock.today()).days
+        label = f"{ANSI.GREY}+{delta}d{ANSI.RESET}"
+    echo(format_status(label, t.content, t.id))
+
+
+# ── cli ──────────────────────────────────────────────────────────────────────
 
 @cli("life")
 def task(
@@ -531,15 +565,6 @@ def task(
     symbol = f"{ANSI.BOLD}\u29bf{ANSI.RESET}" if focus else "\u25a1"
     prefix = "  \u2514 " if parent_id else ""
     echo(f"{prefix}{format_status(symbol, content_str, task_id)}")
-
-
-def check_task_cmd(task: Task) -> None:
-    if task.completed_at:
-        exit_error(f"'{task.content}' is already done")
-    _, parent_completed = check_task(task.id)
-    _animate_check(task.content.lower())
-    if parent_completed:
-        _animate_check(parent_completed.content.lower())
 
 
 @cli("life")
@@ -716,49 +741,6 @@ def defer(ref: list[str], reason: str) -> None:
     t = resolve_task(" ".join(ref))
     defer_task(t.id, reason)
     echo(f"\u2192 {t.content.lower()} deferred: {reason}")
-
-
-def rename_task(task: Task, to_content: str) -> None:
-    if task.content == to_content:
-        exit_error(f"Error: Cannot rename '{task.content}' to itself.")
-    update_task(task.id, content=to_content)
-    echo(f"\u2192 {to_content}")
-
-
-def _schedule(args: list[str], remove: bool = False) -> None:
-    from .lib.resolve import resolve_task
-
-    if remove:
-        if not args:
-            exit_error("Usage: life schedule --remove <task>")
-        try:
-            _, _, item_name = parse_due_and_item(list(args), remove=True)
-        except ValueError as e:
-            exit_error(str(e))
-        t = resolve_task(item_name)
-        update_task(t.id, scheduled_date=None, scheduled_time=None, is_deadline=False)
-        echo(format_status("\u25a1", t.content, t.id))
-        return
-    try:
-        date_str, time_str, item_name = parse_due_and_item(list(args))
-    except ValueError as e:
-        exit_error(str(e))
-    if not date_str and not time_str:
-        exit_error("Schedule spec required: today, tomorrow, day name, YYYY-MM-DD, HH:MM, or 'now'")
-    t = resolve_task(item_name)
-    updates: dict = {"is_deadline": False}
-    if date_str:
-        updates["scheduled_date"] = date_str
-    if time_str:
-        updates["scheduled_time"] = time_str
-    update_task(t.id, **updates)
-    if time_str:
-        label = f"{ANSI.GREY}{time_str}{ANSI.RESET}"
-    else:
-        d = _date.fromisoformat(date_str)
-        delta = (d - clock.today()).days
-        label = f"{ANSI.GREY}+{delta}d{ANSI.RESET}"
-    echo(format_status(label, t.content, t.id))
 
 
 @cli("life")
