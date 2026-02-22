@@ -355,41 +355,6 @@ def momentum():
     cmd_momentum()
 
 
-@cli("life db", name="migrate")
-def db_migrate():
-    """Run pending database migrations"""
-    db.migrate()
-    echo("migrations applied")
-
-
-@cli("life db", name="backup")
-def db_backup():
-    """Create database backup"""
-    from .lib.backup import backup as _backup
-
-    result = _backup()
-    path = result["path"]
-    rows = result["rows"]
-    delta_total = result["delta_total"]
-    delta_by_table = result["delta_by_table"]
-    delta_str = ""
-    if delta_total is not None and delta_total != 0:
-        delta_str = f" (+{delta_total})" if delta_total > 0 else f" ({delta_total})"
-    echo(str(path))
-    echo(f"  {rows} rows{delta_str}")
-    for tbl, delta in sorted(delta_by_table.items(), key=lambda x: abs(x[1]), reverse=True):
-        sign = "+" if delta > 0 else ""
-        echo(f"    {tbl} {sign}{delta}")
-
-
-@cli("life db", name="health")
-def db_health():
-    """Check database integrity"""
-    from .health import cli as health_cli
-
-    health_cli()
-
-
 @cli("life")
 def auto(
     cycles: int = 1,
