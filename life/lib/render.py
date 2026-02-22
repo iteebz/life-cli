@@ -516,13 +516,37 @@ def render_dashboard(
 
     task_id_to_content = {t.id: t.content for t in all_pending}
 
+    overdue = [
+        t
+        for t in all_pending
+        if t.scheduled_date and t.scheduled_date < today and t.id not in all_subtask_ids
+    ]
+    scheduled_ids: set[str] = set()
+    if overdue:
+        lines.append(f"\n{ANSI.BOLD}{ANSI.RED}OVERDUE:{_R}")
+        for task in sorted(overdue, key=_task_sort_key):
+            scheduled_ids.add(task.id)
+            tags_str = _fmt_tags(task.tags, tag_colors)
+            id_str = f" {_GREY}[{task.id[:8]}]{_R}"
+            fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
+            label = _fmt_rel_date(task.scheduled_date, today)
+            date_str = f"{secondary(label)} "
+            lines.append(f"  □ {date_str}{task.content.lower()}{tags_str}{fire}{id_str}")
+            for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
+                scheduled_ids.add(sub.id)
+                sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
+                sub_direct_tags = _get_direct_tags(sub, all_pending)
+                sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
+                sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
+                lines.append(f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+
     due_today = [
         t
         for t in all_pending
         if t.scheduled_date and t.scheduled_date.isoformat() == today_str and t.id not in all_subtask_ids
     ]
 
-    today_lines, scheduled_ids = _render_today_tasks(
+    today_lines, today_scheduled = _render_today_tasks(
         due_today,
         current_time,
         now,
@@ -531,6 +555,7 @@ def render_dashboard(
         subtasks_by_parent,
         all_pending,
     )
+    scheduled_ids.update(today_scheduled)
     lines.extend(today_lines)
 
     for offset in range(1, 8):
