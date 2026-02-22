@@ -6,6 +6,7 @@ from . import db
 from .commands import cmd_dashboard, cmd_momentum, cmd_stats, cmd_status
 from .habits import cmd_archive, cmd_habits
 from .lib.errors import echo, exit_error
+from . import dates as _dates
 from . import interventions as _interventions
 from . import mood as _mood
 from . import patterns as _patterns
@@ -20,7 +21,7 @@ from .steward import (
     rm,
 )
 
-_ = (boot, close, dash, improve, log, observe, rm, _interventions, _mood, _patterns, _signal)
+_ = (boot, close, dash, improve, log, observe, rm, _dates, _interventions, _mood, _patterns, _signal)
 
 
 @cli("life")
@@ -352,43 +353,6 @@ def stats():
 def momentum():
     """Show momentum and weekly trends"""
     cmd_momentum()
-
-
-@cli("life dates", name="add")
-def dates_add(name: str, date: str, type_: str = "other"):
-    """Add a recurring date (DD-MM)"""
-    from .lib.dates import add_date
-
-    try:
-        add_date(name, date, type_)
-    except ValueError as e:
-        exit_error(str(e))
-    echo(f"added: {name} on {date}")
-
-
-@cli("life dates", name="rm")
-def dates_rm(name: str):
-    """Remove a recurring date"""
-    from .lib.dates import remove_date
-
-    remove_date(name)
-    echo(f"removed: {name}")
-
-
-@cli("life dates", name="list")
-def dates_list():
-    """List all recurring dates"""
-    from .lib.dates import list_dates
-
-    items = list_dates()
-    if not items:
-        echo("no dates set")
-        return
-    for d in items:
-        type_label = f"  [{d['type']}]" if d["type"] != "other" else ""
-        days = d["days_until"]
-        days_str = "today" if days == 0 else f"in {days}d"
-        echo(f"  {d['name']} — {d['day']:02d}-{d['month']:02d}{type_label}  ({days_str})")
 
 
 @cli("life db", name="migrate")

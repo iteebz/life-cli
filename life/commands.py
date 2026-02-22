@@ -4,7 +4,6 @@ from .config import get_profile, set_profile
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import get_habits
 from .lib.clock import now, today
-from .lib.dates import add_date, list_dates, remove_date
 from .lib.errors import echo, exit_error
 from .lib.render import render_dashboard, render_momentum
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
@@ -14,7 +13,6 @@ from .tasks import get_all_tasks, get_tasks, last_completion
 
 __all__ = [
     "cmd_dashboard",
-    "cmd_dates",
     "cmd_momentum",
     "cmd_mood",
     "cmd_pattern",
@@ -39,40 +37,6 @@ def cmd_profile(profile_text: str | None = None) -> None:
         echo(f"Profile set to: {profile_text}")
     else:
         echo(get_profile() or "No profile set")
-
-
-def cmd_dates(
-    action: str | None = None,
-    name: str | None = None,
-    date_str: str | None = None,
-    type_: str = "other",
-) -> None:
-    if not action:
-        dates_list = list_dates()
-        if dates_list:
-            for d in dates_list:
-                type_label = f"  [{d['type']}]" if d["type"] != "other" else ""
-                days = d["days_until"]
-                days_str = "today" if days == 0 else f"in {days}d"
-                echo(f"  {d['name']} — {d['day']:02d}-{d['month']:02d}{type_label}  ({days_str})")
-        else:
-            echo("No dates set")
-        return
-    if action == "add":
-        if not name or not date_str:
-            exit_error("add requires name and date (DD-MM)")
-        try:
-            add_date(name, date_str, type_)
-        except ValueError as e:
-            exit_error(str(e))
-        echo(f"Added date: {name} on {date_str}")
-    elif action == "remove":
-        if not name:
-            exit_error("remove requires a date name")
-        remove_date(name)
-        echo(f"Removed date: {name}")
-    else:
-        exit_error(f"unknown action '{action}'. Use 'add', 'remove', or no argument to list.")
 
 
 def _format_elapsed(dt) -> str:
