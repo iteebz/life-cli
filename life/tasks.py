@@ -692,9 +692,15 @@ def show(ref: list[str]) -> None:
     if not item_ref:
         exit_error("Usage: life show <task>")
     t = resolve_task(item_ref)
-    subtasks = get_subtasks(t.id)
-    mutations = get_mutations(t.id)
-    echo(render_task_detail(t, subtasks, mutations))
+    if t.parent_id:
+        parent = get_task(t.parent_id)
+        parent_subtasks = get_subtasks(t.parent_id) if parent else []
+        mutations = get_mutations(t.parent_id) if parent else []
+        echo(render_task_detail(t, [], mutations, parent=parent, parent_subtasks=parent_subtasks))
+    else:
+        subtasks = get_subtasks(t.id)
+        mutations = get_mutations(t.id)
+        echo(render_task_detail(t, subtasks, mutations))
 
 
 @cli("life")

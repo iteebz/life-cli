@@ -633,21 +633,21 @@ def render_habit_matrix(habits: list[Habit]) -> str:
     return "\n".join(lines)
 
 
-def render_task_detail(
+def _render_task_block(
     task: Task,
     subtasks: list[Task],
+    all_tasks: list[Task],
+    tag_colors: dict[str, str],
     mutations: list[TaskMutation] | None = None,
-) -> str:
+    indent: str = "",
+) -> list[str]:
     lines = []
-
-    all_tasks = [task, *subtasks]
-    tag_colors = _build_tag_colors(all_tasks)
     tags_str = _fmt_tags(task.tags, tag_colors)
     focus_str = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
     status = gray("✓") if task.completed_at else "□"
-    id_str = f"{dim('[' + task.id + ']')}"
+    id_str = f"{dim('[' + task.id[:8] + ']')}"
 
-    lines.append(f"{status} {id_str}  {task.content.lower()}{tags_str}{focus_str}")
+    lines.append(f"{indent}{status} {id_str}  {task.content.lower()}{tags_str}{focus_str}")
 
     if task.scheduled_date:
         label = "deadline" if task.is_deadline else "scheduled"
@@ -655,32 +655,48 @@ def render_task_detail(
         if task.scheduled_time:
             date_str += f" {_fmt_time(task.scheduled_time)}"
         entry = f"{coral(label) if task.is_deadline else label}: {date_str}"
-        lines.append(f"  {entry}")
+        lines.append(f"{indent}  {entry}")
 
     if task.description:
-        lines.append(f"  {task.description}")
+        lines.append(f"{indent}  {task.description}")
 
     if task.blocked_by:
-        lines.append(f"  blocked by: {task.blocked_by}")
+        lines.append(f"{indent}  blocked by: {task.blocked_by[:8]}")
 
-    if subtasks:
-        lines.append("  subtasks:")
-        for sub in sorted(subtasks, key=_task_sort_key):
-            sub_status = gray("✓") if sub.completed_at else "□"
-            sub_id_str = dim(f"[{sub.id}]")
-            sub_direct_tags = _get_direct_tags(sub, all_tasks)
-            sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
-            lines.append(
-                f"    {sub_status} {sub_id_str}  {sub_time_str}{sub.content.lower()}{sub_tags_str}"
-            )
+    for sub in sorted(subtasks, key=_task_sort_key):
+        sub_status = gray("✓") if sub.completed_at else "□"
+        sub_id_str = dim(f"[{sub.id[:8]}]")
+        sub_direct_tags = _get_direct_tags(sub, all_tasks)
+        sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
+        sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
+        lines.append(
+            f"{indent}  └ {sub_status} {sub_id_str}  {sub_time_str}{sub.content.lower()}{sub_tags_str}"
+        )
 
     deferrals = [m for m in (mutations or []) if m.field == "defer" or m.reason == "overdue_reset"]
     if deferrals:
-        lines.append("  deferrals:")
+        lines.append(f"{indent}  deferrals:")
         for m in deferrals:
             when = m.mutated_at.strftime("%Y-%m-%d")
             reason = f" — {m.reason}" if m.reason else ""
-            lines.append(f"    {when}{reason}")
+            lines.append(f"{indent}    {when}{reason}")
+
+    return lines
+
+
+def render_task_detail(
+    task: Task,
+    subtasks: list[Task],
+    mutations: list[TaskMutation] | None = None,
+    parent: Task | None = None,
+    parent_subtasks: list[Task] | None = None,
+) -> str:
+    all_tasks = [task, *subtasks, *(parent_subtasks or []), *([parent] if parent else [])]
+    tag_colors = _build_tag_colors(all_tasks)
+
+    if parent:
+        lines = _render_task_block(parent, parent_subtasks or [], all_tasks, tag_colors)
+    else:
+        lines = _render_task_block(task, subtasks, all_tasks, tag_colors, mutations)
 
     return "\n".join(lines)
