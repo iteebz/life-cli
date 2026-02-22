@@ -11,18 +11,10 @@ from . import signal as _signal
 from . import tasks as _tasks
 from . import habits as _habits
 from . import tags as _tags
-from .steward import (
-    boot,
-    close,
-    dash,
-    improve,
-    log,
-    observe,
-    rm,
-)
+from . import steward as _steward
 
 _ = (
-    boot, close, dash, improve, log, observe, rm,
+    _steward,
     _commands, _dates, _interventions, _items, _mood, _patterns, _signal, _tasks, _habits, _tags,
 )
 
