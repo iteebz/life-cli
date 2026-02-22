@@ -335,13 +335,6 @@ def boot():
         rel = _rel(secs)
         echo(f"\nLAST SESSION ({rel}): {s.summary}")
 
-    steward_tasks = get_tasks(include_steward=True)
-    steward_tasks = [t for t in steward_tasks if t.steward]
-    if steward_tasks:
-        echo("\nSTEWARD IN PROGRESS:")
-        for t in steward_tasks[:3]:
-            echo(f"  → {t.content}")
-
     now = datetime.now()
     today_d = date.today()
     recent = get_observations(limit=40)
@@ -496,20 +489,17 @@ def rm(
 
 @app.command(name="dash")
 def dash():
-    """Steward dashboard — tasks, patterns, observations, sessions"""
+    """Steward dashboard — improvements, patterns, observations, sessions"""
+    from .improvements import get_improvements
     from .patterns import get_patterns
-    from .tasks import get_tasks
 
-    steward_tasks = get_tasks(include_steward=True)
-    steward_tasks = [t for t in steward_tasks if t.steward]
-
-    if steward_tasks:
-        echo("STEWARD TASKS:")
-        for t in steward_tasks:
-            status = "✓" if t.completed_at else "□"
-            echo(f"  {status} {t.content}")
+    improvements = get_improvements()
+    if improvements:
+        echo("IMPROVEMENTS:")
+        for i in improvements:
+            echo(f"  [{i.id}] {i.body}")
     else:
-        echo("STEWARD TASKS: none")
+        echo("IMPROVEMENTS: none")
 
     patterns = get_patterns(limit=5)
     if patterns:
