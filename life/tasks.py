@@ -4,7 +4,7 @@ import sqlite3
 import sys
 import uuid
 from datetime import date as _date
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from . import db
 from .lib import clock
@@ -206,7 +206,14 @@ def get_focus() -> list[Task]:
         return hydrate_tags(tasks, tags_map)
 
 
-_TRACKED_FIELDS = {"content", "scheduled_date", "scheduled_time", "is_deadline", "focus", "completed_at"}
+_TRACKED_FIELDS = {
+    "content",
+    "scheduled_date",
+    "scheduled_time",
+    "is_deadline",
+    "focus",
+    "completed_at",
+}
 
 
 def _record_mutation(conn: sqlite3.Connection, task_id: str, field: str, old_val, new_val) -> None:
@@ -488,6 +495,7 @@ def cmd_task(
     source: str | None = None,
 ) -> None:
     from .lib.resolve import resolve_task
+
     content = " ".join(content_args) if content_args else ""
     try:
         validate_content(content)
@@ -497,6 +505,7 @@ def cmd_task(
     resolved_time = None
     if due:
         from .lib.parsing import parse_due_datetime
+
         resolved_due, resolved_time = parse_due_datetime(due)
     parent_id = None
     if under:
@@ -543,6 +552,7 @@ def cmd_check_task(task: Task) -> None:
 
 def cmd_focus(args: list[str]) -> None:
     from .lib.resolve import resolve_task
+
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life focus <item>")
@@ -554,6 +564,7 @@ def cmd_focus(args: list[str]) -> None:
 
 def cmd_unfocus(args: list[str]) -> None:
     from .lib.resolve import resolve_task
+
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life unfocus <item>")
@@ -566,6 +577,7 @@ def cmd_unfocus(args: list[str]) -> None:
 
 def cmd_due(args: list[str], remove: bool = False) -> None:
     from .lib.resolve import resolve_task
+
     try:
         date_str, time_str, item_name = parse_due_and_item(args, remove=remove)
     except ValueError as e:
@@ -601,6 +613,7 @@ def cmd_set(
     description: str | None = None,
 ) -> None:
     from .lib.resolve import resolve_task
+
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life set <task> [-p parent] [-c content]")
@@ -636,12 +649,14 @@ def cmd_set(
     updated = resolve_task(content or ref)
     prefix = "  \u2514 " if updated.parent_id else ""
     from .lib.format import format_status as _fs
+
     echo(f"{prefix}{_fs('\u25a1', updated.content, updated.id)}")
 
 
 def cmd_show(args: list[str]) -> None:
     from .lib.render import render_task_detail
     from .lib.resolve import resolve_task
+
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life show <task>")
@@ -653,6 +668,7 @@ def cmd_show(args: list[str]) -> None:
 
 def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:
     from .lib.resolve import resolve_task
+
     blocked = resolve_task(" ".join(blocked_args))
     blocker = resolve_task(" ".join(blocker_args))
     if blocker.id == blocked.id:
@@ -663,6 +679,7 @@ def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:
 
 def cmd_unblock(args: list[str]) -> None:
     from .lib.resolve import resolve_task
+
     task = resolve_task(" ".join(args))
     if not task.blocked_by:
         exit_error(f"'{task.content}' is not blocked")
@@ -672,6 +689,7 @@ def cmd_unblock(args: list[str]) -> None:
 
 def cmd_cancel(args: list[str], reason: str | None) -> None:
     from .lib.resolve import resolve_task
+
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life cancel <task> --reason <why>")
@@ -684,6 +702,7 @@ def cmd_cancel(args: list[str], reason: str | None) -> None:
 
 def cmd_defer(args: list[str], reason: str | None) -> None:
     from .lib.resolve import resolve_task
+
     ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life defer <task> --reason <why>")
@@ -702,19 +721,20 @@ def cmd_rename_task(task: Task, to_content: str) -> None:
 
 
 def cmd_now(args: list[str]) -> None:
-    cmd_schedule(["now"] + list(args))
+    cmd_schedule(["now", *list(args)])
 
 
 def cmd_today(args: list[str]) -> None:
-    cmd_schedule(["today"] + list(args))
+    cmd_schedule(["today", *list(args)])
 
 
 def cmd_tomorrow(args: list[str]) -> None:
-    cmd_schedule(["tomorrow"] + list(args))
+    cmd_schedule(["tomorrow", *list(args)])
 
 
 def cmd_schedule(args: list[str], remove: bool = False) -> None:
     from .lib.resolve import resolve_task
+
     if remove:
         if not args:
             exit_error("Usage: life schedule -r <task>")
@@ -731,9 +751,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
     except ValueError as e:
         exit_error(str(e))
     if not date_str and not time_str:
-        exit_error(
-            "Schedule spec required: today, tomorrow, day name, YYYY-MM-DD, HH:MM, or 'now'"
-        )
+        exit_error("Schedule spec required: today, tomorrow, day name, YYYY-MM-DD, HH:MM, or 'now'")
     task = resolve_task(item_name)
     updates: dict = {"is_deadline": False}
     if date_str:

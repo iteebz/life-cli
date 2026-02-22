@@ -6,7 +6,7 @@ from datetime import date, datetime
 from pathlib import Path
 from queue import Empty, Queue
 
-import typer
+from fncli import cli
 
 from .db import get_db
 from .lib.ansi import strip as ansi_strip
@@ -293,23 +293,8 @@ def cmd_tail(
 
 STEWARD_BIRTHDAY = datetime(2026, 2, 18)
 
-app = typer.Typer(
-    name="steward",
-    help="Steward session commands (interactive)",
-    no_args_is_help=True,
-    add_completion=False,
-    context_settings={"help_option_names": ["-h", "--help"]},
-)
 
-
-@app.callback(invoke_without_command=True)
-def steward_cb(ctx: typer.Context):
-    """Steward session commands — boot, close, or run autonomous loop"""
-    if ctx.invoked_subcommand is None:
-        _run_autonomous()
-
-
-@app.command(name="boot")
+@cli("life steward")
 def boot():
     """Load life state and emit sitrep for interactive session start"""
     from .lib.clock import today
@@ -323,6 +308,12 @@ def boot():
 
     tasks = get_tasks()
     all_tasks = get_all_tasks()
+    steward_tasks = [t for t in get_tasks(include_steward=True) if t.steward]
+    if steward_tasks:
+        echo("STEWARD TASKS:")
+        for t in steward_tasks:
+            echo(f"  · {t.content}")
+        echo("")
     today_date = today()
     snapshot = build_feedback_snapshot(all_tasks=all_tasks, pending_tasks=tasks, today=today_date)
     echo("\n".join(render_feedback_snapshot(snapshot)))
@@ -433,20 +424,18 @@ def boot():
                     echo(f"    {repo.name:<16}  (error)")
 
 
-@app.command(name="close")
-def close(summary: str = typer.Argument(..., help="Session summary")):
+@cli("life steward")
+def close(summary: str):
     """Write session log and close interactive session"""
     add_session(summary)
     echo("→ session logged")
 
 
-@app.command(name="observe")
+@cli("life steward")
 def observe(
-    body: str = typer.Argument(..., help="Raw observation to store"),
-    tag: str = typer.Option(None, "--tag", "-t", help="Tag for retrieval (e.g. janice, finance)"),
-    about: str = typer.Option(
-        None, "--about", help="Date this observation is about (YYYY-MM-DD or 'sunday')"
-    ),
+    body: str,
+    tag: str | None = None,
+    about: str | None = None,
 ):
     """Log a raw observation — things Tyson says that should persist as context"""
     from .lib.dates import parse_due_date
@@ -462,9 +451,9 @@ def observe(
     echo(f"→ {body}{suffix}{about_str}")
 
 
-@app.command(name="rm")
+@cli("life steward")
 def rm(
-    query: str = typer.Argument(None, help="Fuzzy match on observation body (omit to rm latest)"),
+    query: str | None = None,
 ):
     """Delete an observation — fuzzy match or latest"""
     observations = get_observations(limit=50)
@@ -487,7 +476,7 @@ def rm(
         exit_error("delete failed")
 
 
-@app.command(name="dash")
+@cli("life steward")
 def dash():
     """Steward dashboard — improvements, patterns, observations, sessions"""
     from .improvements import get_improvements
@@ -528,11 +517,11 @@ def dash():
             echo(f"  {rel:<10}  {s.summary[:90]}")
 
 
-@app.command(name="improve")
+@cli("life steward")
 def improve(
-    body: str = typer.Argument(None, help="System improvement to log"),
-    log: bool = typer.Option(False, "--log", "-l", help="List open improvements"),
-    done: str = typer.Option(None, "--done", help="Mark improvement done (fuzzy match)"),
+    body: str | None = None,
+    log: bool = False,
+    done: str | None = None,
 ):
     """Log a system improvement or mark one done"""
     from .improvements import add_improvement, get_improvements, mark_improvement_done
@@ -560,9 +549,9 @@ def improve(
     echo(f"→ {body}")
 
 
-@app.command(name="log")
+@cli("life steward")
 def log(
-    limit: int = typer.Option(10, "--limit", "-n", help="Number of sessions to show"),
+    limit: int = 10,
 ):
     """Show recent steward session logs"""
     sessions = get_sessions(limit=limit)
@@ -598,7 +587,12 @@ def _select_required_real_world_task(tasks):
 def _run_autonomous() -> None:
     from .lib.clock import today
     from .lib.providers import glm
-    from .loop import load_loop_state, require_real_world_closure, save_loop_state, update_loop_state
+    from .loop import (
+        load_loop_state,
+        require_real_world_closure,
+        save_loop_state,
+        update_loop_state,
+    )
     from .metrics import build_feedback_snapshot, render_feedback_snapshot
     from .tasks import get_all_tasks, get_tasks
 

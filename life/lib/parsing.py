@@ -21,9 +21,7 @@ def _try_parse_time(s: str) -> str | None:
     return None
 
 
-def parse_due_and_item(
-    args: list[str], remove: bool = False
-) -> tuple[str | None, str | None, str]:
+def parse_due_and_item(args: list[str], remove: bool = False) -> tuple[str | None, str | None, str]:
     """Parse due date, optional time, and item name from variadic args.
 
     Understands:

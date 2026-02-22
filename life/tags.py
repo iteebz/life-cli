@@ -166,6 +166,7 @@ def cmd_tag(
     remove: bool = False,
 ) -> None:
     from .lib.resolve import resolve_item_exact
+
     positionals = args or []
     if tag_opt:
         tag_name_final = tag_opt

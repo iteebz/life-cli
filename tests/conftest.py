@@ -1,3 +1,5 @@
+import io
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import date, datetime, time
 
 import pytest
@@ -5,6 +7,34 @@ import pytest
 import life.config
 import life.lib.clock as clock
 from life import db
+
+
+class _Result:
+    def __init__(self, exit_code: int, stdout: str, stderr: str):
+        self.exit_code = exit_code
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+class FnCLIRunner:
+    def invoke(self, argv: list[str]) -> _Result:
+        from fncli import dispatch
+
+        import life.cli  # noqa: F401 — registers fncli commands
+        from life.commands import cmd_dashboard
+
+        out_buf = io.StringIO()
+        err_buf = io.StringIO()
+        try:
+            with redirect_stdout(out_buf), redirect_stderr(err_buf):
+                if not argv or argv == ["-v"] or argv == ["--verbose"]:
+                    cmd_dashboard(verbose="--verbose" in argv or "-v" in argv)
+                    code = 0
+                else:
+                    code = dispatch(["life", *argv])
+        except SystemExit as e:
+            code = int(e.code) if e.code is not None else 1
+        return _Result(code, out_buf.getvalue(), err_buf.getvalue())
 
 
 @pytest.fixture

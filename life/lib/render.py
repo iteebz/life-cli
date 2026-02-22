@@ -6,7 +6,7 @@ from life.models import Habit, Task, TaskMutation
 from life.tasks import _task_sort_key
 
 from . import clock
-from .ansi import ANSI, bold, coral, cyan, dim, gold, gray, green, muted, red, secondary, white
+from .ansi import ANSI, bold, coral, cyan, dim, gold, gray, green, red, white
 from .format import format_habit, format_task
 
 __all__ = [
@@ -41,7 +41,9 @@ def _fmt_countdown(due_time: str, now_dt) -> str:
     return f"{ANSI.GREY}in {s}{_R}"
 
 
-def _fmt_rel_date(due: date, today: date, time: str | None = None, is_deadline: bool = False) -> str:
+def _fmt_rel_date(
+    due: date, today: date, time: str | None = None, is_deadline: bool = False
+) -> str:
     delta = (due - today).days
     if delta <= 7:
         day_label = due.strftime("%a").lower()
@@ -271,7 +273,9 @@ def _render_habit_row(
     id_str = f" {_GREY}[{habit.id[:8]}]{_R}"
     lines = []
     if habit.id in today_habit_ids:
-        lines.append(f"{indent}{gray('✓ ' + trend + ' ' + habit.content.lower())}{tags_str}{id_str}")
+        lines.append(
+            f"{indent}{gray('✓ ' + trend + ' ' + habit.content.lower())}{tags_str}{id_str}"
+        )
     else:
         lines.append(f"{indent}□ {trend} {habit.content.lower()}{tags_str}{id_str}")
     for sub in get_subhabits(habit.id):
@@ -370,7 +374,7 @@ def _render_tasks(
 
     subtask_ids = {t.id for t in regular_items if t.parent_id}
     top_level = [t for t in regular_items if t.id not in subtask_ids]
-    lines_out: list[str] = [f"\n{bold(white(f'TASKS ({len(top_level)}):'))}"] 
+    lines_out: list[str] = [f"\n{bold(white(f'TASKS ({len(top_level)}):'))}"]
 
     lines: list[str] = []
     seen: set[str] = set()
@@ -456,12 +460,16 @@ def render_dashboard(
                 sub_direct_tags = _get_direct_tags(sub, all_pending)
                 sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
                 sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
-                lines.append(f"    └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+                lines.append(
+                    f"    └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
+                )
 
     due_today = [
         t
         for t in all_pending
-        if t.scheduled_date and t.scheduled_date.isoformat() == today_str and t.id not in all_subtask_ids
+        if t.scheduled_date
+        and t.scheduled_date.isoformat() == today_str
+        and t.id not in all_subtask_ids
     ]
 
     today_lines, today_scheduled = _render_today_tasks(
@@ -488,7 +496,9 @@ def render_dashboard(
         due_day = [
             t
             for t in all_pending
-            if t.scheduled_date and t.scheduled_date.isoformat() == day_str and t.id not in all_subtask_ids
+            if t.scheduled_date
+            and t.scheduled_date.isoformat() == day_str
+            and t.id not in all_subtask_ids
         ]
         day_lines, day_scheduled = _render_day_tasks(
             due_day,

@@ -11,8 +11,8 @@ license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "typer>=0.17.4",
     "pyyaml>=6.0.3",
+    "fncli",
 ]
 
 [dependency-groups]
@@ -98,3 +98,6 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
+
+[tool.uv.sources]
+fncli = { path = "../../space/fncli", editable = true }

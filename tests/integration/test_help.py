@@ -1,11 +1,9 @@
-from typer.testing import CliRunner
-
-from life.cli import app
+from tests.conftest import FnCLIRunner
 
 
-def test_dash_h_shows_help():
-    runner = CliRunner()
-    result = runner.invoke(app, ["-h"])
+def test_dash_h_shows_help(tmp_life_dir):
+    runner = FnCLIRunner()
+    result = runner.invoke(["-h"])
 
     assert result.exit_code == 0
-    assert "Usage:" in result.stdout
+    assert "usage:" in result.stdout

@@ -20,9 +20,9 @@ __all__ = [
     "archive_habit",
     "check_habit",
     "cmd_archive",
+    "cmd_check_habit",
     "cmd_habit",
     "cmd_habits",
-    "cmd_check_habit",
     "cmd_rename_habit",
     "delete_habit",
     "find_habit",
@@ -124,7 +124,7 @@ def get_habits(habit_ids: list[str] | None = None, include_private: bool = True)
         private_filter = "" if include_private else " AND private = 0"
         with db.get_db() as conn:
             cursor = conn.execute(
-                f"SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE archived_at IS NULL{private_filter} ORDER BY created DESC"
+                f"SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE archived_at IS NULL{private_filter} ORDER BY created DESC"  # noqa: S608
             )
             rows = cursor.fetchall()
             all_habit_ids = [row[0] for row in rows]
@@ -292,6 +292,7 @@ def cmd_habit(
     private: bool = False,
 ) -> None:
     from .lib.resolve import resolve_habit
+
     content = " ".join(content_args) if content_args else ""
     try:
         validate_content(content)
@@ -309,6 +310,7 @@ def cmd_habit(
 
 def cmd_check_habit(habit: Habit) -> None:
     from .lib.clock import today
+
     updated = toggle_check(habit.id)
     if updated:
         checked_today = any(c.date() == today() for c in updated.checks)
@@ -318,12 +320,14 @@ def cmd_check_habit(habit: Habit) -> None:
 
 def _animate_check(label: str) -> None:
     import sys
+
     sys.stdout.write(f"  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
     sys.stdout.flush()
 
 
 def cmd_archive(args: list[str], show_list: bool = False) -> None:
     from .lib.resolve import resolve_habit
+
     if show_list:
         habits = get_archived_habits()
         if not habits:
@@ -343,6 +347,7 @@ def cmd_archive(args: list[str], show_list: bool = False) -> None:
 
 def cmd_habits() -> None:
     from .lib.render import render_habit_matrix
+
     echo(render_habit_matrix(get_habits()))
 
 

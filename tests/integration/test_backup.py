@@ -1,12 +1,10 @@
-from typer.testing import CliRunner
+from tests.conftest import FnCLIRunner
 
-from life.cli import app
-
-runner = CliRunner()
+runner = FnCLIRunner()
 
 
 def test_backup_command_returns_path(tmp_life_dir):
-    result = runner.invoke(app, ["backup"])
+    result = runner.invoke(["db", "backup"])
 
     assert result.exit_code == 0
     assert "/" in result.stdout

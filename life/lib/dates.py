@@ -72,7 +72,9 @@ def list_dates() -> list[dict]:
     for row in rows:
         id_, name, month, day, type_ = row
         days = _days_until(month, day, today)
-        result.append({"id": id_, "name": name, "month": month, "day": day, "type": type_, "days_until": days})
+        result.append(
+            {"id": id_, "name": name, "month": month, "day": day, "type": type_, "days_until": days}
+        )
 
     return sorted(result, key=lambda x: x["days_until"])
 
@@ -87,7 +89,7 @@ def add_date(name: str, date_str: str, type_: str = "other") -> None:
     try:
         day, month = int(parts[0]), int(parts[1])
     except ValueError:
-        raise ValueError(f"Invalid date format '{date_str}' — use DD-MM")
+        raise ValueError(f"Invalid date format '{date_str}' — use DD-MM") from None
     if not (1 <= month <= 12) or not (1 <= day <= 31):
         raise ValueError(f"Invalid date '{date_str}'")
 
@@ -108,5 +110,4 @@ def remove_date(name: str) -> None:
 
 def upcoming_dates(within_days: int = 14) -> list[dict]:
     """Get dates occurring within the next N days."""
-    today = clock.today()
     return [d for d in list_dates() if d["days_until"] <= within_days]

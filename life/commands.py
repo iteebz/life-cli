@@ -6,15 +6,14 @@ from .habits import get_habits
 from .interventions import add_intervention, get_interventions
 from .interventions import get_stats as get_intervention_stats
 from .lib.clock import now, today
-from .lib.dates import add_date, list_dates, parse_due_date, remove_date
+from .lib.dates import add_date, list_dates, remove_date
 from .lib.errors import echo, exit_error
 from .lib.render import render_dashboard, render_momentum
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .momentum import weekly_momentum
 from .patterns import add_pattern, delete_pattern, get_patterns
-from .tasks import get_all_tasks, get_tasks, last_completion
-
 from .steward import cmd_tail
+from .tasks import get_all_tasks, get_tasks, last_completion
 
 __all__ = [
     "cmd_dashboard",
@@ -55,8 +54,8 @@ def cmd_dates(
         dates_list = list_dates()
         if dates_list:
             for d in dates_list:
-                type_label = f"  [{d['type']}]" if d['type'] != 'other' else ""
-                days = d['days_until']
+                type_label = f"  [{d['type']}]" if d["type"] != "other" else ""
+                days = d["days_until"]
                 days_str = "today" if days == 0 else f"in {days}d"
                 echo(f"  {d['name']} — {d['day']:02d}-{d['month']:02d}{type_label}  ({days_str})")
         else:
@@ -76,9 +75,7 @@ def cmd_dates(
         remove_date(name)
         echo(f"Removed date: {name}")
     else:
-        exit_error(
-            f"unknown action '{action}'. Use 'add', 'remove', or no argument to list."
-        )
+        exit_error(f"unknown action '{action}'. Use 'add', 'remove', or no argument to list.")
 
 
 def _format_elapsed(dt) -> str:

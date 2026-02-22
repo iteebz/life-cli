@@ -1,9 +1,9 @@
 import io
 from pathlib import Path
 
-from life.steward import cmd_tail
 from life.lib.ansi import strip
 from life.lib.tail import StreamParser, format_entry
+from life.steward import cmd_tail
 
 
 class _FakePopen:
