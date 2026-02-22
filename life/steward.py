@@ -668,3 +668,37 @@ def _run_autonomous() -> None:
     echo("\n".join(render_feedback_snapshot(snapshot_after)))
     if gate_required and not shipped_life:
         exit_error("steward gate failed: no real-world task was closed")
+
+
+@cli("life")
+def auto(
+    cycles: int = 1,
+    every: int = 0,
+    model: str = "glm-4",
+    timeout: int = 1200,
+    retries: int = 2,
+    retry_delay: int = 2,
+    dry_run: bool = False,
+    raw: bool = False,
+    quiet_system: bool = False,
+    continue_on_error: bool = False,
+) -> None:
+    """Run unattended Steward loop through the glm connector"""
+    cmd_tail(
+        cycles=cycles,
+        interval_seconds=every,
+        model=model,
+        timeout_seconds=timeout,
+        retries=retries,
+        retry_delay_seconds=retry_delay,
+        dry_run=dry_run,
+        raw=raw,
+        quiet_system=quiet_system,
+        continue_on_error=continue_on_error,
+    )
+
+
+@cli("life steward", name="run")
+def steward_run() -> None:
+    """Run autonomous steward loop"""
+    _run_autonomous()

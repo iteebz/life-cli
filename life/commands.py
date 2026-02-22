@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from fncli import cli
+
 from .config import get_profile, set_profile
 from .dashboard import get_pending_items, get_today_breakdown, get_today_completed
 from .habits import get_habits
@@ -8,35 +10,23 @@ from .lib.errors import echo, exit_error
 from .lib.render import render_dashboard, render_momentum
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .momentum import weekly_momentum
-from .steward import cmd_tail
 from .tasks import get_all_tasks, get_tasks, last_completion
 
 __all__ = [
-    "cmd_dashboard",
-    "cmd_momentum",
-    "cmd_mood",
-    "cmd_pattern",
-    "cmd_profile",
-    "cmd_stats",
-    "cmd_status",
-    "cmd_tail",
-    "cmd_track",
+    "dashboard",
+    "momentum",
+    "stats",
+    "status",
 ]
 
 
-def cmd_dashboard(verbose: bool = False) -> None:
+@cli("life")
+def dashboard(verbose: bool = False) -> None:
+    """Life dashboard"""
     items = get_pending_items() + get_habits()
     today_items = get_today_completed()
     today_breakdown = get_today_breakdown()
     echo(render_dashboard(items, today_breakdown, None, None, today_items, verbose=verbose))
-
-
-def cmd_profile(profile_text: str | None = None) -> None:
-    if profile_text:
-        set_profile(profile_text)
-        echo(f"Profile set to: {profile_text}")
-    else:
-        echo(get_profile() or "No profile set")
 
 
 def _format_elapsed(dt) -> str:
@@ -54,7 +44,9 @@ def _format_elapsed(dt) -> str:
     return f"{d}d ago"
 
 
-def cmd_status() -> None:
+@cli("life")
+def status() -> None:
+    """Health check — untagged tasks, overdue, habit streaks, janice signal"""
     tasks = get_tasks()
     all_tasks = get_all_tasks()
     habits = get_habits()
@@ -94,7 +86,9 @@ def cmd_status() -> None:
     echo("\n".join(lines))
 
 
-def cmd_stats() -> None:
+@cli("life")
+def stats() -> None:
+    """Feedback-loop metrics and escalation signals"""
     tasks = get_tasks()
     all_tasks = get_all_tasks()
     today_date = today()
@@ -102,7 +96,9 @@ def cmd_stats() -> None:
     echo("\n".join(render_feedback_snapshot(snapshot)))
 
 
-def cmd_momentum() -> None:
+@cli("life")
+def momentum() -> None:
+    """Show momentum and weekly trends"""
     echo(render_momentum(weekly_momentum()))
 
 

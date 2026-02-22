@@ -21,14 +21,14 @@ class FnCLIRunner:
         from fncli import dispatch
 
         import life.cli  # noqa: F401 — registers fncli commands
-        from life.commands import cmd_dashboard
+        from life.commands import dashboard
 
         out_buf = io.StringIO()
         err_buf = io.StringIO()
         try:
             with redirect_stdout(out_buf), redirect_stderr(err_buf):
                 if not argv or argv == ["-v"] or argv == ["--verbose"]:
-                    cmd_dashboard(verbose="--verbose" in argv or "-v" in argv)
+                    dashboard(verbose="--verbose" in argv or "-v" in argv)
                     code = 0
                 else:
                     code = dispatch(["life", *argv])

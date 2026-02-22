@@ -4,6 +4,8 @@ import sqlite3
 import uuid
 from datetime import datetime
 
+from fncli import cli
+
 from . import db
 from .lib import clock
 from .lib.ansi import ANSI
@@ -19,11 +21,7 @@ __all__ = [
     "add_habit",
     "archive_habit",
     "check_habit",
-    "cmd_archive",
-    "cmd_check_habit",
-    "cmd_habit",
-    "cmd_habits",
-    "cmd_rename_habit",
+    "check_habit_cmd",
     "delete_habit",
     "find_habit",
     "get_archived_habits",
@@ -32,6 +30,7 @@ __all__ = [
     "get_habits",
     "get_streak",
     "get_subhabits",
+    "rename_habit",
     "toggle_check",
     "uncheck_habit",
     "update_habit",
@@ -285,17 +284,24 @@ def toggle_check(habit_id: str) -> Habit | None:
     return check_habit(habit_id)
 
 
-def cmd_habit(
-    content_args: list[str],
-    tags: list[str] | None = None,
+@cli("life")
+def habit(
+    content: list[str] | None = None,
+    tag: list[str] | None = None,
     under: str | None = None,
     private: bool = False,
+    log: bool = False,
 ) -> None:
+    """Add daily habit or view history (--log)"""
+    from .lib.render import render_habit_matrix
     from .lib.resolve import resolve_habit
 
-    content = " ".join(content_args) if content_args else ""
+    if log or not content:
+        echo(render_habit_matrix(get_habits()))
+        return
+    content_str = " ".join(content) if content else ""
     try:
-        validate_content(content)
+        validate_content(content_str)
     except ValueError as e:
         exit_error(f"Error: {e}")
     parent_id = None
@@ -304,11 +310,12 @@ def cmd_habit(
         if not parent:
             exit_error(f"No habit found matching '{under}'")
         parent_id = parent.id
-    habit_id = add_habit(content, tags=tags, parent_id=parent_id, private=private)
-    echo(format_status("\u25a1", content, habit_id))
+    tags = list(tag) if tag else []
+    habit_id = add_habit(content_str, tags=tags, parent_id=parent_id, private=private)
+    echo(format_status("\u25a1", content_str, habit_id))
 
 
-def cmd_check_habit(habit: Habit) -> None:
+def check_habit_cmd(habit: Habit) -> None:
     from .lib.clock import today
 
     updated = toggle_check(habit.id)
@@ -325,33 +332,36 @@ def _animate_check(label: str) -> None:
     sys.stdout.flush()
 
 
-def cmd_archive(args: list[str], show_list: bool = False) -> None:
+@cli("life")
+def archive(ref: str | None = None, list_archived: bool = False) -> None:
+    """Archive a habit (keeps history, hides from daily view)"""
     from .lib.resolve import resolve_habit
 
-    if show_list:
-        habits = get_archived_habits()
-        if not habits:
+    if list_archived:
+        archived_habits = get_archived_habits()
+        if not archived_habits:
             echo("no archived habits")
             return
-        for habit in habits:
-            archived = habit.archived_at.strftime("%Y-%m-%d") if habit.archived_at else "?"
-            echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}  archived {archived}")
+        for h in archived_habits:
+            archived_date = h.archived_at.strftime("%Y-%m-%d") if h.archived_at else "?"
+            echo(f"{ANSI.DIM}{h.content}{ANSI.RESET}  archived {archived_date}")
         return
-    ref = " ".join(args) if args else ""
     if not ref:
         exit_error("Usage: life archive <habit>")
-    habit = resolve_habit(ref)
-    archive_habit(habit.id)
-    echo(f"{ANSI.DIM}{habit.content}{ANSI.RESET}  archived")
+    h = resolve_habit(ref)
+    archive_habit(h.id)
+    echo(f"{ANSI.DIM}{h.content}{ANSI.RESET}  archived")
 
 
-def cmd_habits() -> None:
+@cli("life")
+def habits() -> None:
+    """Show habits matrix"""
     from .lib.render import render_habit_matrix
 
     echo(render_habit_matrix(get_habits()))
 
 
-def cmd_rename_habit(habit: Habit, to_content: str) -> None:
+def rename_habit(habit: Habit, to_content: str) -> None:
     if habit.content == to_content:
         exit_error(f"Error: Cannot rename '{habit.content}' to itself.")
     update_habit(habit.id, content=to_content)
