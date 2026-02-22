@@ -42,11 +42,13 @@ def _fmt_countdown(due_time: str, now_dt) -> str:
     return f"{ANSI.GREY}in {s}{_R}"
 
 
-def _fmt_rel_date(due: date, today: date) -> str:
+def _fmt_rel_date(due: date, today: date, time: str | None = None) -> str:
     delta = (due - today).days
     if delta <= 7:
         day_label = due.strftime("%a").lower()
-        return f"{day_label}·{delta}d"
+        if time:
+            return f"{day_label}·{time}"
+        return day_label
     return f"+{delta}d"
 
 
@@ -316,7 +318,7 @@ def _render_task_row(
 
     date_str = ""
     if task.scheduled_date and task.scheduled_date.isoformat() not in (today_str, tomorrow_str):
-        label = _fmt_rel_date(task.scheduled_date, today)
+        label = _fmt_rel_date(task.scheduled_date, today, task.scheduled_time)
         date_str = f"{secondary(label)} "
 
     if task.blocked_by:
@@ -442,7 +444,7 @@ def render_dashboard(
             tags_str = _fmt_tags(task.tags, tag_colors)
             id_str = f" {_GREY}[{task.id[:8]}]{_R}"
             fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
-            label = _fmt_rel_date(task.scheduled_date, today)
+            label = _fmt_rel_date(task.scheduled_date, today, task.scheduled_time)
             date_str = f"{secondary(label)} "
             lines.append(f"  □ {date_str}{task.content.lower()}{tags_str}{fire}{id_str}")
             for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
