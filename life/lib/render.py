@@ -378,7 +378,7 @@ def _render_tasks(
 
     lines: list[str] = []
     seen: set[str] = set()
-    for task in sorted(top_level, key=_task_sort_key):
+    for task in sorted(top_level, key=lambda t: t.content.lower()):
         if task.id in seen:
             continue
         seen.add(task.id)
