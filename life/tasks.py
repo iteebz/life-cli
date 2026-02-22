@@ -2,7 +2,6 @@ import contextlib
 import re
 import sqlite3
 import sys
-import time
 import uuid
 from datetime import date as _date
 from datetime import datetime, timedelta
@@ -512,10 +511,7 @@ def last_completion() -> datetime | None:
 
 
 def _animate_check(label: str) -> None:
-    sys.stdout.write(f"  \u25a1 {label}")
-    sys.stdout.flush()
-    time.sleep(0.18)
-    sys.stdout.write(f"\r  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
+    sys.stdout.write(f"  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
     sys.stdout.flush()
 
 

@@ -318,11 +318,7 @@ def cmd_check_habit(habit: Habit) -> None:
 
 def _animate_check(label: str) -> None:
     import sys
-    import time
-    sys.stdout.write(f"  \u25a1 {label}")
-    sys.stdout.flush()
-    time.sleep(0.18)
-    sys.stdout.write(f"\r  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
+    sys.stdout.write(f"  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
     sys.stdout.flush()
 
 

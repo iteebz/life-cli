@@ -1,5 +1,4 @@
 import sys
-import time
 
 from .habits import cmd_check_habit, cmd_rename_habit, delete_habit
 from .lib.ansi import ANSI
@@ -17,10 +16,7 @@ __all__ = [
 
 
 def _animate_uncheck(label: str) -> None:
-    sys.stdout.write(f"  {ANSI.GREY}\u2713{ANSI.RESET} {label}")
-    sys.stdout.flush()
-    time.sleep(0.18)
-    sys.stdout.write(f"\r  \u25a1 {label}\n")
+    sys.stdout.write(f"  \u25a1 {ANSI.GREY}{label}{ANSI.RESET}\n")
     sys.stdout.flush()
 
 
