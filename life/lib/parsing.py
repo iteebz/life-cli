@@ -63,10 +63,13 @@ def parse_due_and_item(
             if parsed_time:
                 time_str = parsed_time
                 item_args = item_args[1:]
+                if not date_str:
+                    date_str = _clock.today().isoformat()
             elif not date_str:
                 parsed_time2 = _try_parse_time(item_args[0])
                 if parsed_time2:
                     time_str = parsed_time2
+                    date_str = _clock.today().isoformat()
                     item_args = item_args[1:]
 
     if not item_args:
