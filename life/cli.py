@@ -435,6 +435,71 @@ def db_health():
 app.add_typer(steward_app, name="steward")
 
 
+signal_app = typer.Typer(
+    name="signal",
+    help="Signal messaging",
+    no_args_is_help=True,
+    add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+app.add_typer(signal_app, name="signal")
+
+
+@signal_app.command(name="send")
+def signal_send(
+    recipient: str = typer.Argument(..., help="Contact name or +number"),
+    message_args: list[str] = typer.Argument(None, help="Message text"),
+    message_opt: str = typer.Option(None, "--message", "-m", help="Message text"),
+    attachment: str = typer.Option(None, "--attachment", "-a", help="Path to file"),
+) -> None:
+    """Send a Signal message to a contact or number"""
+    from .lib.errors import echo, exit_error
+    from .signal import resolve_contact, send
+
+    body = message_opt or (" ".join(message_args) if message_args else None)
+    if not body:
+        exit_error("message required: life signal send <recipient> <message> or --message")
+
+    number = resolve_contact(recipient)
+    success, result = send(number, body, attachment=attachment)
+    if success:
+        display = recipient if number == recipient else f"{recipient} ({number})"
+        echo(f"sent → {display}")
+    else:
+        exit_error(f"failed: {result}")
+
+
+@signal_app.command(name="check")
+def signal_check(
+    timeout: int = typer.Option(5, "--timeout", "-t", help="Receive timeout in seconds"),
+) -> None:
+    """Pull and display recent Signal messages"""
+    from .lib.errors import echo
+    from .signal import receive
+
+    messages = receive(timeout=timeout)
+    if not messages:
+        echo("no new messages")
+        return
+    for msg in messages:
+        sender = msg.get("from_name") or msg.get("from", "?")
+        echo(f"{sender}: {msg['body']}")
+
+
+@signal_app.command(name="status")
+def signal_status() -> None:
+    """Show registered Signal accounts"""
+    from .lib.errors import echo
+    from .signal import list_accounts
+
+    accounts = list_accounts()
+    if not accounts:
+        echo("no Signal accounts — run: signal-cli link")
+        return
+    for account in accounts:
+        echo(account)
+
+
 @app.command(name="tail", hidden=True)
 def tail(
     cycles: int = typer.Option(1, "--cycles", "-n", min=1, help="Number of loop cycles"),
