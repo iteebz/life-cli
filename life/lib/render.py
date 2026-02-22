@@ -209,8 +209,8 @@ def _render_today_tasks(
         return lines, scheduled_ids
 
     def _sort_key(task: Task):
-        if task.due_time:
-            return (0, task.due_time, not task.focus)
+        if task.scheduled_time:
+            return (0, task.scheduled_time, not task.focus)
         return (1, "", not task.focus)
 
     sorted_today = sorted(due_today, key=_sort_key)
@@ -218,7 +218,7 @@ def _render_today_tasks(
 
     for task in sorted_today:
         if not now_inserted and (
-            (task.due_time and task.due_time >= current_time) or not task.due_time
+            (task.scheduled_time and task.scheduled_time >= current_time) or not task.scheduled_time
         ):
             lines.append(f"  {bold(white('→ ' + current_time))}")
             now_inserted = True
@@ -228,8 +228,8 @@ def _render_today_tasks(
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         link_str = _link_hint(task.id, linked_peers)
 
-        if task.due_time:
-            lines.append(f"  {_fmt_countdown(task.due_time, now_dt)}")
+        if task.scheduled_time:
+            lines.append(f"  {_fmt_countdown(task.scheduled_time, now_dt)}")
 
         if task.blocked_by:
             blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
@@ -246,7 +246,7 @@ def _render_today_tasks(
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+            sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
             lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
@@ -272,8 +272,8 @@ def _render_day_tasks(
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         link_str = _link_hint(task.id, linked_peers)
-        if task.due_time:
-            lines.append(f"  {_fmt_time(task.due_time)}")
+        if task.scheduled_time:
+            lines.append(f"  {_fmt_time(task.scheduled_time)}")
         lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
@@ -281,7 +281,7 @@ def _render_day_tasks(
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+            sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
             lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
@@ -347,8 +347,8 @@ def _render_task_row(
     id_str = f" {_GREY}[{task.id[:8]}]{_R}"
 
     date_str = ""
-    if task.due_date and task.due_date.isoformat() not in (today_str, tomorrow_str):
-        label = _fmt_rel_date(task.due_date, today)
+    if task.scheduled_date and task.scheduled_date.isoformat() not in (today_str, tomorrow_str):
+        label = _fmt_rel_date(task.scheduled_date, today)
         date_str = f"{dim(label)} "
 
     if task.blocked_by:
@@ -366,7 +366,7 @@ def _render_task_row(
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+        sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
         rows.append(
             f"{indent}  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
         )
@@ -374,7 +374,7 @@ def _render_task_row(
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+        sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
         rows.append(
             f"{indent}  {gray(sub_time_str + '└ ✓ ' + sub.content.lower())}{sub_tags_str}{id_str}"
         )
@@ -406,7 +406,7 @@ def _render_clusters(
 
     lines: list[str] = []
 
-    for cluster in sorted(focused_clusters, key=lambda c: min((t.due_date or date.max) for t in c)):
+    for cluster in sorted(focused_clusters, key=lambda c: min((t.scheduled_date or date.max) for t in c)):
         focus = cluster_focus(cluster)
         if not focus:
             continue
@@ -415,8 +415,8 @@ def _render_clusters(
         tags_str = _fmt_tags(focus.tags, tag_colors)
         id_str = f" {_GREY}[{focus.id[:8]}]{_R}"
         date_str = ""
-        if focus.due_date and focus.due_date.isoformat() not in (today_str, tomorrow_str):
-            label = _fmt_rel_date(focus.due_date, today)
+        if focus.scheduled_date and focus.scheduled_date.isoformat() not in (today_str, tomorrow_str):
+            label = _fmt_rel_date(focus.scheduled_date, today)
             date_str = f"{dim(label)} "
         lines.append(f"\n{bold('⦿')} {date_str}{focus.content.lower()}{tags_str}{id_str}")
 
@@ -424,7 +424,7 @@ def _render_clusters(
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+            sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
             lines.append(f"  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
         peers_close = sorted(
@@ -440,8 +440,8 @@ def _render_clusters(
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)
             peer_id_str = f" {_GREY}[{peer.id[:8]}]{_R}"
             peer_date_str = ""
-            if peer.due_date and peer.due_date.isoformat() not in (today_str, tomorrow_str):
-                label = _fmt_rel_date(peer.due_date, today)
+            if peer.scheduled_date and peer.scheduled_date.isoformat() not in (today_str, tomorrow_str):
+                label = _fmt_rel_date(peer.scheduled_date, today)
                 peer_date_str = f"{dim(label)} "
             lines.append(
                 f"  {_GREY}~{_R} {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}"
@@ -450,7 +450,7 @@ def _render_clusters(
                 sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
                 sub_direct_tags = _get_direct_tags(sub, all_pending)
                 sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-                sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+                sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
                 lines.append(
                     f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
                 )
@@ -459,8 +459,8 @@ def _render_clusters(
             peer_tags_str = _fmt_tags(peer.tags, tag_colors)
             peer_id_str = f" {_GREY}[{peer.id[:8]}]{_R}"
             peer_date_str = ""
-            if peer.due_date and peer.due_date.isoformat() not in (today_str, tomorrow_str):
-                label = _fmt_rel_date(peer.due_date, today)
+            if peer.scheduled_date and peer.scheduled_date.isoformat() not in (today_str, tomorrow_str):
+                label = _fmt_rel_date(peer.scheduled_date, today)
                 peer_date_str = f"{label} "
             lines.append(
                 f"  {dim('~ ' + peer_date_str + peer.content.lower())}{peer_tags_str}{peer_id_str}"
@@ -534,7 +534,7 @@ def render_dashboard(
     due_today = [
         t
         for t in all_pending
-        if t.due_date and t.due_date.isoformat() == today_str and t.id not in all_subtask_ids
+        if t.scheduled_date and t.scheduled_date.isoformat() == today_str and t.id not in all_subtask_ids
     ]
 
     today_lines, scheduled_ids = _render_today_tasks(
@@ -561,7 +561,7 @@ def render_dashboard(
         due_day = [
             t
             for t in all_pending
-            if t.due_date and t.due_date.isoformat() == day_str and t.id not in all_subtask_ids
+            if t.scheduled_date and t.scheduled_date.isoformat() == day_str and t.id not in all_subtask_ids
         ]
         day_lines, day_scheduled = _render_day_tasks(
             due_day,
@@ -705,10 +705,18 @@ def render_task_detail(
 
     lines.append(f"{status} {id_str}  {task.content.lower()}{tags_str}{focus_str}")
 
-    if task.due_date:
-        due_str = task.due_date.isoformat()
-        if task.due_time:
-            due_str += f" {_fmt_time(task.due_time)}"
+    if task.scheduled_date or task.deadline_date:
+        if task.scheduled_date:
+            due_str = f"scheduled: {task.scheduled_date.isoformat()}"
+            if task.scheduled_time:
+                due_str += f" {_fmt_time(task.scheduled_time)}"
+            lines.append(f"  {due_str}")
+        if task.deadline_date:
+            dl_str = f"deadline: {task.deadline_date.isoformat()}"
+            if task.deadline_time:
+                dl_str += f" {_fmt_time(task.deadline_time)}"
+            lines.append(f"  {dl_str}")
+    if False:
         lines.append(f"  due: {due_str}")
 
     if task.description:
@@ -724,7 +732,7 @@ def render_task_detail(
             sub_id_str = dim(f"[{sub.id}]")
             sub_direct_tags = _get_direct_tags(sub, all_tasks)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{dim(_fmt_time(sub.due_time))} " if sub.due_time else ""
+            sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
             lines.append(
                 f"    {sub_status} {sub_id_str}  {sub_time_str}{sub.content.lower()}{sub_tags_str}"
             )
@@ -735,7 +743,7 @@ def render_task_detail(
             lt_status = gray("✓") if lt.completed_at else "□"
             lt_id_str = dim(f"[{lt.id}]")
             lt_tags_str = _fmt_tags(lt.tags, tag_colors)
-            lt_time_str = f"{dim(_fmt_time(lt.due_time))} " if lt.due_time else ""
+            lt_time_str = f"{dim(_fmt_time(lt.scheduled_time))} " if lt.scheduled_time else ""
             lines.append(
                 f"    {lt_status} {lt_id_str}  {lt_time_str}{lt.content.lower()}{lt_tags_str}"
             )

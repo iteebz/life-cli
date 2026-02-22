@@ -97,7 +97,7 @@ def cmd_status() -> None:
     today_date = today()
 
     untagged = [t for t in tasks if not t.tags]
-    overdue = [t for t in tasks if t.due_date and t.due_date < today_date]
+    overdue = [t for t in tasks if t.scheduled_date and t.scheduled_date < today_date]
     janice = [t for t in tasks if "janice" in (t.tags or [])]
     focused = [t for t in tasks if t.focus]
 

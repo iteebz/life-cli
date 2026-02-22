@@ -24,9 +24,9 @@ def test_add_task_with_focus(tmp_life_dir):
 
 
 def test_add_task_with_due(tmp_life_dir):
-    task_id = add_task("due task", due="2025-12-31")
+    task_id = add_task("due task", scheduled_date="2025-12-31")
     task = get_task(task_id)
-    assert str(task.due_date) == "2025-12-31"
+    assert str(task.scheduled_date) == "2025-12-31"
 
 
 def test_add_task_with_tags(tmp_life_dir):
@@ -73,10 +73,10 @@ def test_update_task_focus(tmp_life_dir):
 
 
 def test_update_task_due(tmp_life_dir):
-    task_id = add_task("task", due="2025-12-31")
-    update_task(task_id, due="2025-01-01")
+    task_id = add_task("task", scheduled_date="2025-12-31")
+    update_task(task_id, scheduled_date="2025-01-01")
     task = get_task(task_id)
-    assert str(task.due_date) == "2025-01-01"
+    assert str(task.scheduled_date) == "2025-01-01"
 
 
 def test_delete_task(tmp_life_dir):
@@ -94,14 +94,14 @@ def test_sort_by_focus(tmp_life_dir):
 
 
 def test_sort_by_due(tmp_life_dir):
-    add_task("later", due="2025-12-31")
-    add_task("sooner", due="2025-01-01")
+    add_task("later", scheduled_date="2025-12-31")
+    add_task("sooner", scheduled_date="2025-01-01")
     tasks = get_tasks()
-    assert str(tasks[0].due_date) == "2025-01-01"
+    assert str(tasks[0].scheduled_date) == "2025-01-01"
 
 
 def test_focus_priority_over_due(tmp_life_dir):
-    add_task("unfocused soon", focus=False, due="2025-01-01")
-    add_task("focused later", focus=True, due="2025-12-31")
+    add_task("unfocused soon", focus=False, scheduled_date="2025-01-01")
+    add_task("focused later", focus=True, scheduled_date="2025-12-31")
     tasks = get_tasks()
     assert tasks[0].focus is True

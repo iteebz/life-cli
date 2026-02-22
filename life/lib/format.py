@@ -38,8 +38,8 @@ def format_task(task, tags: list[str] | None = None, show_id: bool = False) -> s
     if task.focus:
         parts.append(f"{ANSI.BOLD}⦿{ANSI.RESET}")
 
-    if task.due_date:
-        parts.append(format_due(task.due_date, colorize=True))
+    if task.scheduled_date:
+        parts.append(format_due(task.scheduled_date, colorize=True))
 
     parts.append(task.content.lower())
 

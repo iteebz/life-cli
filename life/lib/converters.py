@@ -46,21 +46,23 @@ def _parse_datetime_optional(val) -> datetime | None:
 def row_to_task(row: TaskRow) -> Task:
     """
     Converts a raw database row from tasks table into a Task object.
-    Expected row format: (id, content, focus, due_date, created, completed, parent_id, due_time, blocked_by, description, steward, source)
+    Expected row format: (id, content, focus, scheduled_date, created, completed, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time)
     """
     return Task(
         id=cast(str, row[0]),
         content=cast(str, row[1]),
         focus=bool(row[2]),
-        due_date=_parse_date(row[3]),
+        scheduled_date=_parse_date(row[3]),
         created=_parse_datetime(row[4]),
         completed_at=_parse_datetime_optional(row[5]),
         parent_id=cast(str, row[6]) if len(row) > 6 and row[6] is not None else None,
-        due_time=cast(str, row[7]) if len(row) > 7 and row[7] is not None else None,
+        scheduled_time=cast(str, row[7]) if len(row) > 7 and row[7] is not None else None,
         blocked_by=cast(str, row[8]) if len(row) > 8 and row[8] is not None else None,
         description=cast(str, row[9]) if len(row) > 9 and row[9] is not None else None,
         steward=bool(row[10]) if len(row) > 10 and row[10] is not None else False,
         source=cast(str, row[11]) if len(row) > 11 and row[11] is not None else None,
+        deadline_date=_parse_date(row[12]) if len(row) > 12 and row[12] is not None else None,
+        deadline_time=cast(str, row[13]) if len(row) > 13 and row[13] is not None else None,
     )
 
 

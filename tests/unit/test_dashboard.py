@@ -23,9 +23,9 @@ def test_pending_returns_tasks(tmp_life_dir):
 
 
 def test_pending_items_sort_focus_first(tmp_life_dir):
-    add_task("unfocused soon", focus=False, due="2025-01-01")
-    add_task("focused later", focus=True, due="2025-12-31")
-    add_task("unfocused later", focus=False, due="2025-12-31")
+    add_task("unfocused soon", focus=False, scheduled_date="2025-01-01")
+    add_task("focused later", focus=True, scheduled_date="2025-12-31")
+    add_task("unfocused later", focus=False, scheduled_date="2025-12-31")
 
     items = get_pending_items()
     assert items[0].focus is True

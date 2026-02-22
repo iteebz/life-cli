@@ -48,7 +48,7 @@ def test_stats_admin_closure_rate_counts_recent_overdue_closures(tmp_life_dir):
     yesterday = datetime.combine(today - timedelta(days=1), datetime.min.time())
     with db.get_db() as conn:
         conn.execute(
-            "UPDATE tasks SET due_date = ?, created = ?, completed_at = ? WHERE content = ?",
+            "UPDATE tasks SET scheduled_date = ?, created = ?, completed_at = ? WHERE content = ?",
             (
                 (today - timedelta(days=1)).isoformat(),
                 yesterday.isoformat(),

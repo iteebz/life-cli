@@ -7,12 +7,14 @@ class Task:
     id: str
     content: str
     focus: bool
-    due_date: date | None
+    scheduled_date: date | None
     created: datetime
     completed_at: datetime | None
     parent_id: str | None = None
-    due_time: str | None = None
+    scheduled_time: str | None = None
     blocked_by: str | None = None
+    deadline_date: date | None = None
+    deadline_time: str | None = None
     description: str | None = None
     steward: bool = False
     source: str | None = None

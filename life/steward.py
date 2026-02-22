@@ -560,7 +560,7 @@ def _select_required_real_world_task(tasks):
     candidates = [t for t in tasks if set(t.tags or []).intersection(discomfort)]
     if not candidates:
         return None
-    overdue = [t for t in candidates if t.due_date and t.due_date < today()]
+    overdue = [t for t in candidates if t.scheduled_date and t.scheduled_date < today()]
     ranked = overdue or candidates
     return sorted(ranked, key=lambda t: t.created)[0]
 
