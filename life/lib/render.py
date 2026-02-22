@@ -221,8 +221,8 @@ def _render_today_tasks(
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
-            lines.append(f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+            sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
+            lines.append(f"    └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
 
@@ -245,16 +245,16 @@ def _render_day_tasks(
         fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
-        time_str = f" {_fmt_time(task.scheduled_time)}" if task.scheduled_time else ""
-        lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{time_str}{id_str}")
+        time_str = f"{_fmt_time(task.scheduled_time)} " if task.scheduled_time else ""
+        lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
-            lines.append(f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+            sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
+            lines.append(f"    └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
 
@@ -338,17 +338,17 @@ def _render_task_row(
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
+        sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
         rows.append(
-            f"{indent}  └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
+            f"{indent}  └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
         )
     for sub in completed_subs_by_parent.get(task.id, []):
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
+        sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
         rows.append(
-            f"{indent}  {gray('└' + sub_time_str + ' ✓ ' + sub.content.lower())}{sub_tags_str}{id_str}"
+            f"{indent}  {gray('└ ' + sub_time_str + '✓ ' + sub.content.lower())}{sub_tags_str}{id_str}"
         )
     return rows
 
@@ -454,8 +454,8 @@ def render_dashboard(
                 sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
                 sub_direct_tags = _get_direct_tags(sub, all_pending)
                 sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-                sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
-                lines.append(f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+                sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
+                lines.append(f"    └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     due_today = [
         t
