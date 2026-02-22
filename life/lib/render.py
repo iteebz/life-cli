@@ -243,21 +243,31 @@ def _render_day_tasks(
     lines = [f"\n{bold(white(label + ':'))}"]
     scheduled_ids: set[str] = set()
 
-    for task in sorted(due_day, key=_task_sort_key):
+    display_entries: list[tuple[str, Task, Task | None]] = []
+    for task in due_day:
         scheduled_ids.add(task.id)
-        fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
-        tags_str = _fmt_tags(task.tags, tag_colors)
+        subs = subtasks_by_parent.get(task.id, [])
+        if subs:
+            for sub in subs:
+                scheduled_ids.add(sub.id)
+                display_entries.append((sub.scheduled_time or "ZZZ", sub, task))
+        else:
+            display_entries.append((task.scheduled_time or "ZZZ", task, None))
+
+    display_entries.sort(key=lambda x: (x[0], x[1].created))
+
+    for _, task, parent in display_entries:
+        tags = _get_direct_tags(task, all_pending) if parent else task.tags
+        tags_str = _fmt_tags(tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         time_str = f"{_fmt_time(task.scheduled_time)} " if task.scheduled_time else ""
-        lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
-
-        for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
-            scheduled_ids.add(sub.id)
-            sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
-            sub_direct_tags = _get_direct_tags(sub, all_pending)
-            sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
-            lines.append(f"    └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+        is_focused = task.focus or (parent and parent.focus)
+        fire = f" {ANSI.BOLD}🔥{_R}" if is_focused else ""
+        if parent:
+            parent_hint = f" {dim('~ ' + parent.content.lower())}"
+            lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{parent_hint}{id_str}")
+        else:
+            lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
 
     return lines, scheduled_ids
 
