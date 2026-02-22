@@ -7,6 +7,7 @@ from .commands import cmd_dashboard, cmd_momentum, cmd_stats, cmd_status
 from .habits import cmd_archive, cmd_habits
 from .lib.errors import echo, exit_error
 from . import mood as _mood
+from . import signal as _signal
 from .steward import (
     boot,
     close,
@@ -17,7 +18,7 @@ from .steward import (
     rm,
 )
 
-_ = (boot, close, dash, improve, log, observe, rm, _mood)
+_ = (boot, close, dash, improve, log, observe, rm, _mood, _signal)
 
 
 @cli("life")
@@ -450,51 +451,6 @@ def track_deferred(description: str, note: str | None = None):
     from .commands import cmd_track
 
     cmd_track(description=description, result="deferred", note=note)
-
-
-@cli("life signal", name="send")
-def signal_send(
-    recipient: str,
-    message: str,
-    attachment: str | None = None,
-):
-    """Send a Signal message to a contact or number"""
-    from .signal import resolve_contact, send
-
-    number = resolve_contact(recipient)
-    success, result = send(number, message, attachment=attachment)
-    if success:
-        display = recipient if number == recipient else f"{recipient} ({number})"
-        echo(f"sent → {display}")
-    else:
-        exit_error(f"failed: {result}")
-
-
-@cli("life signal", name="check")
-def signal_check(timeout: int = 5):
-    """Pull and display recent Signal messages"""
-    from .signal import receive
-
-    messages = receive(timeout=timeout)
-    if not messages:
-        echo("no new messages")
-        return
-    for msg in messages:
-        sender = msg.get("from_name") or msg.get("from", "?")
-        echo(f"{sender}: {msg['body']}")
-
-
-@cli("life signal", name="status")
-def signal_status():
-    """Show registered Signal accounts"""
-    from .signal import list_accounts
-
-    accounts = list_accounts()
-    if not accounts:
-        echo("no Signal accounts — run: signal-cli link")
-        return
-    for account in accounts:
-        echo(account)
 
 
 @cli("life db", name="migrate")

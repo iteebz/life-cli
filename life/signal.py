@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from fncli import cli
+
+from .lib.errors import echo, exit_error
 
 SIGNAL_CLI = "signal-cli"
 PEOPLE_DIR = Path.home() / "life" / "steward" / "people"
@@ -138,6 +141,45 @@ def _run(args: list[str], account: str) -> dict[str, Any] | list[Any] | None:
         return json.loads(result.stdout)
     except (subprocess.TimeoutExpired, json.JSONDecodeError):
         return None
+
+
+@cli("life signal", name="send")
+def send_cmd(
+    recipient: str,
+    message: str,
+    attachment: str | None = None,
+):
+    """Send a Signal message to a contact or number"""
+    number = resolve_contact(recipient)
+    success, result = send(number, message, attachment=attachment)
+    if success:
+        display = recipient if number == recipient else f"{recipient} ({number})"
+        echo(f"sent → {display}")
+    else:
+        exit_error(f"failed: {result}")
+
+
+@cli("life signal", name="check")
+def check(timeout: int = 5):
+    """Pull and display recent Signal messages"""
+    messages = receive(timeout=timeout)
+    if not messages:
+        echo("no new messages")
+        return
+    for msg in messages:
+        sender = msg.get("from_name") or msg.get("from", "?")
+        echo(f"{sender}: {msg['body']}")
+
+
+@cli("life signal", name="status")
+def status():
+    """Show registered Signal accounts"""
+    accounts = list_accounts()
+    if not accounts:
+        echo("no Signal accounts — run: signal-cli link")
+        return
+    for account in accounts:
+        echo(account)
 
 
 def list_contacts() -> list[dict[str, Any]]:
