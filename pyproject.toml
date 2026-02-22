@@ -21,7 +21,6 @@ dependencies = [
     "msal>=1.0.0",
     "requests>=2.31.0",
     "qrcode>=8.2",
-    "typer>=0.17.4",
 ]
 
 [dependency-groups]
@@ -33,7 +32,6 @@ dev = [
 
 [project.scripts]
 life = "life.cli:main"
-comms = "life.comms.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["life"]

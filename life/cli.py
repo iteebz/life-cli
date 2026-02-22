@@ -1,8 +1,10 @@
 import sys
 
 from . import db
+from . import accounts as _accounts
 from . import dash as _dash
 from . import dates as _dates
+from . import email as _email
 from . import interventions as _interventions
 from . import items as _items
 from . import mood as _mood
@@ -15,7 +17,7 @@ from . import steward as _steward
 
 _ = (
     _steward,
-    _dash, _dates, _interventions, _items, _mood, _patterns, _signal, _tasks, _habits, _tags,
+    _accounts, _dash, _dates, _email, _interventions, _items, _mood, _patterns, _signal, _tasks, _habits, _tags,
 )
 
 
