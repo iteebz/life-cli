@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from fncli import cli
+
 from .db import get_db
+from .lib.errors import echo, exit_error
 
 
 @dataclass(frozen=True)
@@ -62,3 +65,48 @@ def delete_latest_mood(within_seconds: int = 3600) -> MoodEntry | None:
             raise ValueError(f"latest entry is {int(age // 60)}m old — too old to remove")
         conn.execute("DELETE FROM mood_log WHERE id = ?", (row[0],))
     return entry
+
+
+@cli("life mood", name="log")
+def log(score: int, label: str | None = None):
+    """Log energy/mood (1-5) with optional label"""
+    if score < 1 or score > 5:
+        exit_error("Score must be 1-5")
+    add_mood(score, label)
+    bar = "█" * score + "░" * (5 - score)
+    label_str = f"  {label}" if label else ""
+    echo(f"→ {bar}  {score}/5{label_str}")
+
+
+@cli("life mood", name="show")
+def show():
+    """View rolling 24h mood window"""
+    entries = get_recent_moods(hours=24)
+    if not entries:
+        echo("no mood logged in the last 24h")
+        return
+    now_dt = datetime.now()
+    for e in entries:
+        delta = now_dt - e.logged_at
+        secs = delta.total_seconds()
+        if secs < 3600:
+            rel = f"{int(secs // 60)}m ago"
+        elif secs < 86400:
+            rel = f"{int(secs // 3600)}h ago"
+        else:
+            rel = f"{int(secs // 86400)}d ago"
+        bar = "█" * e.score + "░" * (5 - e.score)
+        label_str = f"  {e.label}" if e.label else ""
+        echo(f"  {rel:<10}  {bar}  {e.score}/5{label_str}")
+
+
+@cli("life mood", name="rm")
+def rm():
+    """Remove latest mood entry"""
+    entry = delete_latest_mood()
+    if not entry:
+        exit_error("no mood entries to remove")
+        return
+    bar = "█" * entry.score + "░" * (5 - entry.score)
+    label_str = f"  {entry.label}" if entry.label else ""
+    echo(f"✗ {bar}  {entry.score}/5{label_str}")

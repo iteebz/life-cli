@@ -6,6 +6,7 @@ from . import db
 from .commands import cmd_dashboard, cmd_momentum, cmd_stats, cmd_status
 from .habits import cmd_archive, cmd_habits
 from .lib.errors import echo, exit_error
+from . import mood as _mood
 from .steward import (
     boot,
     close,
@@ -16,7 +17,7 @@ from .steward import (
     rm,
 )
 
-_ = (boot, close, dash, improve, log, observe, rm)
+_ = (boot, close, dash, improve, log, observe, rm, _mood)
 
 
 @cli("life")
@@ -348,35 +349,6 @@ def stats():
 def momentum():
     """Show momentum and weekly trends"""
     cmd_momentum()
-
-
-@cli("life mood", name="log")
-def mood_log(score: int, label: str | None = None):
-    """Log energy/mood (1-5) with optional label"""
-    from .commands import cmd_mood
-
-    cmd_mood(score=score, label=label)
-
-
-@cli("life mood", name="show")
-def mood_show():
-    """View rolling 24h mood window"""
-    from .commands import cmd_mood
-
-    cmd_mood(show=True)
-
-
-@cli("life mood", name="rm")
-def mood_rm():
-    """Remove latest mood entry"""
-    from .mood import delete_latest_mood
-
-    entry = delete_latest_mood()
-    if not entry:
-        exit_error("no mood entries to remove")
-    bar = "█" * entry.score + "░" * (5 - entry.score)
-    label_str = f"  {entry.label}" if entry.label else ""
-    echo(f"✗ {bar}  {entry.score}/5{label_str}")
 
 
 @cli("life dates", name="add")

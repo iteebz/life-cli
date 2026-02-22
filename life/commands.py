@@ -145,40 +145,6 @@ def cmd_momentum() -> None:
     echo(render_momentum(weekly_momentum()))
 
 
-def cmd_mood(
-    score: int | None = None,
-    label: str | None = None,
-    show: bool = False,
-) -> None:
-    from .mood import add_mood, get_recent_moods
-
-    if show or score is None:
-        entries = get_recent_moods(hours=24)
-        if not entries:
-            echo("no mood logged in the last 24h")
-            return
-        now_dt = datetime.now()
-        for e in entries:
-            delta = now_dt - e.logged_at
-            secs = delta.total_seconds()
-            if secs < 3600:
-                rel = f"{int(secs // 60)}m ago"
-            elif secs < 86400:
-                rel = f"{int(secs // 3600)}h ago"
-            else:
-                rel = f"{int(secs // 86400)}d ago"
-            bar = "\u2588" * e.score + "\u2591" * (5 - e.score)
-            label_str = f"  {e.label}" if e.label else ""
-            echo(f"  {rel:<10}  {bar}  {e.score}/5{label_str}")
-        return
-
-    if score < 1 or score > 5:
-        exit_error("Score must be 1-5")
-    add_mood(score, label)
-    bar = "\u2588" * score + "\u2591" * (5 - score)
-    label_str = f"  {label}" if label else ""
-    echo(f"\u2192 {bar}  {score}/5{label_str}")
-
 
 def cmd_track(
     description: str | None = None,
