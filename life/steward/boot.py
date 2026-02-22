@@ -149,21 +149,19 @@ def boot():
             from ..comms.services import _get_email_adapter
 
             total_inbox = 0
+            flagged_lines: list[str] = []
             for acct in email_accounts:
                 try:
                     adapter = _get_email_adapter(acct["provider"])
                     threads = adapter.list_threads(acct["email"], label="inbox", max_results=10)
                     total_inbox += len(threads)
                     flagged = adapter.list_threads(acct["email"], label="starred", max_results=5)
-                    if flagged:
-                        if total_inbox == len(threads):
-                            echo(f"\nCOMMS:")
-                        for t in flagged:
-                            sender = t.get("from", "?")[:20]
-                            subj = t.get("subject", "(no subject)")[:40]
-                            echo(f"  ★ {sender:<20}  {subj}")
-                except Exception:
-                    pass
+                    for t in flagged:
+                        sender = t.get("from", "?")[:20]
+                        subj = t.get("subject", "(no subject)")[:40]
+                        flagged_lines.append(f"  ★ {sender:<20}  {subj}")
+                except Exception as e:
+                    flagged_lines.append(f"  [comms error: {e}]")
 
             pending_drafts = list_pending_drafts()
             pending_proposals = list_proposals(status="pending")
@@ -173,5 +171,9 @@ def boot():
             if pending_proposals:
                 parts.append(f"{len(pending_proposals)} proposal{'s' if len(pending_proposals) != 1 else ''} to review")
             echo(f"\nCOMMS: {', '.join(parts)}")
-    except Exception:
-        pass
+            for line in flagged_lines:
+                echo(line)
+    except Exception as e:
+        import os
+        if os.environ.get("LIFE_DEBUG"):
+            echo(f"\nCOMMS: boot error — {e}")
