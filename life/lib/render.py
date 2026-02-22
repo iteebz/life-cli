@@ -214,32 +214,23 @@ def _render_today_tasks(
         return (1, "", not task.focus)
 
     sorted_today = sorted(due_today, key=_sort_key)
-    now_inserted = False
 
     for task in sorted_today:
-        if not now_inserted and (
-            (task.scheduled_time and task.scheduled_time >= current_time) or not task.scheduled_time
-        ):
-            lines.append(f"  {bold(white('→ ' + current_time))}")
-            now_inserted = True
-
         scheduled_ids.add(task.id)
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         link_str = _link_hint(task.id, linked_peers)
-
-        if task.scheduled_time:
-            lines.append(f"  {_fmt_countdown(task.scheduled_time, now_dt)}")
+        time_str = f" {_fmt_time(task.scheduled_time)}" if task.scheduled_time else ""
 
         if task.blocked_by:
             blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
             blocked_str = f" {dim('← ' + blocker.lower())}"
             lines.append(
-                f"  ⊘ {_GREY}{task.content.lower()}{tags_str}{_R}{blocked_str}{id_str}{link_str}"
+                f"  ⊘ {_GREY}{task.content.lower()}{tags_str}{_R}{blocked_str}{time_str}{id_str}{link_str}"
             )
         else:
             fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
-            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
+            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{time_str}{id_str}{link_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
@@ -272,9 +263,8 @@ def _render_day_tasks(
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
         link_str = _link_hint(task.id, linked_peers)
-        if task.scheduled_time:
-            lines.append(f"  {_fmt_time(task.scheduled_time)}")
-        lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{id_str}{link_str}")
+        time_str = f" {_fmt_time(task.scheduled_time)}" if task.scheduled_time else ""
+        lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{time_str}{id_str}{link_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
