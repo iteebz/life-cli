@@ -136,7 +136,7 @@ def get_task(task_id: str) -> Task | None:
     """SELECT from tasks + LEFT JOIN tags, return Task or None."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time FROM tasks WHERE id = ?",
+            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE id = ?",
             (task_id,),
         )
         row = cursor.fetchone()
@@ -153,11 +153,11 @@ def get_tasks(include_steward: bool = False) -> list[Task]:
     with db.get_db() as conn:
         if include_steward:
             cursor = conn.execute(
-                "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time FROM tasks WHERE completed_at IS NULL"
+                "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE completed_at IS NULL"
             )
         else:
             cursor = conn.execute(
-                "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time FROM tasks WHERE completed_at IS NULL AND steward = 0"
+                "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE completed_at IS NULL AND steward = 0"
             )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -171,7 +171,7 @@ def get_all_tasks() -> list[Task]:
     """SELECT all tasks (including completed), sorted by canonical key."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time FROM tasks WHERE steward = 0"
+            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE steward = 0"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -185,7 +185,7 @@ def get_subtasks(parent_id: str) -> list[Task]:
     """Return all tasks with the given parent_id."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time FROM tasks WHERE parent_id = ?",
+            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE parent_id = ?",
             (parent_id,),
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
@@ -198,7 +198,7 @@ def get_focus() -> list[Task]:
     """SELECT focus = 1 AND completed_at IS NULL."""
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time FROM tasks WHERE focus = 1 AND completed_at IS NULL AND steward = 0"
+            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE focus = 1 AND completed_at IS NULL AND steward = 0"
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]
         task_ids = [t.id for t in tasks]
@@ -206,7 +206,7 @@ def get_focus() -> list[Task]:
         return hydrate_tags(tasks, tags_map)
 
 
-_TRACKED_FIELDS = {"content", "scheduled_date", "scheduled_time", "deadline_date", "deadline_time", "focus", "completed_at"}
+_TRACKED_FIELDS = {"content", "scheduled_date", "scheduled_time", "is_deadline", "focus", "completed_at"}
 
 
 def _record_mutation(conn: sqlite3.Connection, task_id: str, field: str, old_val, new_val) -> None:
@@ -239,8 +239,7 @@ def update_task(
     focus: bool | None = None,
     scheduled_date: str | object = _UNSET,
     scheduled_time: str | object = _UNSET,
-    deadline_date: str | object = _UNSET,
-    deadline_time: str | object = _UNSET,
+    is_deadline: bool | object = _UNSET,
     parent_id: str | object = _UNSET,
     description: str | object = _UNSET,
 ) -> Task | None:
@@ -254,10 +253,8 @@ def update_task(
         updates["scheduled_date"] = scheduled_date
     if scheduled_time is not _UNSET:
         updates["scheduled_time"] = scheduled_time
-    if deadline_date is not _UNSET:
-        updates["deadline_date"] = deadline_date
-    if deadline_time is not _UNSET:
-        updates["deadline_time"] = deadline_time
+    if is_deadline is not _UNSET:
+        updates["is_deadline"] = is_deadline
     if parent_id is not _UNSET:
         updates["parent_id"] = parent_id
     if description is not _UNSET:
@@ -522,9 +519,9 @@ def cmd_task(
     if resolved_due or resolved_time:
         updates: dict = {}
         if resolved_due:
-            updates["deadline_date"] = resolved_due
+            updates["scheduled_date"] = resolved_due
         if resolved_time:
-            updates["deadline_time"] = resolved_time
+            updates["scheduled_time"] = resolved_time
         update_task(task_id, **updates)
     if done:
         check_task(task_id)
@@ -575,25 +572,25 @@ def cmd_due(args: list[str], remove: bool = False) -> None:
         exit_error(str(e))
     task = resolve_task(item_name)
     if remove:
-        update_task(task.id, deadline_date=None, deadline_time=None)
+        update_task(task.id, scheduled_date=None, scheduled_time=None, is_deadline=False)
         echo(format_status("\u25a1", task.content, task.id))
         return
     if not date_str and not time_str:
         exit_error(
             "Due spec required: today, tomorrow, day name, YYYY-MM-DD, HH:MM, 'now', or -r to clear"
         )
-    updates: dict = {}
+    updates: dict = {"is_deadline": True}
     if date_str:
-        updates["deadline_date"] = date_str
+        updates["scheduled_date"] = date_str
     if time_str:
-        updates["deadline_time"] = time_str
+        updates["scheduled_time"] = time_str
     update_task(task.id, **updates)
     if time_str:
-        label = f"{ANSI.GREY}{time_str}{ANSI.RESET}"
+        label = f"{ANSI.CORAL}{time_str}{ANSI.RESET}"
     else:
         due = _date.fromisoformat(date_str)
         delta = (due - clock.today()).days
-        label = f"{ANSI.GREY}+{delta}d{ANSI.RESET}"
+        label = f"{ANSI.CORAL}+{delta}d{ANSI.RESET}"
     echo(format_status(label, task.content, task.id))
 
 
@@ -726,7 +723,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
         except ValueError as e:
             exit_error(str(e))
         task = resolve_task(item_name)
-        update_task(task.id, scheduled_date=None, scheduled_time=None)
+        update_task(task.id, scheduled_date=None, scheduled_time=None, is_deadline=False)
         echo(format_status("\u25a1", task.content, task.id))
         return
     try:
@@ -738,7 +735,7 @@ def cmd_schedule(args: list[str], remove: bool = False) -> None:
             "Schedule spec required: today, tomorrow, day name, YYYY-MM-DD, HH:MM, or 'now'"
         )
     task = resolve_task(item_name)
-    updates: dict = {}
+    updates: dict = {"is_deadline": False}
     if date_str:
         updates["scheduled_date"] = date_str
     if time_str:

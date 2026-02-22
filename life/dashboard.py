@@ -41,7 +41,7 @@ def _get_completed_today() -> list[Task]:
     today_str = clock.today().isoformat()
     with db.get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time FROM tasks WHERE date(completed_at) = ? AND completed_at IS NOT NULL",
+            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, is_deadline FROM tasks WHERE date(completed_at) = ? AND completed_at IS NOT NULL",
             (today_str,),
         )
         tasks = [row_to_task(row) for row in cursor.fetchall()]

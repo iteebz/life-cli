@@ -7,7 +7,7 @@ from life.models import Habit, Task, TaskMutation
 from life.tasks import _task_sort_key
 
 from . import clock
-from .ansi import ANSI, bold, cyan, dim, gold, gray, green, muted, red, secondary, white
+from .ansi import ANSI, bold, coral, cyan, dim, gold, gray, green, muted, red, secondary, white
 from .format import format_habit, format_task
 
 __all__ = [
@@ -42,14 +42,14 @@ def _fmt_countdown(due_time: str, now_dt) -> str:
     return f"{ANSI.GREY}in {s}{_R}"
 
 
-def _fmt_rel_date(due: date, today: date, time: str | None = None) -> str:
+def _fmt_rel_date(due: date, today: date, time: str | None = None, is_deadline: bool = False) -> str:
     delta = (due - today).days
     if delta <= 7:
         day_label = due.strftime("%a").lower()
-        if time:
-            return f"{day_label}·{time}"
-        return day_label
-    return f"+{delta}d"
+        label = f"{day_label}·{time}" if time else day_label
+    else:
+        label = f"+{delta}d"
+    return coral(label) if is_deadline else label
 
 
 def _fmt_tags(tags: list[str], tag_colors: dict[str, str]) -> str:
@@ -318,8 +318,8 @@ def _render_task_row(
 
     date_str = ""
     if task.scheduled_date and task.scheduled_date.isoformat() not in (today_str, tomorrow_str):
-        label = _fmt_rel_date(task.scheduled_date, today, task.scheduled_time)
-        date_str = f"{secondary(label)} "
+        label = _fmt_rel_date(task.scheduled_date, today, task.scheduled_time, task.is_deadline)
+        date_str = f"{label} "
 
     if task.blocked_by:
         blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
@@ -444,8 +444,8 @@ def render_dashboard(
             tags_str = _fmt_tags(task.tags, tag_colors)
             id_str = f" {_GREY}[{task.id[:8]}]{_R}"
             fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
-            label = _fmt_rel_date(task.scheduled_date, today, task.scheduled_time)
-            date_str = f"{secondary(label)} "
+            label = _fmt_rel_date(task.scheduled_date, today, task.scheduled_time, task.is_deadline)
+            date_str = f"{label} "
             lines.append(f"  □ {date_str}{task.content.lower()}{tags_str}{fire}{id_str}")
             for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
                 scheduled_ids.add(sub.id)
@@ -626,19 +626,13 @@ def render_task_detail(
 
     lines.append(f"{status} {id_str}  {task.content.lower()}{tags_str}{focus_str}")
 
-    if task.scheduled_date or task.deadline_date:
-        if task.scheduled_date:
-            due_str = f"scheduled: {task.scheduled_date.isoformat()}"
-            if task.scheduled_time:
-                due_str += f" {_fmt_time(task.scheduled_time)}"
-            lines.append(f"  {due_str}")
-        if task.deadline_date:
-            dl_str = f"deadline: {task.deadline_date.isoformat()}"
-            if task.deadline_time:
-                dl_str += f" {_fmt_time(task.deadline_time)}"
-            lines.append(f"  {dl_str}")
-    if False:
-        lines.append(f"  due: {due_str}")
+    if task.scheduled_date:
+        label = "deadline" if task.is_deadline else "scheduled"
+        date_str = task.scheduled_date.isoformat()
+        if task.scheduled_time:
+            date_str += f" {_fmt_time(task.scheduled_time)}"
+        entry = f"{coral(label) if task.is_deadline else label}: {date_str}"
+        lines.append(f"  {entry}")
 
     if task.description:
         lines.append(f"  {task.description}")

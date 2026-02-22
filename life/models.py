@@ -13,8 +13,7 @@ class Task:
     parent_id: str | None = None
     scheduled_time: str | None = None
     blocked_by: str | None = None
-    deadline_date: date | None = None
-    deadline_time: str | None = None
+    is_deadline: bool = False
     description: str | None = None
     steward: bool = False
     source: str | None = None

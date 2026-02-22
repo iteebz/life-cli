@@ -201,9 +201,9 @@ def unfocus(
 @app.command()
 def due(
     args: list[str] = typer.Argument(..., help="Time spec and item: today, tomorrow, HH:MM, now, YYYY-MM-DD"),
-    remove: bool = typer.Option(False, "-r", "--remove", help="Clear due date and time"),
+    remove: bool = typer.Option(False, "-r", "--remove", help="Clear deadline"),
 ):
-    """Set due date/time — today, tomorrow, HH:MM, now, YYYY-MM-DD, or combined"""
+    """Mark a hard deadline — sets scheduled date/time and flags it as deadline"""
     cmd_due(args, remove=remove)
 
 
@@ -331,12 +331,12 @@ def tomorrow(
     cmd_tomorrow(args)
 
 
-@app.command(hidden=True)
+@app.command()
 def schedule(
-    args: list[str] = typer.Argument(..., help="HH:MM and task name, or task name with -r"),
-    remove: bool = typer.Option(False, "-r", "--remove", help="Clear scheduled time"),
+    args: list[str] = typer.Argument(..., help="Date/time and task name, or task name with -r"),
+    remove: bool = typer.Option(False, "-r", "--remove", help="Clear scheduled date/time"),
 ):
-    """Alias: life due HH:MM <task>"""
+    """Soft-schedule a task — today, tomorrow, HH:MM, YYYY-MM-DD, or combined"""
     cmd_schedule(args, remove=remove)
 
 

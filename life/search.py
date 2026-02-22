@@ -26,7 +26,7 @@ def search_tasks(query: str, limit: int = 20) -> list[SearchResult]:
             """
             SELECT t.id, t.content, t.focus, t.scheduled_date, t.created, t.completed_at,
                    t.parent_id, t.scheduled_time, t.blocked_by, t.description,
-                   t.steward, t.source, t.deadline_date, t.deadline_time,
+                   t.steward, t.source, t.is_deadline,
                    fts.rank
             FROM tasks_fts fts
             JOIN tasks t ON fts.rowid = t.rowid
@@ -106,7 +106,7 @@ def search_by_tag(tag: str, limit: int = 20) -> list[SearchResult]:
             """
             SELECT t.id, t.content, t.focus, t.scheduled_date, t.created, t.completed_at,
                    t.parent_id, t.scheduled_time, t.blocked_by, t.description,
-                   t.steward, t.source, t.deadline_date, t.deadline_time,
+                   t.steward, t.source, t.is_deadline,
                    0.0 as rank
             FROM tasks t
             JOIN tags tg ON t.id = tg.task_id
