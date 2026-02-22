@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from life.habits import get_subhabits
 from life.models import Habit, Task, TaskMutation
@@ -23,22 +23,6 @@ _GREY = ANSI.MUTED
 
 def _fmt_time(t: str) -> str:
     return f"{ANSI.SECONDARY}{t}{_R}"
-
-
-def _fmt_countdown(due_time: str, now_dt) -> str:
-    from datetime import datetime as _dt
-
-    due_dt = _dt.combine(now_dt.date(), _dt.strptime(due_time, "%H:%M").time())
-    diff = due_dt - now_dt.replace(tzinfo=None)
-    total = int(diff.total_seconds())
-    if total < 0:
-        total = -total
-        h, m = divmod(total // 60, 60)
-        s = f"{h}h{m:02d}m" if h else f"{m}m"
-        return f"{ANSI.GREY}overdue {s}{_R}"
-    h, m = divmod(total // 60, 60)
-    s = f"{h}h{m:02d}m" if h else f"{m}m"
-    return f"{ANSI.GREY}in {s}{_R}"
 
 
 def _fmt_rel_date(
@@ -87,20 +71,17 @@ def _get_trend(current: int, previous: int) -> str:
     return "→"
 
 
-def _get_habit_trend(checks: list[datetime]) -> str:
-    today = clock.today()
-    period1_start = today - timedelta(days=6)
-    period2_start = today - timedelta(days=13)
-    period2_end = period1_start - timedelta(days=1)
-
-    count_p1 = sum(1 for dt in checks if period1_start <= dt.date() <= today)
-    count_p2 = sum(1 for dt in checks if period2_start <= dt.date() <= period2_end)
-
-    if count_p1 > count_p2:
-        return "↗"
-    if count_p1 < count_p2:
-        return "↘"
-    return "→"
+def _render_subtask_row(
+    sub: Task,
+    all_pending: list[Task],
+    tag_colors: dict[str, str],
+    indent: str = "    └ ",
+) -> str:
+    sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
+    sub_direct_tags = _get_direct_tags(sub, all_pending)
+    sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
+    sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
+    return f"{indent}{sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
 
 
 def _render_header(
@@ -182,8 +163,6 @@ def _render_upcoming_dates(today: date) -> list[str]:
 
 def _render_today_tasks(
     due_today: list[Task],
-    current_time: str,
-    now_dt,
     tag_colors: dict[str, str],
     task_id_to_content: dict[str, str],
     subtasks_by_parent: dict[str, list[Task]],
@@ -221,11 +200,7 @@ def _render_today_tasks(
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
-            sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
-            sub_direct_tags = _get_direct_tags(sub, all_pending)
-            sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
-            lines.append(f"    └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+            lines.append(_render_subtask_row(sub, all_pending, tag_colors))
 
     return lines, scheduled_ids
 
@@ -279,7 +254,13 @@ def _render_habit_row(
     indent: str = "  ",
 ) -> list[str]:
     tags_str = _fmt_tags(habit.tags, tag_colors)
-    trend = _get_habit_trend(habit.checks)
+    today = clock.today()
+    p1_start = today - timedelta(days=6)
+    p2_start = today - timedelta(days=13)
+    p2_end = p1_start - timedelta(days=1)
+    count_p1 = sum(1 for dt in habit.checks if p1_start <= dt.date() <= today)
+    count_p2 = sum(1 for dt in habit.checks if p2_start <= dt.date() <= p2_end)
+    trend = "↗" if count_p1 > count_p2 else "↘" if count_p1 < count_p2 else "→"
     id_str = f" {_GREY}[{habit.id[:8]}]{_R}"
     lines = []
     if habit.id in today_habit_ids:
@@ -304,18 +285,34 @@ def _render_habits(
     total = len(habits)
     lines = [f"\n{bold(white(f'HABITS ({checked_count}/{total}):'))}"]
     sorted_habits = sorted(visible, key=lambda x: x.content.lower())
-
-    for habit in sorted_habits:
-        if habit.id in today_habit_ids:
-            continue
-        lines.extend(_render_habit_row(habit, today_habit_ids, tag_colors))
-
-    for habit in sorted_habits:
-        if habit.id not in today_habit_ids:
-            continue
+    unchecked = [h for h in sorted_habits if h.id not in today_habit_ids]
+    checked = [h for h in sorted_habits if h.id in today_habit_ids]
+    for habit in unchecked + checked:
         lines.extend(_render_habit_row(habit, today_habit_ids, tag_colors))
 
     return lines
+
+
+def _render_overdue(
+    overdue: list[Task],
+    today: date,
+    tag_colors: dict[str, str],
+    subtasks_by_parent: dict[str, list[Task]],
+    all_pending: list[Task],
+) -> tuple[list[str], set[str]]:
+    lines = [f"\n{ANSI.BOLD}{ANSI.RED}OVERDUE:{_R}"]
+    scheduled_ids: set[str] = set()
+    for task in sorted(overdue, key=_task_sort_key):
+        scheduled_ids.add(task.id)
+        tags_str = _fmt_tags(task.tags, tag_colors)
+        id_str = f" {_GREY}[{task.id[:8]}]{_R}"
+        fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
+        label = _fmt_rel_date(task.scheduled_date, today, task.scheduled_time, task.is_deadline)
+        lines.append(f"  □ {label} {task.content.lower()}{tags_str}{fire}{id_str}")
+        for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
+            scheduled_ids.add(sub.id)
+            lines.append(_render_subtask_row(sub, all_pending, tag_colors))
+    return lines, scheduled_ids
 
 
 def _render_task_row(
@@ -341,22 +338,14 @@ def _render_task_row(
     if task.blocked_by:
         blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
         blocked_str = f" {dim('← ' + blocker.lower())}"
-        row = (
-            f"{indent}⊘ {_GREY}{date_str}{task.content.lower()}{tags_str}{_R}{blocked_str}{id_str}"
-        )
+        row = f"{indent}⊘ {_GREY}{date_str}{task.content.lower()}{tags_str}{_R}{blocked_str}{id_str}"
     else:
         indicator = f"{ANSI.BOLD}🔥{_R} " if task.focus else ""
         row = f"{indent}{indicator}{date_str}{task.content.lower()}{tags_str}{id_str}"
 
     rows = [row]
     for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
-        sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
-        sub_direct_tags = _get_direct_tags(sub, all_pending)
-        sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
-        rows.append(
-            f"{indent}  └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
-        )
+        rows.append(_render_subtask_row(sub, all_pending, tag_colors, indent=f"{indent}  └ "))
     for sub in completed_subs_by_parent.get(task.id, []):
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
@@ -414,9 +403,6 @@ def render_dashboard(
 ):
     habits_today, tasks_today, added_today, deleted_today = today_breakdown
     today = clock.today()
-    now = clock.now().astimezone()
-    current_time = now.strftime("%H:%M")
-
     today_str = today.isoformat()
     tomorrow = today + timedelta(days=1)
     tomorrow_str = tomorrow.isoformat()
@@ -455,24 +441,9 @@ def render_dashboard(
     ]
     scheduled_ids: set[str] = set()
     if overdue:
-        lines.append(f"\n{ANSI.BOLD}{ANSI.RED}OVERDUE:{_R}")
-        for task in sorted(overdue, key=_task_sort_key):
-            scheduled_ids.add(task.id)
-            tags_str = _fmt_tags(task.tags, tag_colors)
-            id_str = f" {_GREY}[{task.id[:8]}]{_R}"
-            fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
-            label = _fmt_rel_date(task.scheduled_date, today, task.scheduled_time, task.is_deadline)
-            date_str = f"{label} "
-            lines.append(f"  □ {date_str}{task.content.lower()}{tags_str}{fire}{id_str}")
-            for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
-                scheduled_ids.add(sub.id)
-                sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
-                sub_direct_tags = _get_direct_tags(sub, all_pending)
-                sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-                sub_time_str = f"{_fmt_time(sub.scheduled_time)} " if sub.scheduled_time else ""
-                lines.append(
-                    f"    └ {sub_time_str}{sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
-                )
+        overdue_lines, overdue_ids = _render_overdue(overdue, today, tag_colors, subtasks_by_parent, all_pending)
+        lines.extend(overdue_lines)
+        scheduled_ids.update(overdue_ids)
 
     due_today = [
         t
@@ -484,8 +455,6 @@ def render_dashboard(
 
     today_lines, today_scheduled = _render_today_tasks(
         due_today,
-        current_time,
-        now,
         tag_colors,
         task_id_to_content,
         subtasks_by_parent,
