@@ -16,6 +16,9 @@ class ANSI:
     GREY = "\033[90m"
     RESET = "\033[0m"
 
+    MUTED = "\033[90m"
+    SECONDARY = "\033[38;5;245m"
+
     LIME = "\033[38;5;155m"
     TEAL = "\033[38;5;80m"
     GOLD = "\033[38;5;220m"
@@ -91,6 +94,14 @@ def bold(text: str) -> str:
 
 def dim(text: str) -> str:
     return f"\033[2m{text}\033[22m{_R}"
+
+
+def muted(text: str) -> str:
+    return f"{ANSI.MUTED}{text}{_R}"
+
+
+def secondary(text: str) -> str:
+    return f"{ANSI.SECONDARY}{text}{_R}"
 
 
 def lime(text: str) -> str:

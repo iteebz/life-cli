@@ -7,7 +7,7 @@ from life.models import Habit, Task, TaskMutation
 from life.tasks import _task_sort_key, get_all_links
 
 from . import clock
-from .ansi import ANSI, bold, cyan, dim, gold, gray, green, red, white
+from .ansi import ANSI, bold, cyan, dim, gold, gray, green, muted, red, secondary, white
 from .clusters import build_clusters, cluster_focus, link_distances
 from .format import format_habit, format_task
 
@@ -20,11 +20,11 @@ __all__ = [
 ]
 
 _R = ANSI.RESET
-_GREY = ANSI.GREY
+_GREY = ANSI.MUTED
 
 
 def _fmt_time(t: str) -> str:
-    return f"{_GREY}{t}{_R}"
+    return f"{ANSI.SECONDARY}{t}{_R}"
 
 
 def _fmt_countdown(due_time: str, now_dt) -> str:
@@ -235,7 +235,7 @@ def _render_today_tasks(
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+            sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
             lines.append(f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
@@ -267,7 +267,7 @@ def _render_day_tasks(
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+            sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
             lines.append(f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
@@ -335,7 +335,7 @@ def _render_task_row(
     date_str = ""
     if task.scheduled_date and task.scheduled_date.isoformat() not in (today_str, tomorrow_str):
         label = _fmt_rel_date(task.scheduled_date, today)
-        date_str = f"{dim(label)} "
+        date_str = f"{secondary(label)} "
 
     if task.blocked_by:
         blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
@@ -352,7 +352,7 @@ def _render_task_row(
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+        sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
         rows.append(
             f"{indent}  └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
         )
@@ -360,7 +360,7 @@ def _render_task_row(
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+        sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
         rows.append(
             f"{indent}  {gray('└' + sub_time_str + ' ✓ ' + sub.content.lower())}{sub_tags_str}{id_str}"
         )
@@ -403,14 +403,14 @@ def _render_clusters(
         date_str = ""
         if focus.scheduled_date and focus.scheduled_date.isoformat() not in (today_str, tomorrow_str):
             label = _fmt_rel_date(focus.scheduled_date, today)
-            date_str = f"{dim(label)} "
+            date_str = f"{secondary(label)} "
         lines.append(f"\n{bold('⦿')} {date_str}{focus.content.lower()}{tags_str}{id_str}")
 
         for sub in sorted(subtasks_by_parent.get(focus.id, []), key=_task_sort_key):
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+            sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
             lines.append(f"  └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
         peers_close = sorted(
@@ -428,7 +428,7 @@ def _render_clusters(
             peer_date_str = ""
             if peer.scheduled_date and peer.scheduled_date.isoformat() not in (today_str, tomorrow_str):
                 label = _fmt_rel_date(peer.scheduled_date, today)
-                peer_date_str = f"{dim(label)} "
+                peer_date_str = f"{secondary(label)} "
             lines.append(
                 f"  {_GREY}~{_R} {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}"
             )
@@ -436,7 +436,7 @@ def _render_clusters(
                 sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
                 sub_direct_tags = _get_direct_tags(sub, all_pending)
                 sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-                sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+                sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
                 lines.append(
                     f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
                 )
