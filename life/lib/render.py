@@ -196,7 +196,6 @@ def _render_today_tasks(
     current_time: str,
     now_dt,
     tag_colors: dict[str, str],
-    linked_peers: dict[str, list[str]],
     task_id_to_content: dict[str, str],
     subtasks_by_parent: dict[str, list[Task]],
     all_pending: list[Task],
@@ -219,26 +218,25 @@ def _render_today_tasks(
         scheduled_ids.add(task.id)
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
-        link_str = _link_hint(task.id, linked_peers)
         time_str = f" {_fmt_time(task.scheduled_time)}" if task.scheduled_time else ""
 
         if task.blocked_by:
             blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
             blocked_str = f" {dim('← ' + blocker.lower())}"
             lines.append(
-                f"  ⊘ {_GREY}{task.content.lower()}{tags_str}{_R}{blocked_str}{time_str}{id_str}{link_str}"
+                f"  ⊘ {_GREY}{task.content.lower()}{tags_str}{_R}{blocked_str}{time_str}{id_str}"
             )
         else:
             fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
-            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{time_str}{id_str}{link_str}")
+            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{time_str}{id_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
-            lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+            sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+            lines.append(f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
 
@@ -247,7 +245,6 @@ def _render_day_tasks(
     due_day: list[Task],
     label: str,
     tag_colors: dict[str, str],
-    linked_peers: dict[str, list[str]],
     subtasks_by_parent: dict[str, list[Task]],
     all_pending: list[Task],
 ) -> tuple[list[str], set[str]]:
@@ -262,17 +259,16 @@ def _render_day_tasks(
         fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
-        link_str = _link_hint(task.id, linked_peers)
         time_str = f" {_fmt_time(task.scheduled_time)}" if task.scheduled_time else ""
-        lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{time_str}{id_str}{link_str}")
+        lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{time_str}{id_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
-            lines.append(f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+            sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+            lines.append(f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
     return lines, scheduled_ids
 
@@ -356,17 +352,17 @@ def _render_task_row(
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
+        sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
         rows.append(
-            f"{indent}  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
+            f"{indent}  └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
         )
     for sub in completed_subs_by_parent.get(task.id, []):
         sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
         sub_direct_tags = _get_direct_tags(sub, all_pending)
         sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-        sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
+        sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
         rows.append(
-            f"{indent}  {gray(sub_time_str + '└ ✓ ' + sub.content.lower())}{sub_tags_str}{id_str}"
+            f"{indent}  {gray('└' + sub_time_str + ' ✓ ' + sub.content.lower())}{sub_tags_str}{id_str}"
         )
     return rows
 
@@ -414,8 +410,8 @@ def _render_clusters(
             sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
             sub_direct_tags = _get_direct_tags(sub, all_pending)
             sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
-            lines.append(f"  {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
+            sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
+            lines.append(f"  └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
 
         peers_close = sorted(
             [t for t in cluster if t.id != focus.id and distances.get(t.id, 99) <= 2],
@@ -440,9 +436,9 @@ def _render_clusters(
                 sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
                 sub_direct_tags = _get_direct_tags(sub, all_pending)
                 sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-                sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
+                sub_time_str = f" {dim(_fmt_time(sub.scheduled_time))}" if sub.scheduled_time else ""
                 lines.append(
-                    f"    {sub_time_str}└ {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
+                    f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
                 )
 
         for peer in peers_far:
@@ -496,7 +492,6 @@ def render_dashboard(
     all_items = items + (today_items or [])
     tag_colors = _build_tag_colors(all_items)
     all_links = get_all_links()
-    linked_peers = _build_link_peers(all_pending, all_links)
 
     lines: list[str] = []
 
@@ -532,7 +527,6 @@ def render_dashboard(
         current_time,
         now,
         tag_colors,
-        linked_peers,
         task_id_to_content,
         subtasks_by_parent,
         all_pending,
@@ -557,7 +551,6 @@ def render_dashboard(
             due_day,
             label,
             tag_colors,
-            linked_peers,
             subtasks_by_parent,
             all_pending,
         )
