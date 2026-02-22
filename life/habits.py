@@ -37,8 +37,9 @@ __all__ = [
 ]
 
 
+# ── domain ───────────────────────────────────────────────────────────────────
+
 def _hydrate_habit(habit: Habit, checks: list[datetime], tags: list[str]) -> Habit:
-    """Attach checks and tags to a habit."""
     return dataclasses.replace(habit, checks=checks, tags=tags)
 
 
@@ -56,7 +57,6 @@ def add_habit(
     parent_id: str | None = None,
     private: bool = False,
 ) -> str:
-    """Insert a habit and optionally add tags. Returns habit_id."""
     habit_id = str(uuid.uuid4())
     with db.get_db() as conn:
         try:
@@ -78,7 +78,6 @@ def add_habit(
 
 
 def get_habit(habit_id: str) -> Habit | None:
-    """SELECT from habits + LEFT JOIN checks + LEFT JOIN tags."""
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE id = ?",
@@ -95,7 +94,6 @@ def get_habit(habit_id: str) -> Habit | None:
 
 
 def update_habit(habit_id: str, content: str | None = None) -> Habit | None:
-    """UPDATE content only (habits have no other mutable fields), return updated Habit."""
     if content is None:
         return get_habit(habit_id)
 
@@ -112,13 +110,11 @@ def update_habit(habit_id: str, content: str | None = None) -> Habit | None:
 
 
 def delete_habit(habit_id: str) -> None:
-    """DELETE from habits."""
     with db.get_db() as conn:
         conn.execute("DELETE FROM habits WHERE id = ?", (habit_id,))
 
 
 def get_habits(habit_ids: list[str] | None = None, include_private: bool = True) -> list[Habit]:
-    """Get active (non-archived) habits by IDs, or all active habits if IDs is None."""
     if habit_ids is None:
         private_filter = "" if include_private else " AND private = 0"
         with db.get_db() as conn:
@@ -184,7 +180,6 @@ def get_streak(habit_id: str) -> int:
 
 
 def get_subhabits(parent_id: str) -> list["Habit"]:
-    """Get active subhabits for a parent habit."""
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE parent_id = ? AND archived_at IS NULL ORDER BY created ASC",
@@ -204,7 +199,6 @@ def get_subhabits(parent_id: str) -> list["Habit"]:
 
 
 def get_archived_habits() -> list[Habit]:
-    """Get archived habits."""
     with db.get_db() as conn:
         cursor = conn.execute(
             "SELECT id, content, created, archived_at, parent_id, private FROM habits WHERE archived_at IS NOT NULL ORDER BY archived_at DESC"
@@ -223,7 +217,6 @@ def get_archived_habits() -> list[Habit]:
 
 
 def archive_habit(habit_id: str) -> Habit | None:
-    """Set archived_at to now. Returns updated Habit or None if not found."""
     habit = get_habit(habit_id)
     if not habit:
         return None
@@ -284,6 +277,32 @@ def toggle_check(habit_id: str) -> Habit | None:
     return check_habit(habit_id)
 
 
+def rename_habit(habit: Habit, to_content: str) -> None:
+    if habit.content == to_content:
+        exit_error(f"Error: Cannot rename '{habit.content}' to itself.")
+    update_habit(habit.id, content=to_content)
+    echo(f"\u2192 {to_content}")
+
+
+def check_habit_cmd(habit: Habit) -> None:
+    from .lib.clock import today
+
+    updated = toggle_check(habit.id)
+    if updated:
+        checked_today = any(c.date() == today() for c in updated.checks)
+        if checked_today:
+            _animate_check(habit.content.lower())
+
+
+def _animate_check(label: str) -> None:
+    import sys
+
+    sys.stdout.write(f"  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
+    sys.stdout.flush()
+
+
+# ── cli ──────────────────────────────────────────────────────────────────────
+
 @cli("life")
 def habit(
     content: list[str] | None = None,
@@ -315,23 +334,6 @@ def habit(
     echo(format_status("\u25a1", content_str, habit_id))
 
 
-def check_habit_cmd(habit: Habit) -> None:
-    from .lib.clock import today
-
-    updated = toggle_check(habit.id)
-    if updated:
-        checked_today = any(c.date() == today() for c in updated.checks)
-        if checked_today:
-            _animate_check(habit.content.lower())
-
-
-def _animate_check(label: str) -> None:
-    import sys
-
-    sys.stdout.write(f"  {ANSI.GREEN}\u2713{ANSI.RESET} {ANSI.GREY}{label}{ANSI.RESET}\n")
-    sys.stdout.flush()
-
-
 @cli("life")
 def archive(ref: str | None = None, list_archived: bool = False) -> None:
     """Archive a habit (keeps history, hides from daily view)"""
@@ -359,10 +361,3 @@ def habits() -> None:
     from .lib.render import render_habit_matrix
 
     echo(render_habit_matrix(get_habits()))
-
-
-def rename_habit(habit: Habit, to_content: str) -> None:
-    if habit.content == to_content:
-        exit_error(f"Error: Cannot rename '{habit.content}' to itself.")
-    update_habit(habit.id, content=to_content)
-    echo(f"\u2192 {to_content}")

@@ -1,7 +1,7 @@
 import sys
 
 from . import db
-from . import commands as _commands
+from . import dash as _dash
 from . import dates as _dates
 from . import interventions as _interventions
 from . import items as _items
@@ -15,7 +15,7 @@ from . import steward as _steward
 
 _ = (
     _steward,
-    _commands, _dates, _interventions, _items, _mood, _patterns, _signal, _tasks, _habits, _tags,
+    _dash, _dates, _interventions, _items, _mood, _patterns, _signal, _tasks, _habits, _tags,
 )
 
 
@@ -25,7 +25,7 @@ def main():
 
     user_args = sys.argv[1:]
     if not user_args or user_args == ["-v"] or user_args == ["--verbose"]:
-        from .commands import dashboard
+        from .dash import dashboard
 
         dashboard(verbose="--verbose" in user_args or "-v" in user_args)
         return

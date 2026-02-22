@@ -21,7 +21,7 @@ class FnCLIRunner:
         from fncli import dispatch
 
         import life.cli  # noqa: F401 — registers fncli commands
-        from life.commands import dashboard
+        from life.dash import dashboard
 
         out_buf = io.StringIO()
         err_buf = io.StringIO()
