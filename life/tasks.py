@@ -506,7 +506,6 @@ def _schedule(args: list[str], remove: bool = False) -> None:
 
 # ── cli ──────────────────────────────────────────────────────────────────────
 
-@cli("life")
 def task(
     content: list[str],
     focus: bool = False,

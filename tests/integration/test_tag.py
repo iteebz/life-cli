@@ -3,7 +3,7 @@ from tests.conftest import FnCLIRunner
 
 def test_tag_positional_syntax(tmp_life_dir):
     runner = FnCLIRunner()
-    runner.invoke(["task", "home loan"])
+    runner.invoke(["add", "home loan"])
     result = runner.invoke(["tag", "home loan", "finance"])
 
     assert result.exit_code == 0
@@ -12,7 +12,7 @@ def test_tag_positional_syntax(tmp_life_dir):
 
 def test_tag_option_syntax(tmp_life_dir):
     runner = FnCLIRunner()
-    runner.invoke(["task", "home loan"])
+    runner.invoke(["add", "home loan"])
     result = runner.invoke(["tag", "home loan", "finance"])
 
     assert result.exit_code == 0

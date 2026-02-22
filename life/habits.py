@@ -303,7 +303,6 @@ def _animate_check(label: str) -> None:
 
 # ── cli ──────────────────────────────────────────────────────────────────────
 
-@cli("life")
 def habit(
     content: list[str] | None = None,
     tag: list[str] | None = None,

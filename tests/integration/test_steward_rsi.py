@@ -61,7 +61,7 @@ def test_boot_exits_zero_on_empty_db(tmp_life_dir):
 
 
 def test_steward_task_visible_in_boot(tmp_life_dir):
-    runner.invoke(["task", "build mood rm", "--steward", "--source", "tyson", "--tag", "steward"])
+    runner.invoke(["add", "build mood rm", "--steward", "--source", "tyson", "--tag", "steward"])
 
     result = runner.invoke(["steward", "boot"])
     assert result.exit_code == 0

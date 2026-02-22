@@ -5,7 +5,7 @@ from tests.conftest import FnCLIRunner
 
 def test_rm_can_delete_completed_task(tmp_life_dir):
     runner = FnCLIRunner()
-    runner.invoke(["task", "test", "done", "flag", "--done"])
+    runner.invoke(["add", "test", "done", "flag", "--done"])
 
     rm_result = runner.invoke(["rm", "test", "done", "flag"])
     assert rm_result.exit_code == 0

@@ -2,12 +2,14 @@ import sys
 
 from fncli import cli
 
-from .habits import check_habit_cmd, rename_habit
+from .habits import add_habit, check_habit_cmd, rename_habit
 from .lib.ansi import ANSI
 from .lib.errors import echo, exit_error
+from .lib.format import format_status
+from .lib.parsing import validate_content
 from .lib.resolve import resolve_item, resolve_item_any
 from .models import Task
-from .tasks import check_task_cmd, delete_task, rename_task
+from .tasks import add_task, check_task, check_task_cmd, delete_task, rename_task, update_task
 
 
 def _animate_uncheck(label: str) -> None:
@@ -101,23 +103,67 @@ def add(
     source: str | None = None,
 ) -> None:
     """Add task or habit (--habit)"""
-    from .habits import habit as habit_cmd
-    from .tasks import task as task_cmd
+    content_str = " ".join(content) if content else ""
+    try:
+        validate_content(content_str)
+    except ValueError as e:
+        exit_error(f"Error: {e}")
 
     if habit:
-        habit_cmd(content=content, tag=tag, under=under)
+        from .lib.resolve import resolve_habit
+
+        parent_id = None
+        if under:
+            parent = resolve_habit(under)
+            if not parent:
+                exit_error(f"No habit found matching '{under}'")
+            parent_id = parent.id
+        tags = list(tag) if tag else []
+        habit_id = add_habit(content_str, tags=tags, parent_id=parent_id)
+        echo(format_status("\u25a1", content_str, habit_id))
         return
-    task_cmd(
-        content=content,
+
+    from .lib.resolve import resolve_task
+
+    resolved_due = None
+    resolved_time = None
+    if due:
+        from .lib.parsing import parse_due_datetime
+
+        resolved_due, resolved_time = parse_due_datetime(due)
+    parent_id = None
+    if under:
+        parent_task = resolve_task(under)
+        if parent_task.parent_id:
+            exit_error("Error: subtasks cannot have subtasks")
+        parent_id = parent_task.id
+    tags = list(tag) if tag else []
+    if focus and parent_id:
+        exit_error("Error: cannot focus a subtask — set focus on the parent")
+    task_id = add_task(
+        content_str,
         focus=focus,
-        due=due,
-        tag=tag,
-        under=under,
-        desc=desc,
-        done=done,
+        scheduled_date=resolved_due,
+        tags=tags,
+        parent_id=parent_id,
+        description=desc,
         steward=steward,
         source=source,
     )
+    if resolved_due or resolved_time:
+        updates: dict = {}
+        if resolved_due:
+            updates["scheduled_date"] = resolved_due
+        if resolved_time:
+            updates["scheduled_time"] = resolved_time
+        update_task(task_id, **updates)
+    if done:
+        check_task(task_id)
+        echo(format_status("\u2713", content_str, task_id))
+        return
+    symbol = f"{ANSI.BOLD}\u29bf{ANSI.RESET}" if focus else "\u25a1"
+    prefix = "  \u2514 " if parent_id else ""
+    echo(f"{prefix}{format_status(symbol, content_str, task_id)}")
 
 
 @cli("life")
