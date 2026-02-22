@@ -380,6 +380,14 @@ def boot():
             tag_str = f" #{o.tag}" if o.tag else ""
             echo(f"  {rel:<10}  {o.body}{tag_str}")
 
+    from .improvements import get_improvements
+
+    open_improvements = get_improvements()
+    if open_improvements:
+        echo("\nIMPROVEMENTS:")
+        for i in open_improvements[:5]:
+            echo(f"  [{i.id}] {i.body}")
+
     recent_moods = get_recent_moods(hours=24)
     if recent_moods:
         latest = recent_moods[0]
@@ -528,6 +536,38 @@ def dash():
         for s in sessions:
             rel = _rel((now_dt - s.logged_at).total_seconds())
             echo(f"  {rel:<10}  {s.summary[:90]}")
+
+
+@app.command(name="improve")
+def improve(
+    body: str = typer.Argument(None, help="System improvement to log"),
+    log: bool = typer.Option(False, "--log", "-l", help="List open improvements"),
+    done: str = typer.Option(None, "--done", help="Mark improvement done (fuzzy match)"),
+):
+    """Log a system improvement or mark one done"""
+    from .improvements import add_improvement, get_improvements, mark_improvement_done
+
+    if done is not None:
+        target = mark_improvement_done(done)
+        if target:
+            echo(f"✓ {target.body}")
+        else:
+            exit_error(f"no open improvement matching '{done}'")
+        return
+
+    if log or not body:
+        improvements = get_improvements()
+        if not improvements:
+            echo("no open improvements")
+            return
+        now = datetime.now()
+        for i in improvements:
+            rel = _rel((now - i.logged_at).total_seconds())
+            echo(f"  {i.id:<4} {rel:<10}  {i.body}")
+        return
+
+    add_improvement(body)
+    echo(f"→ {body}")
 
 
 @app.command(name="log")
