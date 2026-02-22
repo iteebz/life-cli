@@ -4,7 +4,7 @@ from datetime import datetime
 
 import typer
 
-from comms.adapters.messaging import signal as signal_module
+from life.comms.adapters.messaging import signal as signal_module
 
 from .helpers import get_signal_phone
 

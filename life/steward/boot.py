@@ -138,3 +138,40 @@ def boot():
                         echo(f"  {dirty} {repo.name:<16}  (no commits)")
                 except Exception:
                     echo(f"    {repo.name:<16}  (error)")
+
+    try:
+        from ..comms.accounts import list_accounts
+        from ..comms.drafts import list_pending_drafts
+        from ..comms.proposals import list_proposals
+
+        email_accounts = list_accounts("email")
+        if email_accounts:
+            from ..comms.services import _get_email_adapter
+
+            total_inbox = 0
+            for acct in email_accounts:
+                try:
+                    adapter = _get_email_adapter(acct["provider"])
+                    threads = adapter.list_threads(acct["email"], label="inbox", max_results=10)
+                    total_inbox += len(threads)
+                    flagged = adapter.list_threads(acct["email"], label="starred", max_results=5)
+                    if flagged:
+                        if total_inbox == len(threads):
+                            echo(f"\nCOMMS:")
+                        for t in flagged:
+                            sender = t.get("from", "?")[:20]
+                            subj = t.get("subject", "(no subject)")[:40]
+                            echo(f"  ★ {sender:<20}  {subj}")
+                except Exception:
+                    pass
+
+            pending_drafts = list_pending_drafts()
+            pending_proposals = list_proposals(status="pending")
+            parts = [f"{total_inbox} in inbox"]
+            if pending_drafts:
+                parts.append(f"{len(pending_drafts)} draft{'s' if len(pending_drafts) != 1 else ''} pending")
+            if pending_proposals:
+                parts.append(f"{len(pending_proposals)} proposal{'s' if len(pending_proposals) != 1 else ''} to review")
+            echo(f"\nCOMMS: {', '.join(parts)}")
+    except Exception:
+        pass

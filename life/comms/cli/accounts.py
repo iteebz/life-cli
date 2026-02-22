@@ -2,9 +2,9 @@
 
 import typer
 
-from comms import accounts as accts_module
-from comms.adapters.email import gmail, outlook
-from comms.adapters.messaging import signal
+from life.comms import accounts as accts_module
+from life.comms.adapters.email import gmail, outlook
+from life.comms.adapters.messaging import signal
 
 app = typer.Typer()
 

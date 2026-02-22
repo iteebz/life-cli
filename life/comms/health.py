@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from comms.db import get_db
+from life.comms.db import get_db
 
 
 @dataclass

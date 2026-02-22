@@ -8,7 +8,7 @@ from typing import Any
 
 import qrcode
 
-from comms.db import get_db
+from life.comms.db import get_db
 
 SIGNAL_CLI = "signal-cli"
 CONFIG_DIR = Path.home() / ".local/share/signal-cli"

@@ -12,7 +12,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-from comms.models import Draft, Message
+from life.comms.models import Draft, Message
 
 SCOPES = [
     "openid",
@@ -21,7 +21,7 @@ SCOPES = [
 ]
 SERVICE_NAME = "comms-cli/gmail"
 TOKEN_KEY_SUFFIX = "/token"  # noqa: S105
-CREDENTIALS_PATH = Path.home() / "space/repos/comms-cli/gmail_credentials.json"
+CREDENTIALS_PATH = Path.home() / ".life/comms/gmail_credentials.json"
 
 
 def _headers_map(headers: list[dict[str, str]], lower: bool = True) -> dict[str, str]:

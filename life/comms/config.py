@@ -3,11 +3,12 @@ from typing import Any, ClassVar
 
 import yaml
 
-COMMS_DIR = Path.home() / ".comms"
-DB_PATH = COMMS_DIR / "store.db"
+LIFE_DIR = Path.home() / ".life"
+COMMS_DIR = LIFE_DIR / "comms"
+DB_PATH = LIFE_DIR / "life.db"
 CONFIG_PATH = COMMS_DIR / "config.yaml"
 RULES_PATH = COMMS_DIR / "rules.md"
-BACKUP_DIR = Path.home() / ".comms_backups"
+BACKUP_DIR = Path.home() / ".life_backups"
 
 
 class Config:
@@ -32,7 +33,7 @@ class Config:
             Config._data = {}
 
     def _save(self):
-        COMMS_DIR.mkdir(exist_ok=True)
+        COMMS_DIR.mkdir(parents=True, exist_ok=True)
         with CONFIG_PATH.open("w") as f:
             yaml.dump(self._data, f, default_flow_style=False, allow_unicode=True)
 

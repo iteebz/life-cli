@@ -2,8 +2,8 @@
 
 import typer
 
-from comms import proposals as proposals_module
-from comms import services
+from life.comms import proposals as proposals_module
+from life.comms import services
 
 app = typer.Typer()
 

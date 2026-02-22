@@ -5,9 +5,9 @@ from typing import Any
 
 import typer
 
-from comms import accounts as accts_module
-from comms import db, services
-from comms.adapters.email import gmail, outlook
+from life.comms import accounts as accts_module
+from life.comms import db, services
+from life.comms.adapters.email import gmail, outlook
 
 app = typer.Typer()
 
@@ -73,7 +73,7 @@ def backup() -> None:
 @app.command()
 def rules() -> None:
     """Show triage rules (edit at ~/.comms/rules.md)"""
-    from comms.config import RULES_PATH
+    from life.comms.config import RULES_PATH
 
     if not RULES_PATH.exists():
         typer.echo(f"No rules file. Create one at: {RULES_PATH}")
@@ -85,7 +85,7 @@ def rules() -> None:
 @app.command()
 def contacts() -> None:
     """Show contact notes (edit at ~/.comms/contacts.md)"""
-    from comms.contacts import CONTACTS_PATH, get_all_contacts
+    from life.comms.contacts import CONTACTS_PATH, get_all_contacts
 
     if not CONTACTS_PATH.exists():
         typer.echo(f"No contacts file. Create one at: {CONTACTS_PATH}")
@@ -115,7 +115,7 @@ def templates(
     init: bool = typer.Option(False, "--init", help="Create default templates file"),
 ) -> None:
     """Show reply templates (edit at ~/.comms/templates.md)"""
-    from comms.templates import TEMPLATES_PATH, get_templates, init_templates
+    from life.comms.templates import TEMPLATES_PATH, get_templates, init_templates
 
     if init:
         init_templates()
@@ -136,7 +136,7 @@ def templates(
 @app.command()
 def status() -> None:
     """Show system status"""
-    from comms.config import get_policy
+    from life.comms.config import get_policy
 
     pol = get_policy()
     typer.echo("Policy:")
@@ -163,7 +163,7 @@ def auto_approve(
     action: list[str] | None = None,
 ) -> None:
     """Configure auto-approve settings"""
-    from comms.config import get_policy, set_policy
+    from life.comms.config import get_policy, set_policy
 
     pol = get_policy()
     auto: dict[str, Any] = pol.get("auto_approve") or {}
@@ -189,7 +189,7 @@ def auto_approve(
 @app.command()
 def stats() -> None:
     """Show learning stats from decisions"""
-    from comms import learning
+    from life.comms import learning
 
     action_stats = learning.get_decision_stats()
     if not action_stats:
@@ -217,7 +217,7 @@ def stats() -> None:
 @app.command()
 def senders(limit: int = typer.Option(20, "--limit", "-n")) -> None:
     """Show sender statistics and priority scores"""
-    from comms import senders
+    from life.comms import senders
 
     top = senders.get_top_senders(limit=limit)
     if not top:
@@ -244,7 +244,7 @@ def senders(limit: int = typer.Option(20, "--limit", "-n")) -> None:
 @app.command()
 def audit_log(limit: int = 20) -> None:
     """Show recent audit log"""
-    from comms import audit
+    from life.comms import audit
 
     logs = audit.get_recent_logs(limit)
     for log_entry in logs:
@@ -257,7 +257,7 @@ def audit_log(limit: int = 20) -> None:
 @app.command()
 def digest(days: int = typer.Option(7, "--days", "-d", help="Number of days to summarize")) -> None:
     """Weekly activity digest"""
-    from comms import digest as digest_module
+    from life.comms import digest as digest_module
 
     stats = digest_module.get_digest(days=days)
     typer.echo(digest_module.format_digest(stats))
@@ -271,7 +271,7 @@ def triage(
     auto_execute: bool = typer.Option(False, "--execute", "-x", help="Auto-execute after approval"),
 ) -> None:
     """Triage inbox — Claude bulk-proposes actions"""
-    from comms import triage as triage_module
+    from life.comms import triage as triage_module
 
     typer.echo("Scanning inbox...")
     triage_proposals = triage_module.triage_inbox(limit=limit)
@@ -314,8 +314,8 @@ def clear(
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show what would happen"),
 ) -> None:
     """One-command inbox clear: triage → approve → execute"""
-    from comms import proposals as proposals_module
-    from comms import triage as triage_module
+    from life.comms import proposals as proposals_module
+    from life.comms import triage as triage_module
 
     typer.echo("Scanning inbox...")
     triage_proposals = triage_module.triage_inbox(limit=limit)
@@ -324,7 +324,7 @@ def clear(
         typer.echo("Inbox clear — nothing to triage")
         return
 
-    from comms.contacts import get_high_priority_patterns
+    from life.comms.contacts import get_high_priority_patterns
 
     high_priority = get_high_priority_patterns()
 

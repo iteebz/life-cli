@@ -46,7 +46,7 @@ def agent_config(
     nlp: bool | None = typer.Option(None, "--nlp/--no-nlp", help="Enable natural language parsing"),
 ) -> None:
     """Configure agent settings"""
-    from comms.config import get_agent_config, set_agent_config
+    from life.comms.config import get_agent_config, set_agent_config
 
     config = get_agent_config()
 
@@ -67,7 +67,7 @@ def daemon_start(
     foreground: bool = typer.Option(False, "--foreground", "-f", help="Run in foreground"),
 ) -> None:
     """Start Signal daemon (background polling)"""
-    from comms import daemon
+    from life.comms import daemon
 
     success, status_msg = daemon.start(interval=interval, foreground=foreground)
     typer.echo(status_msg)
@@ -78,7 +78,7 @@ def daemon_start(
 @app.command()
 def daemon_stop() -> None:
     """Stop Signal daemon"""
-    from comms import daemon
+    from life.comms import daemon
 
     success, status_msg = daemon.stop()
     typer.echo(status_msg)
@@ -89,7 +89,7 @@ def daemon_stop() -> None:
 @app.command()
 def daemon_status() -> None:
     """Show daemon status"""
-    from comms import daemon, launchd
+    from life.comms import daemon, launchd
 
     daemon_info = daemon.status()
     launchd_info = launchd.status()
@@ -115,7 +115,7 @@ def daemon_install(
     interval: int = typer.Option(5, "--interval", "-i", help="Polling interval"),
 ) -> None:
     """Install daemon as launchd service (auto-start on boot)"""
-    from comms import launchd
+    from life.comms import launchd
 
     success, status_msg = launchd.install(interval=interval)
     typer.echo(status_msg)
@@ -126,7 +126,7 @@ def daemon_install(
 @app.command()
 def daemon_uninstall() -> None:
     """Uninstall daemon launchd service"""
-    from comms import launchd
+    from life.comms import launchd
 
     success, status_msg = launchd.uninstall()
     typer.echo(status_msg)

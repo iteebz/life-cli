@@ -2,7 +2,7 @@
 
 import typer
 
-from comms import db
+from life.comms import db
 
 from .accounts import app as accounts_app
 from .daemon import app as daemon_app
