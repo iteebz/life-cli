@@ -23,7 +23,6 @@ from .tasks import (
     cmd_defer,
     cmd_due,
     cmd_focus,
-    cmd_link,
     cmd_now,
     cmd_schedule,
     cmd_set,
@@ -33,7 +32,6 @@ from .tasks import (
     cmd_tomorrow,
     cmd_unblock,
     cmd_unfocus,
-    cmd_unlink,
 )
 
 app = typer.Typer(
@@ -370,24 +368,6 @@ def unblock(
 ):
     """Clear blocked_by on a task"""
     cmd_unblock(args)
-
-
-@app.command()
-def link(
-    a: str = typer.Argument(..., help="First task (fuzzy or UUID prefix)"),
-    b: str = typer.Argument(..., help="Second task (fuzzy or UUID prefix)"),
-):
-    """Link two tasks together"""
-    cmd_link([a], [b])
-
-
-@app.command()
-def unlink(
-    a: str = typer.Argument(..., help="First task (fuzzy or UUID prefix)"),
-    b: str = typer.Argument(..., help="Second task (fuzzy or UUID prefix)"),
-):
-    """Remove link between two tasks"""
-    cmd_unlink([a], [b])
 
 
 db_app = typer.Typer(

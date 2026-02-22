@@ -18,7 +18,6 @@ from .models import Task, TaskMutation
 from .tags import add_tag, hydrate_tags, load_tags_for_tasks
 
 __all__ = [
-    "add_link",
     "add_task",
     "cancel_task",
     "check_task",
@@ -27,7 +26,6 @@ __all__ = [
     "cmd_defer",
     "cmd_due",
     "cmd_focus",
-    "cmd_link",
     "cmd_now",
     "cmd_rename_task",
     "cmd_schedule",
@@ -38,23 +36,19 @@ __all__ = [
     "cmd_tomorrow",
     "cmd_unblock",
     "cmd_unfocus",
-    "cmd_unlink",
     "count_overdue_resets",
     "defer_task",
     "delete_task",
     "find_task",
     "find_task_any",
     "find_task_exact",
-    "get_all_links",
     "get_all_tasks",
     "get_focus",
-    "get_links",
     "get_mutations",
     "get_subtasks",
     "get_task",
     "get_tasks",
     "last_completion",
-    "remove_link",
     "set_blocked_by",
     "toggle_completed",
     "toggle_focus",
@@ -453,42 +447,6 @@ def find_task_exact(ref: str) -> Task | None:
     return find_in_pool_exact(ref, pending + completed_today)
 
 
-def get_all_links() -> list[tuple[str, str]]:
-    """Return all (from_id, to_id) pairs from task_links."""
-    with db.get_db() as conn:
-        rows = conn.execute("SELECT from_id, to_id FROM task_links").fetchall()
-    return [(r[0], r[1]) for r in rows]
-
-
-def add_link(from_id: str, to_id: str) -> None:
-    with db.get_db() as conn:
-        conn.execute(
-            "INSERT OR IGNORE INTO task_links (from_id, to_id) VALUES (?, ?)",
-            (from_id, to_id),
-        )
-
-
-def remove_link(from_id: str, to_id: str) -> None:
-    with db.get_db() as conn:
-        conn.execute(
-            "DELETE FROM task_links WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)",
-            (from_id, to_id, to_id, from_id),
-        )
-
-
-def get_links(task_id: str) -> list[Task]:
-    """Return all tasks linked to/from task_id."""
-    with db.get_db() as conn:
-        cursor = conn.execute(
-            "SELECT id, content, focus, scheduled_date, created, completed_at, parent_id, scheduled_time, blocked_by, description, steward, source, deadline_date, deadline_time FROM tasks WHERE id IN (SELECT to_id FROM task_links WHERE from_id = ? UNION SELECT from_id FROM task_links WHERE to_id = ?)",
-            (task_id, task_id),
-        )
-        tasks = [row_to_task(row) for row in cursor.fetchall()]
-        task_ids = [t.id for t in tasks]
-        tags_map = load_tags_for_tasks(task_ids, conn=conn)
-        return hydrate_tags(tasks, tags_map)
-
-
 def set_blocked_by(task_id: str, blocker_id: str | None) -> Task | None:
     """Set or clear the blocked_by pointer on a task."""
     with db.get_db() as conn:
@@ -692,27 +650,8 @@ def cmd_show(args: list[str]) -> None:
         exit_error("Usage: life show <task>")
     task = resolve_task(ref)
     subtasks = get_subtasks(task.id)
-    linked = get_links(task.id)
     mutations = get_mutations(task.id)
-    echo(render_task_detail(task, subtasks, linked, mutations))
-
-
-def cmd_link(a_args: list[str], b_args: list[str]) -> None:
-    from .lib.resolve import resolve_task
-    a = resolve_task(" ".join(a_args))
-    b = resolve_task(" ".join(b_args))
-    if a.id == b.id:
-        exit_error("Cannot link a task to itself")
-    add_link(a.id, b.id)
-    echo(f"{a.content.lower()} {ANSI.GREY}~ {b.content.lower()}{ANSI.RESET}")
-
-
-def cmd_unlink(a_args: list[str], b_args: list[str]) -> None:
-    from .lib.resolve import resolve_task
-    a = resolve_task(" ".join(a_args))
-    b = resolve_task(" ".join(b_args))
-    remove_link(a.id, b.id)
-    echo(f"{a.content.lower()} {ANSI.GREY}\u2717 {b.content.lower()}{ANSI.RESET}")
+    echo(render_task_detail(task, subtasks, mutations))
 
 
 def cmd_block(blocked_args: list[str], blocker_args: list[str]) -> None:

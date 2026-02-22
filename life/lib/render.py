@@ -4,11 +4,10 @@ from datetime import date, datetime, timedelta
 from life.config import get_dates
 from life.habits import get_subhabits
 from life.models import Habit, Task, TaskMutation
-from life.tasks import _task_sort_key, get_all_links
+from life.tasks import _task_sort_key
 
 from . import clock
 from .ansi import ANSI, bold, cyan, dim, gold, gray, green, muted, red, secondary, white
-from .clusters import build_clusters, cluster_focus, link_distances
 from .format import format_habit, format_task
 
 __all__ = [
@@ -99,23 +98,6 @@ def _get_habit_trend(checks: list[datetime]) -> str:
     if count_p1 < count_p2:
         return "↘"
     return "→"
-
-
-def _link_hint(task_id: str, linked_peers: dict[str, list[str]]) -> str:
-    peers = list(dict.fromkeys(linked_peers.get(task_id, [])))
-    if not peers:
-        return ""
-    return f" {dim('~ ' + ', '.join(peers))}"
-
-
-def _build_link_peers(tasks: list[Task], links: list[tuple[str, str]]) -> dict[str, list[str]]:
-    task_map = {t.id: t for t in tasks}
-    peers: dict[str, list[str]] = {}
-    for from_id, to_id in links:
-        if from_id in task_map and to_id in task_map:
-            peers.setdefault(from_id, []).append(task_map[to_id].content.lower())
-            peers.setdefault(to_id, []).append(task_map[from_id].content.lower())
-    return peers
 
 
 def _render_header(
@@ -367,9 +349,8 @@ def _render_task_row(
     return rows
 
 
-def _render_clusters(
+def _render_tasks(
     regular_items: list[Task],
-    all_links: list[tuple[str, str]],
     today: date,
     today_str: str,
     tomorrow_str: str,
@@ -384,94 +365,27 @@ def _render_clusters(
 
     subtask_ids = {t.id for t in regular_items if t.parent_id}
     top_level = [t for t in regular_items if t.id not in subtask_ids]
-    lines_out: list[str] = [f"\n{bold(white(f'TASKS ({len(top_level)}):'))}"]
-
-    clusters = build_clusters(top_level, all_links)
-    focused_clusters = [c for c in clusters if cluster_focus(c)]
-    clustered_ids: set[str] = {t.id for cluster in focused_clusters for t in cluster}
+    lines_out: list[str] = [f"\n{bold(white(f'TASKS ({len(top_level)}):'))}"] 
 
     lines: list[str] = []
-
-    for cluster in sorted(focused_clusters, key=lambda c: min((t.scheduled_date or date.max) for t in c)):
-        focus = cluster_focus(cluster)
-        if not focus:
+    seen: set[str] = set()
+    for task in sorted(top_level, key=_task_sort_key):
+        if task.id in seen:
             continue
-
-        distances = link_distances(focus.id, all_links)
-        tags_str = _fmt_tags(focus.tags, tag_colors)
-        id_str = f" {_GREY}[{focus.id[:8]}]{_R}"
-        date_str = ""
-        if focus.scheduled_date and focus.scheduled_date.isoformat() not in (today_str, tomorrow_str):
-            label = _fmt_rel_date(focus.scheduled_date, today)
-            date_str = f"{secondary(label)} "
-        lines.append(f"\n{bold('⦿')} {date_str}{focus.content.lower()}{tags_str}{id_str}")
-
-        for sub in sorted(subtasks_by_parent.get(focus.id, []), key=_task_sort_key):
-            sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
-            sub_direct_tags = _get_direct_tags(sub, all_pending)
-            sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-            sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
-            lines.append(f"  └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}")
-
-        peers_close = sorted(
-            [t for t in cluster if t.id != focus.id and distances.get(t.id, 99) <= 2],
-            key=_task_sort_key,
+        seen.add(task.id)
+        lines.extend(
+            _render_task_row(
+                task,
+                today,
+                today_str,
+                tomorrow_str,
+                tag_colors,
+                task_id_to_content,
+                subtasks_by_parent,
+                completed_subs_by_parent,
+                all_pending,
+            )
         )
-        peers_far = sorted(
-            [t for t in cluster if t.id != focus.id and distances.get(t.id, 99) > 2],
-            key=_task_sort_key,
-        )
-
-        for peer in peers_close:
-            peer_tags_str = _fmt_tags(peer.tags, tag_colors)
-            peer_id_str = f" {_GREY}[{peer.id[:8]}]{_R}"
-            peer_date_str = ""
-            if peer.scheduled_date and peer.scheduled_date.isoformat() not in (today_str, tomorrow_str):
-                label = _fmt_rel_date(peer.scheduled_date, today)
-                peer_date_str = f"{secondary(label)} "
-            lines.append(
-                f"  {_GREY}~{_R} {peer_date_str}{peer.content.lower()}{peer_tags_str}{peer_id_str}"
-            )
-            for sub in sorted(subtasks_by_parent.get(peer.id, []), key=_task_sort_key):
-                sub_id_str = f" {_GREY}[{sub.id[:8]}]{_R}"
-                sub_direct_tags = _get_direct_tags(sub, all_pending)
-                sub_tags_str = _fmt_tags(sub_direct_tags, tag_colors)
-                sub_time_str = f" {_fmt_time(sub.scheduled_time)}" if sub.scheduled_time else ""
-                lines.append(
-                    f"    └{sub_time_str} {sub.content.lower()}{sub_tags_str}{sub_id_str}{_R}"
-                )
-
-        for peer in peers_far:
-            peer_tags_str = _fmt_tags(peer.tags, tag_colors)
-            peer_id_str = f" {_GREY}[{peer.id[:8]}]{_R}"
-            peer_date_str = ""
-            if peer.scheduled_date and peer.scheduled_date.isoformat() not in (today_str, tomorrow_str):
-                label = _fmt_rel_date(peer.scheduled_date, today)
-                peer_date_str = f"{label} "
-            lines.append(
-                f"  {dim('~ ' + peer_date_str + peer.content.lower())}{peer_tags_str}{peer_id_str}"
-            )
-
-    unlinked = [t for t in top_level if t.id not in clustered_ids]
-    if unlinked:
-        seen: set[str] = set()
-        for task in sorted(unlinked, key=_task_sort_key):
-            if task.id in seen:
-                continue
-            seen.add(task.id)
-            lines.extend(
-                _render_task_row(
-                    task,
-                    today,
-                    today_str,
-                    tomorrow_str,
-                    tag_colors,
-                    task_id_to_content,
-                    subtasks_by_parent,
-                    completed_subs_by_parent,
-                    all_pending,
-                )
-            )
 
     return lines_out + lines
 
@@ -491,7 +405,6 @@ def render_dashboard(
     all_pending = [item for item in items if isinstance(item, Task)]
     all_items = items + (today_items or [])
     tag_colors = _build_tag_colors(all_items)
-    all_links = get_all_links()
 
     lines: list[str] = []
 
@@ -597,9 +510,8 @@ def render_dashboard(
             completed_subs_by_parent.setdefault(t.parent_id, []).append(t)
 
     lines.extend(
-        _render_clusters(
+        _render_tasks(
             regular_items,
-            all_links,
             today,
             today_str,
             tomorrow_str,
@@ -699,12 +611,11 @@ def render_habit_matrix(habits: list[Habit]) -> str:
 def render_task_detail(
     task: Task,
     subtasks: list[Task],
-    linked: list[Task],
     mutations: list[TaskMutation] | None = None,
 ) -> str:
     lines = []
 
-    all_tasks = [task, *subtasks, *linked]
+    all_tasks = [task, *subtasks]
     tag_colors = _build_tag_colors(all_tasks)
     tags_str = _fmt_tags(task.tags, tag_colors)
     focus_str = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
@@ -743,17 +654,6 @@ def render_task_detail(
             sub_time_str = f"{dim(_fmt_time(sub.scheduled_time))} " if sub.scheduled_time else ""
             lines.append(
                 f"    {sub_status} {sub_id_str}  {sub_time_str}{sub.content.lower()}{sub_tags_str}"
-            )
-
-    if linked:
-        lines.append("  links:")
-        for lt in sorted(linked, key=_task_sort_key):
-            lt_status = gray("✓") if lt.completed_at else "□"
-            lt_id_str = dim(f"[{lt.id}]")
-            lt_tags_str = _fmt_tags(lt.tags, tag_colors)
-            lt_time_str = f"{dim(_fmt_time(lt.scheduled_time))} " if lt.scheduled_time else ""
-            lines.append(
-                f"    {lt_status} {lt_id_str}  {lt_time_str}{lt.content.lower()}{lt_tags_str}"
             )
 
     deferrals = [m for m in (mutations or []) if m.field == "defer" or m.reason == "overdue_reset"]
