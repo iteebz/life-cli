@@ -3,21 +3,9 @@ import sys
 from fncli import UsageError, cli
 
 from . import db
-from .commands import (
-    cmd_dashboard,
-    cmd_dates,
-    cmd_momentum,
-    cmd_mood,
-    cmd_pattern,
-    cmd_profile,
-    cmd_stats,
-    cmd_status,
-    cmd_tail,
-    cmd_track,
-)
-from .habits import cmd_archive, cmd_habit, cmd_habits
-from .items import cmd_check, cmd_rename, cmd_rm, cmd_uncheck
-from .lib.errors import echo
+from .commands import cmd_dashboard, cmd_momentum, cmd_stats, cmd_status
+from .habits import cmd_archive, cmd_habits
+from .lib.errors import echo, exit_error
 from .steward import (
     boot,
     close,
@@ -26,23 +14,6 @@ from .steward import (
     log,
     observe,
     rm,
-)
-from .tags import cmd_tag, cmd_untag
-from .tasks import (
-    cmd_block,
-    cmd_cancel,
-    cmd_defer,
-    cmd_due,
-    cmd_focus,
-    cmd_now,
-    cmd_schedule,
-    cmd_set,
-    cmd_show,
-    cmd_task,
-    cmd_today,
-    cmd_tomorrow,
-    cmd_unblock,
-    cmd_unfocus,
 )
 
 _ = (boot, close, dash, improve, log, observe, rm)
@@ -55,40 +26,8 @@ def dashboard(verbose: bool = False):
 
 
 @cli("life")
-def add(
-    content_args: list[str],
-    habit: bool = False,
-    focus: bool = False,
-    due: str | None = None,
-    tag: list[str] | None = None,
-    under: str | None = None,
-    desc: str | None = None,
-    done: bool = False,
-    private: bool = False,
-    steward: bool = False,
-    source: str | None = None,
-):
-    """Add task or habit (--habit). Supports due date/time, tags, focus."""
-    tags = list(tag) if tag else []
-    if habit:
-        cmd_habit(content_args, tags=tags, under=under, private=private)
-        return
-    cmd_task(
-        content_args,
-        focus=focus,
-        due=due,
-        tags=tags,
-        under=under,
-        description=desc,
-        done=done,
-        steward=steward,
-        source=source,
-    )
-
-
-@cli("life")
 def task(
-    content_args: list[str],
+    content: list[str],
     focus: bool = False,
     due: str | None = None,
     tag: list[str] | None = None,
@@ -98,9 +37,11 @@ def task(
     steward: bool = False,
     source: str | None = None,
 ):
-    """Alias for add"""
+    """Add a task"""
+    from .tasks import cmd_task
+
     cmd_task(
-        content_args,
+        content,
         focus=focus,
         due=due,
         tags=list(tag) if tag else [],
@@ -113,137 +54,282 @@ def task(
 
 
 @cli("life")
-def show(args: list[str]):
+def add(
+    content: list[str],
+    habit: bool = False,
+    focus: bool = False,
+    due: str | None = None,
+    tag: list[str] | None = None,
+    under: str | None = None,
+    desc: str | None = None,
+    done: bool = False,
+    steward: bool = False,
+    source: str | None = None,
+):
+    """Add task or habit (--habit)"""
+    tags = list(tag) if tag else []
+    if habit:
+        from .habits import cmd_habit
+
+        cmd_habit(content, tags=tags, under=under)
+        return
+    from .tasks import cmd_task
+
+    cmd_task(
+        content,
+        focus=focus,
+        due=due,
+        tags=tags,
+        under=under,
+        description=desc,
+        done=done,
+        steward=steward,
+        source=source,
+    )
+
+
+@cli("life")
+def show(ref: list[str]):
     """Show full task detail: ID, tags, due, subtasks, links"""
-    cmd_show(args)
+    from .lib.render import render_task_detail
+    from .lib.resolve import resolve_task
+    from .tasks import get_mutations, get_subtasks
+
+    task = resolve_task(" ".join(ref))
+    subtasks = get_subtasks(task.id)
+    mutations = get_mutations(task.id)
+    echo(render_task_detail(task, subtasks, mutations))
 
 
 @cli("life")
 def habit(
-    content_args: list[str] | None = None,
+    content: list[str] | None = None,
     tag: list[str] | None = None,
     under: str | None = None,
     private: bool = False,
     log: bool = False,
 ):
     """Add daily habit or view history (--log)"""
-    if log or not content_args:
+    if log or not content:
         cmd_habits()
         return
-    cmd_habit(content_args, tags=list(tag) if tag else [], under=under, private=private)
+    from .habits import cmd_habit
+
+    cmd_habit(content or [], tags=list(tag) if tag else [], under=under, private=private)
 
 
 @cli("life")
-def check(args: list[str]):
+def check(ref: list[str]):
     """Mark task/habit as done"""
-    cmd_check(args)
+    from .items import cmd_check
+
+    cmd_check(ref)
 
 
 @cli("life")
-def uncheck(args: list[str]):
+def uncheck(ref: list[str]):
     """Unmark task/habit as done"""
-    cmd_uncheck(args)
+    from .items import cmd_uncheck
+
+    cmd_uncheck(ref)
 
 
 @cli("life")
-def done(args: list[str]):
+def done(ref: list[str]):
     """Alias for check"""
-    cmd_check(args)
+    from .items import cmd_check
+
+    cmd_check(ref)
 
 
 @cli("life", name="rm")
-def rm_cmd(args: list[str]):
+def rm_cmd(ref: list[str]):
     """Delete item or completed task (fuzzy match)"""
-    cmd_rm(args)
+    from .items import cmd_rm
+
+    cmd_rm(ref)
 
 
 @cli("life")
-def focus(
-    args: list[str],
-    off: bool = False,
-):
+def focus(ref: list[str], off: bool = False):
     """Toggle focus on task; --off to remove"""
+    from .tasks import cmd_focus, cmd_unfocus
+
     if off:
-        cmd_unfocus(args)
+        cmd_unfocus(ref)
     else:
-        cmd_focus(args)
+        cmd_focus(ref)
 
 
 @cli("life")
-def unfocus(args: list[str]):
-    """Alias: life focus --off <task>"""
-    cmd_unfocus(args)
+def unfocus(ref: list[str]):
+    """Remove focus from task"""
+    from .tasks import cmd_unfocus
+
+    cmd_unfocus(ref)
 
 
 @cli("life")
-def due(
-    args: list[str],
-    remove: bool = False,
-):
+def due(ref: list[str], when: str, remove: bool = False):
     """Mark a hard deadline — sets scheduled date/time and flags it as deadline"""
-    cmd_due(args, remove=remove)
+    from .tasks import cmd_due
+
+    if remove:
+        cmd_due(ref, remove=True)
+    else:
+        cmd_due([when, *ref])
 
 
 @cli("life")
-def rename(
-    from_args: list[str],
-    to: str,
-):
-    """Rename an item using fuzzy matching for 'from' and exact match for 'to'"""
-    cmd_rename(from_args, to)
+def schedule(ref: list[str], when: str | None = None, remove: bool = False):
+    """Soft-schedule a task"""
+    from .tasks import cmd_schedule
+
+    if remove:
+        cmd_schedule(ref, remove=True)
+    elif when:
+        cmd_schedule([when, *ref])
+    else:
+        raise UsageError("Usage: life schedule <ref> <when>  or  --remove")
 
 
 @cli("life")
-def tag(
-    args: list[str],
-    tag_opt: str | None = None,
-    remove: bool = False,
-):
-    """Add tag: life tag \"ITEM\" TAG"""
-    cmd_tag(None, args, tag_opt=tag_opt, remove=remove)
+def now(ref: list[str]):
+    """Schedule task for right now"""
+    from .tasks import cmd_schedule
+
+    cmd_schedule(["now", *ref])
 
 
 @cli("life")
-def untag(
-    args: list[str],
-    tag_opt: str | None = None,
-):
-    """Alias: life tag \"ITEM\" TAG --remove"""
-    cmd_untag(None, args, tag_opt=tag_opt)
+def today(ref: list[str] | None = None):
+    """Schedule task for today"""
+    from .tasks import cmd_schedule
+
+    if ref:
+        cmd_schedule(["today", *ref])
+    else:
+        cmd_dashboard()
 
 
 @cli("life")
-def archive(
-    args: list[str] | None = None,
-    list_archived: bool = False,
+def tomorrow(ref: list[str] | None = None):
+    """Schedule task for tomorrow"""
+    from .tasks import cmd_schedule
+
+    if ref:
+        cmd_schedule(["tomorrow", *ref])
+
+
+@cli("life")
+def rename(ref: list[str], to: str):
+    """Rename an item"""
+    from .items import cmd_rename
+
+    cmd_rename(ref, to)
+
+
+@cli("life")
+def tag(ref: str, tag_name: str):
+    """Add tag to item: life tag <item> <tag>"""
+    from .lib.ansi import ANSI
+    from .lib.resolve import resolve_item_exact
+    from .tags import add_tag
+
+    task, hab = resolve_item_exact(ref)
+    if task:
+        add_tag(task.id, None, tag_name)
+        echo(f"{task.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+    elif hab:
+        add_tag(None, hab.id, tag_name)
+        echo(f"{hab.content} {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+
+
+@cli("life")
+def untag(ref: str, tag_name: str):
+    """Remove tag from item"""
+    from .lib.ansi import ANSI
+    from .lib.resolve import resolve_item_exact
+    from .tags import remove_tag
+
+    task, hab = resolve_item_exact(ref)
+    if task:
+        remove_tag(task.id, None, tag_name)
+        echo(f"{task.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+    elif hab:
+        remove_tag(None, hab.id, tag_name)
+        echo(f"{hab.content} ← {ANSI.GREY}#{tag_name}{ANSI.RESET}")
+
+
+@cli("life")
+def cancel(ref: list[str], reason: str):
+    """Cancel a task with a reason"""
+    from .lib.resolve import resolve_task
+    from .tasks import cancel_task
+
+    task = resolve_task(" ".join(ref))
+    cancel_task(task.id, reason)
+    echo(f"✗ {task.content.lower()} — {reason}")
+
+
+@cli("life")
+def defer(ref: list[str], reason: str):
+    """Defer a task with a required reason"""
+    from .lib.resolve import resolve_task
+    from .tasks import defer_task
+
+    task = resolve_task(" ".join(ref))
+    defer_task(task.id, reason)
+    echo(f"→ {task.content.lower()} deferred: {reason}")
+
+
+@cli("life")
+def block(ref: list[str], by: str):
+    """Mark a task as blocked by another task"""
+    from .lib.resolve import resolve_task
+    from .tasks import set_blocked_by
+
+    task = resolve_task(" ".join(ref))
+    blocker = resolve_task(by)
+    if blocker.id == task.id:
+        exit_error("A task cannot block itself")
+    set_blocked_by(task.id, blocker.id)
+    echo(f"⊘ {task.content.lower()}  ←  {blocker.content.lower()}")
+
+
+@cli("life")
+def unblock(ref: list[str]):
+    """Clear blocked_by on a task"""
+    from .lib.resolve import resolve_task
+    from .tasks import set_blocked_by
+
+    task = resolve_task(" ".join(ref))
+    if not task.blocked_by:
+        exit_error(f"'{task.content}' is not blocked")
+    set_blocked_by(task.id, None)
+    echo(f"□ {task.content.lower()}  unblocked")
+
+
+@cli("life", name="set")
+def set_cmd(
+    ref: list[str], parent: str | None = None, content: str | None = None, desc: str | None = None
 ):
+    """Set parent or content on an existing task"""
+    from .tasks import cmd_set
+
+    cmd_set(ref, parent=parent, content=content, description=desc)
+
+
+@cli("life")
+def archive(ref: str | None = None, list_archived: bool = False):
     """Archive a habit (keeps history, hides from daily view)"""
-    cmd_archive(args or [], show_list=list_archived)
+    cmd_archive([ref] if ref else [], show_list=list_archived)
 
 
 @cli("life")
 def habits():
-    """Alias for habit --log"""
+    """Show habits matrix"""
     cmd_habits()
-
-
-@cli("life")
-def profile(profile_text: str | None = None):
-    """View or set personal profile"""
-    cmd_profile(profile_text)
-
-
-@cli("life")
-def dates(
-    args: list[str] | None = None,
-    type_: str = "other",
-):
-    """Add, remove, or list recurring dates (birthdays, anniversaries)"""
-    items = args or []
-    action = items[0] if len(items) > 0 else None
-    name = items[1] if len(items) > 1 else None
-    date_str = items[2] if len(items) > 2 else None
-    cmd_dates(action, name, date_str, type_)
 
 
 @cli("life")
@@ -264,79 +350,179 @@ def momentum():
     cmd_momentum()
 
 
-@cli("life")
-def cancel(
-    args: list[str],
-    reason: str | None = None,
+@cli("life mood", name="log")
+def mood_log(score: int, label: str | None = None):
+    """Log energy/mood (1-5) with optional label"""
+    from .commands import cmd_mood
+
+    cmd_mood(score=score, label=label)
+
+
+@cli("life mood", name="show")
+def mood_show():
+    """View rolling 24h mood window"""
+    from .commands import cmd_mood
+
+    cmd_mood(show=True)
+
+
+@cli("life mood", name="rm")
+def mood_rm():
+    """Remove latest mood entry"""
+    from .mood import delete_latest_mood
+
+    entry = delete_latest_mood()
+    if not entry:
+        exit_error("no mood entries to remove")
+    bar = "█" * entry.score + "░" * (5 - entry.score)
+    label_str = f"  {entry.label}" if entry.label else ""
+    echo(f"✗ {bar}  {entry.score}/5{label_str}")
+
+
+@cli("life dates", name="add")
+def dates_add(name: str, date: str, type_: str = "other"):
+    """Add a recurring date (DD-MM)"""
+    from .lib.dates import add_date
+
+    try:
+        add_date(name, date, type_)
+    except ValueError as e:
+        exit_error(str(e))
+    echo(f"added: {name} on {date}")
+
+
+@cli("life dates", name="rm")
+def dates_rm(name: str):
+    """Remove a recurring date"""
+    from .lib.dates import remove_date
+
+    remove_date(name)
+    echo(f"removed: {name}")
+
+
+@cli("life dates", name="list")
+def dates_list():
+    """List all recurring dates"""
+    from .lib.dates import list_dates
+
+    items = list_dates()
+    if not items:
+        echo("no dates set")
+        return
+    for d in items:
+        type_label = f"  [{d['type']}]" if d["type"] != "other" else ""
+        days = d["days_until"]
+        days_str = "today" if days == 0 else f"in {days}d"
+        echo(f"  {d['name']} — {d['day']:02d}-{d['month']:02d}{type_label}  ({days_str})")
+
+
+@cli("life pattern", name="log")
+def pattern_log(limit: int = 20, tag: str | None = None):
+    """Review logged patterns"""
+    from .commands import cmd_pattern
+
+    cmd_pattern(show_log=True, limit=limit, tag=tag)
+
+
+@cli("life pattern", name="add")
+def pattern_add(body: str, tag: str | None = None):
+    """Log a new pattern"""
+    from .commands import cmd_pattern
+
+    cmd_pattern(body=body, tag=tag)
+
+
+@cli("life pattern", name="rm")
+def pattern_rm(ref: str):
+    """Remove a pattern by ID or fuzzy match"""
+    from .commands import cmd_pattern
+
+    cmd_pattern(rm=ref)
+
+
+@cli("life track", name="log")
+def track_log():
+    """Show recent intervention log"""
+    from .commands import cmd_track
+
+    cmd_track(show_log=True)
+
+
+@cli("life track", name="stats")
+def track_stats():
+    """Show intervention stats"""
+    from .commands import cmd_track
+
+    cmd_track(show_stats=True)
+
+
+@cli("life track", name="won")
+def track_won(description: str, note: str | None = None):
+    """Log a won intervention"""
+    from .commands import cmd_track
+
+    cmd_track(description=description, result="won", note=note)
+
+
+@cli("life track", name="lost")
+def track_lost(description: str, note: str | None = None):
+    """Log a lost intervention"""
+    from .commands import cmd_track
+
+    cmd_track(description=description, result="lost", note=note)
+
+
+@cli("life track", name="deferred")
+def track_deferred(description: str, note: str | None = None):
+    """Log a deferred intervention"""
+    from .commands import cmd_track
+
+    cmd_track(description=description, result="deferred", note=note)
+
+
+@cli("life signal", name="send")
+def signal_send(
+    recipient: str,
+    message: str,
+    attachment: str | None = None,
 ):
-    """Cancel a task with a reason (preserved for analytics)"""
-    if not reason:
-        raise UsageError("--reason is required")
-    cmd_cancel(args, reason)
+    """Send a Signal message to a contact or number"""
+    from .signal import resolve_contact, send
+
+    number = resolve_contact(recipient)
+    success, result = send(number, message, attachment=attachment)
+    if success:
+        display = recipient if number == recipient else f"{recipient} ({number})"
+        echo(f"sent → {display}")
+    else:
+        exit_error(f"failed: {result}")
 
 
-@cli("life")
-def defer(
-    args: list[str],
-    reason: str | None = None,
-):
-    """Defer a task with a required reason"""
-    if not reason:
-        raise UsageError("--reason is required")
-    cmd_defer(args, reason)
+@cli("life signal", name="check")
+def signal_check(timeout: int = 5):
+    """Pull and display recent Signal messages"""
+    from .signal import receive
+
+    messages = receive(timeout=timeout)
+    if not messages:
+        echo("no new messages")
+        return
+    for msg in messages:
+        sender = msg.get("from_name") or msg.get("from", "?")
+        echo(f"{sender}: {msg['body']}")
 
 
-@cli("life")
-def now(args: list[str]):
-    """Alias: life due now <task>"""
-    cmd_now(args)
+@cli("life signal", name="status")
+def signal_status():
+    """Show registered Signal accounts"""
+    from .signal import list_accounts
 
-
-@cli("life")
-def today(args: list[str] | None = None):
-    """Alias: life due today <task>"""
-    cmd_today(args or [])
-
-
-@cli("life")
-def tomorrow(args: list[str] | None = None):
-    """Alias: life due tomorrow <task>"""
-    cmd_tomorrow(args or [])
-
-
-@cli("life")
-def schedule(
-    args: list[str],
-    remove: bool = False,
-):
-    """Soft-schedule a task — today, tomorrow, HH:MM, YYYY-MM-DD, or combined"""
-    cmd_schedule(args, remove=remove)
-
-
-@cli("life", name="set")
-def set_cmd(
-    args: list[str],
-    parent: str | None = None,
-    content: str | None = None,
-    desc: str | None = None,
-):
-    """Set parent or content on an existing task"""
-    cmd_set(args, parent=parent, content=content, description=desc)
-
-
-@cli("life")
-def block(
-    blocked: list[str],
-    by: list[str] | None = None,
-):
-    """Mark a task as blocked by another task"""
-    cmd_block(blocked, by or [])
-
-
-@cli("life")
-def unblock(args: list[str]):
-    """Clear blocked_by on a task"""
-    cmd_unblock(args)
+    accounts = list_accounts()
+    if not accounts:
+        echo("no Signal accounts — run: signal-cli link")
+        return
+    for account in accounts:
+        echo(account)
 
 
 @cli("life db", name="migrate")
@@ -374,86 +560,6 @@ def db_health():
     health_cli()
 
 
-@cli("life signal", name="send")
-def signal_send(
-    recipient: str,
-    message_args: list[str] | None = None,
-    message: str | None = None,
-    attachment: str | None = None,
-):
-    """Send a Signal message to a contact or number"""
-    from .lib.errors import exit_error
-    from .signal import resolve_contact, send
-
-    args = message_args or []
-    body = message or (" ".join(args) if args else None)
-    if not body:
-        raise UsageError("message required: life signal send <recipient> <message> or --message")
-
-    number = resolve_contact(recipient)
-    success, result = send(number, body, attachment=attachment)
-    if success:
-        display = recipient if number == recipient else f"{recipient} ({number})"
-        echo(f"sent → {display}")
-    else:
-        exit_error(f"failed: {result}")
-
-
-@cli("life signal", name="check")
-def signal_check(timeout: int = 5):
-    """Pull and display recent Signal messages"""
-    from .signal import receive
-
-    messages = receive(timeout=timeout)
-    if not messages:
-        echo("no new messages")
-        return
-    for msg in messages:
-        sender = msg.get("from_name") or msg.get("from", "?")
-        echo(f"{sender}: {msg['body']}")
-
-
-@cli("life signal", name="status")
-def signal_status():
-    """Show registered Signal accounts"""
-    from .signal import list_accounts
-
-    accounts = list_accounts()
-    if not accounts:
-        echo("no Signal accounts — run: signal-cli link")
-        return
-    for account in accounts:
-        echo(account)
-
-
-@cli("life", name="tail")
-def tail_cmd(
-    cycles: int = 1,
-    every: int = 0,
-    model: str = "glm-4",
-    timeout: int = 1200,
-    retries: int = 2,
-    retry_delay: int = 2,
-    dry_run: bool = False,
-    raw: bool = False,
-    quiet_system: bool = False,
-    continue_on_error: bool = False,
-):
-    """Compatibility alias for auto"""
-    cmd_tail(
-        cycles=cycles,
-        interval_seconds=every,
-        model=model,
-        timeout_seconds=timeout,
-        retries=retries,
-        retry_delay_seconds=retry_delay,
-        dry_run=dry_run,
-        raw=raw,
-        quiet_system=quiet_system,
-        continue_on_error=continue_on_error,
-    )
-
-
 @cli("life")
 def auto(
     cycles: int = 1,
@@ -468,6 +574,8 @@ def auto(
     continue_on_error: bool = False,
 ):
     """Run unattended Steward loop through the glm connector"""
+    from .steward import cmd_tail
+
     cmd_tail(
         cycles=cycles,
         interval_seconds=every,
@@ -480,88 +588,6 @@ def auto(
         quiet_system=quiet_system,
         continue_on_error=continue_on_error,
     )
-
-
-@cli("life")
-def track(
-    description: list[str] | None = None,
-    won: bool = False,
-    lost: bool = False,
-    deferred: bool = False,
-    note: str | None = None,
-    stats: bool = False,
-    log: bool = False,
-):
-    """Log intervention results (Steward use)"""
-    if stats:
-        cmd_track(show_stats=True)
-        return
-    if log:
-        cmd_track(show_log=True)
-        return
-    result = None
-    if won:
-        result = "won"
-    elif lost:
-        result = "lost"
-    elif deferred:
-        result = "deferred"
-    desc = " ".join(description) if description else None
-    cmd_track(description=desc, result=result, note=note)
-
-
-@cli("life")
-def pattern(
-    body: list[str] | None = None,
-    log: bool = False,
-    limit: int = 20,
-    rm: str | None = None,
-    tag: str | None = None,
-):
-    """Log or review Steward observations about Tyson"""
-    if rm is not None:
-        cmd_pattern(rm=rm)
-        return
-    if log:
-        cmd_pattern(show_log=True, limit=limit, tag=tag)
-        return
-    if body:
-        text = " ".join(body)
-        cmd_pattern(body=text, tag=tag)
-        return
-    cmd_pattern(show_log=True, limit=limit, tag=tag)
-
-
-@cli("life")
-def mood(
-    args: list[str] | None = None,
-    log: bool = False,
-):
-    """Log energy/mood (1-5), view rolling 24h window, or rm latest entry"""
-    from .lib.errors import exit_error
-    from .mood import delete_latest_mood
-
-    items = args or []
-    if log or not items:
-        cmd_mood(show=True)
-        return
-    if items[0] == "rm":
-        try:
-            entry = delete_latest_mood()
-        except ValueError as e:
-            exit_error(str(e))
-        if not entry:
-            exit_error("no mood entries to remove")
-        bar = "█" * entry.score + "░" * (5 - entry.score)
-        label_str = f"  {entry.label}" if entry.label else ""
-        echo(f"✗ {bar}  {entry.score}/5{label_str}")
-        return
-    try:
-        score = int(items[0])
-    except (ValueError, IndexError):
-        raise UsageError("Usage: life mood <1-5> [label]") from None
-    label = " ".join(items[1:]) if len(items) > 1 else None
-    cmd_mood(score=score, label=label)
 
 
 @cli("life steward", name="run")

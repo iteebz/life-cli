@@ -31,26 +31,26 @@ def test_steward_close_persists_session(tmp_life_dir):
 
 
 def test_pattern_write_retrieve_roundtrip(tmp_life_dir):
-    result = runner.invoke(["pattern", "--body", "Decision fatigue disengages him"])
+    result = runner.invoke(["pattern", "add", "Decision fatigue disengages him"])
     assert result.exit_code == 0
 
-    result = runner.invoke(["pattern", "--log"])
+    result = runner.invoke(["pattern", "log"])
     assert result.exit_code == 0
     assert "Decision fatigue" in result.stdout
 
 
 def test_mood_write_retrieve_rm_cycle(tmp_life_dir):
-    result = runner.invoke(["mood", "--args", "3", "flat"])
+    result = runner.invoke(["mood", "log", "3", "--label", "flat"])
     assert result.exit_code == 0
 
-    result = runner.invoke(["mood", "--log"])
+    result = runner.invoke(["mood", "show"])
     assert result.exit_code == 0
     assert "3" in result.stdout
 
-    result = runner.invoke(["mood", "--args", "rm"])
+    result = runner.invoke(["mood", "rm"])
     assert result.exit_code == 0
 
-    result = runner.invoke(["mood", "--log"])
+    result = runner.invoke(["mood", "show"])
     assert result.exit_code == 0
     assert "3" not in result.stdout
 

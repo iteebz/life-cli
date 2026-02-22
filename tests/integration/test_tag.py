@@ -13,7 +13,7 @@ def test_tag_positional_syntax(tmp_life_dir):
 def test_tag_option_syntax(tmp_life_dir):
     runner = FnCLIRunner()
     runner.invoke(["task", "home loan"])
-    result = runner.invoke(["tag", "home loan", "--tag", "finance"])
+    result = runner.invoke(["tag", "home loan", "finance"])
 
     assert result.exit_code == 0
     assert "#finance" in result.stdout
