@@ -204,17 +204,17 @@ def _render_today_tasks(
         scheduled_ids.add(task.id)
         tags_str = _fmt_tags(task.tags, tag_colors)
         id_str = f" {_GREY}[{task.id[:8]}]{_R}"
-        time_str = f" {_fmt_time(task.scheduled_time)}" if task.scheduled_time else ""
+        time_str = f"{_fmt_time(task.scheduled_time)} " if task.scheduled_time else ""
 
         if task.blocked_by:
             blocker = task_id_to_content.get(task.blocked_by, task.blocked_by[:8])
             blocked_str = f" {dim('← ' + blocker.lower())}"
             lines.append(
-                f"  ⊘ {_GREY}{task.content.lower()}{tags_str}{_R}{blocked_str}{time_str}{id_str}"
+                f"  ⊘ {time_str}{_GREY}{task.content.lower()}{_R}{tags_str}{blocked_str}{id_str}"
             )
         else:
             fire = f" {ANSI.BOLD}🔥{_R}" if task.focus else ""
-            lines.append(f"  □ {task.content.lower()}{tags_str}{fire}{time_str}{id_str}")
+            lines.append(f"  □ {time_str}{task.content.lower()}{tags_str}{fire}{id_str}")
 
         for sub in sorted(subtasks_by_parent.get(task.id, []), key=_task_sort_key):
             scheduled_ids.add(sub.id)
