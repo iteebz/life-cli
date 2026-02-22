@@ -11,7 +11,6 @@ from .lib.errors import echo, exit_error
 from .lib.render import render_dashboard, render_momentum
 from .metrics import build_feedback_snapshot, render_feedback_snapshot
 from .momentum import weekly_momentum
-from .patterns import add_pattern, delete_pattern, get_patterns
 from .steward import cmd_tail
 from .tasks import get_all_tasks, get_tasks, last_completion
 
@@ -190,55 +189,3 @@ def cmd_track(
     echo(f"{symbol} {description}")
 
 
-def cmd_pattern(
-    body: str | None = None,
-    show_log: bool = False,
-    limit: int = 20,
-    rm: str | None = None,
-    tag: str | None = None,
-) -> None:
-    if rm is not None:
-        patterns = get_patterns(limit=50)
-        if not patterns:
-            exit_error("no patterns to remove")
-        if rm == "":
-            target = patterns[0]
-        else:
-            q = rm.lower()
-            matches = [p for p in patterns if q in p.body.lower()]
-            if not matches:
-                exit_error(f"no pattern matching '{rm}'")
-            target = matches[0]
-        deleted = delete_pattern(target.id)
-        if deleted:
-            echo(f"\u2192 removed: {target.body[:80]}")
-        else:
-            exit_error("delete failed")
-        return
-
-    if show_log:
-        patterns = get_patterns(limit, tag=tag)
-        if not patterns:
-            echo("no patterns logged")
-            return
-        now = datetime.now()
-        for p in patterns:
-            delta = now - p.logged_at
-            s = delta.total_seconds()
-            if s < 3600:
-                rel = f"{int(s // 60)}m ago"
-            elif s < 86400:
-                rel = f"{int(s // 3600)}h ago"
-            elif s < 86400 * 7:
-                rel = f"{int(s // 86400)}d ago"
-            else:
-                rel = p.logged_at.strftime("%Y-%m-%d")
-            tag_suffix = f"  [{p.tag}]" if p.tag else ""
-            echo(f"{rel:<10}  {p.body}{tag_suffix}")
-        return
-
-    if not body:
-        exit_error('Usage: life pattern "observation" or life pattern --log')
-
-    add_pattern(body, tag=tag)
-    echo(f"\u2192 {body}")

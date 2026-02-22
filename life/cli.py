@@ -7,6 +7,7 @@ from .commands import cmd_dashboard, cmd_momentum, cmd_stats, cmd_status
 from .habits import cmd_archive, cmd_habits
 from .lib.errors import echo, exit_error
 from . import mood as _mood
+from . import patterns as _patterns
 from . import signal as _signal
 from .steward import (
     boot,
@@ -18,7 +19,7 @@ from .steward import (
     rm,
 )
 
-_ = (boot, close, dash, improve, log, observe, rm, _mood, _signal)
+_ = (boot, close, dash, improve, log, observe, rm, _mood, _patterns, _signal)
 
 
 @cli("life")
@@ -387,30 +388,6 @@ def dates_list():
         days = d["days_until"]
         days_str = "today" if days == 0 else f"in {days}d"
         echo(f"  {d['name']} — {d['day']:02d}-{d['month']:02d}{type_label}  ({days_str})")
-
-
-@cli("life pattern", name="log")
-def pattern_log(limit: int = 20, tag: str | None = None):
-    """Review logged patterns"""
-    from .commands import cmd_pattern
-
-    cmd_pattern(show_log=True, limit=limit, tag=tag)
-
-
-@cli("life pattern", name="add")
-def pattern_add(body: str, tag: str | None = None):
-    """Log a new pattern"""
-    from .commands import cmd_pattern
-
-    cmd_pattern(body=body, tag=tag)
-
-
-@cli("life pattern", name="rm")
-def pattern_rm(ref: str):
-    """Remove a pattern by ID or fuzzy match"""
-    from .commands import cmd_pattern
-
-    cmd_pattern(rm=ref)
 
 
 @cli("life track", name="log")

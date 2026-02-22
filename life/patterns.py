@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from fncli import cli
+
 from .db import get_db
+from .lib.errors import echo, exit_error
 
 
 @dataclass(frozen=True)
@@ -40,3 +43,56 @@ def get_patterns(limit: int = 20, tag: str | None = None) -> list[Pattern]:
             Pattern(id=row[0], body=row[1], logged_at=datetime.fromisoformat(row[2]), tag=row[3])
             for row in rows
         ]
+
+
+@cli("life pattern", name="log")
+def log(limit: int = 20, tag: str | None = None):
+    """Review logged patterns"""
+    patterns = get_patterns(limit, tag=tag)
+    if not patterns:
+        echo("no patterns logged")
+        return
+    now = datetime.now()
+    for p in patterns:
+        delta = now - p.logged_at
+        s = delta.total_seconds()
+        if s < 3600:
+            rel = f"{int(s // 60)}m ago"
+        elif s < 86400:
+            rel = f"{int(s // 3600)}h ago"
+        elif s < 86400 * 7:
+            rel = f"{int(s // 86400)}d ago"
+        else:
+            rel = p.logged_at.strftime("%Y-%m-%d")
+        tag_suffix = f"  [{p.tag}]" if p.tag else ""
+        echo(f"{rel:<10}  {p.body}{tag_suffix}")
+
+
+@cli("life pattern", name="add")
+def add(body: str, tag: str | None = None):
+    """Log a new pattern"""
+    add_pattern(body, tag=tag)
+    echo(f"→ {body}")
+
+
+@cli("life pattern", name="rm")
+def rm(ref: str):
+    """Remove a pattern by ID or fuzzy match"""
+    patterns = get_patterns(limit=50)
+    if not patterns:
+        exit_error("no patterns to remove")
+        return
+    if ref == "":
+        target = patterns[0]
+    else:
+        q = ref.lower()
+        matches = [p for p in patterns if q in p.body.lower()]
+        if not matches:
+            exit_error(f"no pattern matching '{ref}'")
+            return
+        target = matches[0]
+    deleted = delete_pattern(target.id)
+    if deleted:
+        echo(f"→ removed: {target.body[:80]}")
+    else:
+        exit_error("delete failed")
