@@ -65,19 +65,25 @@ def dash(
 
 @app.command()
 def add(
-    content_args: list[str] = typer.Argument(..., help="Task content"),
+    content_args: list[str] = typer.Argument(..., help="Task or habit content"),
+    habit: bool = typer.Option(False, "--habit", "-H", help="Add as a daily habit"),
     focus: bool = typer.Option(False, "--focus", "-f", help="Set task as focused"),
     due: str = typer.Option(
-        None, "--due", "-d", help="Set due date (today, tomorrow, mon, YYYY-MM-DD)"
+        None, "--due", "-d", help="Set due date/time (today, tomorrow, mon, 'monday 10:00', YYYY-MM-DD)"
     ),
-    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags to task"),
-    under: str = typer.Option(None, "--under", "-u", help="Parent task (fuzzy match)"),
+    tags: list[str] = typer.Option(None, "--tag", "-t", help="Add tags"),
+    under: str = typer.Option(None, "--under", "-u", help="Parent task/habit (fuzzy match)"),
     description: str = typer.Option(None, "--desc", help="Optional description"),
     done: bool = typer.Option(False, "--done", help="Mark task as done immediately"),
+    private: bool = typer.Option(False, "--private", "-p", help="Hide habit from dash (--habit only)"),
     steward: bool = typer.Option(False, "--steward", help="Steward task (hidden from dash)"),
     source: str = typer.Option(None, "--source", help="Task provenance: tyson, steward, scheduled"),
 ):
-    """Add task (supports focus, due date, tags, immediate completion)"""
+    """Add task or habit (--habit). Supports due date/time, tags, focus."""
+    if habit:
+        from .habits import cmd_habit
+        cmd_habit(content_args, tags=list(tags) if tags else [], under=under, private=private)
+        return
     cmd_task(
         content_args,
         focus=focus,

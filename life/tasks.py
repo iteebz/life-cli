@@ -539,9 +539,10 @@ def cmd_task(
     except ValueError as e:
         exit_error(f"Error: {e}")
     resolved_due = None
+    resolved_time = None
     if due:
-        from .lib.dates import parse_due_date
-        resolved_due = parse_due_date(due)
+        from .lib.parsing import parse_due_datetime
+        resolved_due, resolved_time = parse_due_datetime(due)
     parent_id = None
     if under:
         parent_task = resolve_task(under)
@@ -560,6 +561,13 @@ def cmd_task(
         steward=steward,
         source=source,
     )
+    if resolved_due or resolved_time:
+        updates: dict = {}
+        if resolved_due:
+            updates["deadline_date"] = resolved_due
+        if resolved_time:
+            updates["deadline_time"] = resolved_time
+        update_task(task_id, **updates)
     if done:
         check_task(task_id)
         echo(format_status("\u2713", content, task_id))

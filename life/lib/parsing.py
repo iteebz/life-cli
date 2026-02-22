@@ -84,3 +84,22 @@ def parse_time(time_str: str) -> str:
         if 0 <= h <= 23 and 0 <= mn <= 59:
             return f"{h:02d}:{mn:02d}"
     raise ValueError(f"Invalid time '{time_str}' — use HH:MM")
+
+
+def parse_due_datetime(due_str: str) -> tuple[str | None, str | None]:
+    """Parse a combined due string like 'monday 10:00', 'today', 'tomorrow 14:30', 'YYYY-MM-DD'.
+
+    Returns (date_str, time_str). Either may be None.
+    """
+    parts = due_str.strip().split()
+    date_str: str | None = None
+    time_str: str | None = None
+
+    if parts:
+        date_str = parse_due_date(parts[0])
+        if date_str and len(parts) > 1:
+            time_str = _try_parse_time(parts[1])
+        elif not date_str:
+            time_str = _try_parse_time(parts[0])
+
+    return date_str, time_str

@@ -81,7 +81,7 @@ def receive(timeout: int = 5) -> list[dict[str, Any]]:
         [SIGNAL_CLI, "-a", phone, "receive", "-t", str(timeout)],
         capture_output=True,
         text=True,
-        timeout=timeout + 10,
+        timeout=timeout + 30,
     )
     if result.returncode != 0:
         return []
